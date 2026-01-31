@@ -47,7 +47,7 @@ const ComplaintList = () => {
             const newStatus = actionType;
             // Optimistic update
             setComplaints(prev => prev.map(c =>
-                c.ID === selectedComplaint.ID ? { ...c, Status: newStatus, Remark: remark } : c
+                c.ID === selectedComplaint.ID ? { ...c, Status: newStatus, Remark: remark, ResolvedBy: user.Username } : c
             ));
 
             await sheetsService.updateComplaintStatus(selectedComplaint.ID, newStatus, user.Username, remark);
@@ -203,8 +203,8 @@ const ComplaintList = () => {
                                 <div className="flex-1 space-y-4">
                                     <div className="flex flex-wrap items-center gap-3">
                                         <span className={`text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${complaint.Status === 'Open' ? 'bg-orange-100 text-orange-800' :
-                                                complaint.Status === 'Solved' ? 'bg-emerald-100 text-emerald-800' :
-                                                    'bg-rose-100 text-rose-800'
+                                            complaint.Status === 'Solved' ? 'bg-emerald-100 text-emerald-800' :
+                                                'bg-rose-100 text-rose-800'
                                             }`}>
                                             {complaint.Department}
                                         </span>
@@ -254,16 +254,19 @@ const ComplaintList = () => {
                                     </span>
 
                                     {/* Actions */}
+                                    {/* Actions */}
                                     <div className="flex flex-col gap-2 mt-2 w-full">
-                                        {user?.Role?.toLowerCase() === 'manager' && complaint.Status === 'Open' && (
+                                        {/* User/Manager Action: Close Ticket (Solved) */}
+                                        {(user?.Role?.toLowerCase() === 'manager' || user?.Role?.toLowerCase() === 'user') && complaint.Status === 'Open' && (
                                             <button
                                                 onClick={() => openActionModal(complaint, 'Solved')}
                                                 className="w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                                             >
-                                                <CheckCircle size={16} /> Resolve
+                                                <CheckCircle size={16} /> Close Ticket
                                             </button>
                                         )}
 
+                                        {/* Admin Action: Force Close (Closed) */}
                                         {user?.Role?.toLowerCase() === 'admin' && complaint.Status !== 'Closed' && (
                                             <button
                                                 onClick={() => openActionModal(complaint, 'Closed')}
