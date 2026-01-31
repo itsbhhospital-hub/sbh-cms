@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
 import NewComplaint from './pages/NewComplaint';
+import sbhBg from './assets/sbh.png'; // Global Background Image
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -17,9 +18,10 @@ import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
 
 // Layout component with Sidebar
+// Removed bg-slate-50 to let global background show
 const Layout = ({ children }) => {
   return (
-    <div className="min-h-screen flex bg-slate-50 relative">
+    <div className="min-h-screen flex relative">
       <Sidebar />
       <main className="flex-1 p-4 md:p-10 ml-0 transition-all overflow-x-hidden flex flex-col min-h-screen">
         <div className="flex-grow pb-24 max-w-[100vw]">
@@ -34,6 +36,12 @@ const Layout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
+      {/* GLOBAL BACKGROUND: Hospital Image + White Overlay */}
+      <div className="fixed inset-0 w-full h-full z-[-10]">
+        <img src={sbhBg} alt="Background" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-white/90 backdrop-blur-[2px]"></div> {/* 90% White Overlay */}
+      </div>
+
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />

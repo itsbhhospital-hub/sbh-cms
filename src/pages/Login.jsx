@@ -26,12 +26,12 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
-            {/* Animated Background Elements */}
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-indigo-900/85 via-purple-900/85 to-pink-900/85">
+            {/* Ambient Light Background (Reduced opacity to show hospital image) */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob"></div>
-                <div className="absolute top-20 -right-20 w-[600px] h-[600px] bg-pink-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob animation-delay-2000"></div>
-                <div className="absolute -bottom-40 left-1/2 w-[600px] h-[600px] bg-yellow-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob animation-delay-4000"></div>
+                <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-20 mix-blend-overlay animate-blob"></div>
+                <div className="absolute top-20 -right-20 w-[600px] h-[600px] bg-pink-500 rounded-full blur-3xl opacity-20 mix-blend-overlay animate-blob animation-delay-2000"></div>
+                <div className="absolute -bottom-40 left-1/2 w-[600px] h-[600px] bg-yellow-500 rounded-full blur-3xl opacity-20 mix-blend-overlay animate-blob animation-delay-4000"></div>
             </div>
 
             <motion.div
@@ -42,7 +42,7 @@ const Login = () => {
             >
                 <div className="flex flex-col items-center mb-10">
                     <div className="relative w-48 h-auto mb-6 p-4 bg-white/20 rounded-2xl shadow-lg border border-white/30 backdrop-blur-sm">
-                        <img src="/src/assets/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-xl" />
+                        <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-xl" />
                     </div>
                     <p className="text-white/80 font-bold tracking-widest text-xs uppercase drop-shadow-sm mb-2">SBH Group of Hospitals</p>
                     <h2 className="text-4xl font-black text-white tracking-tight mb-4 text-center drop-shadow-md leading-tight">

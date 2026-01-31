@@ -32,11 +32,11 @@ const Signup = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-900/85 via-purple-900/85 to-pink-900/85 relative overflow-hidden">
             {/* Ambient Light Background */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute -top-40 right-0 w-[500px] h-[500px] bg-emerald-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob"></div>
-                <div className="absolute bottom-0 -left-20 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob animation-delay-4000"></div>
+                <div className="absolute -top-40 right-0 w-[500px] h-[500px] bg-emerald-500 rounded-full blur-3xl opacity-20 mix-blend-overlay animate-blob"></div>
+                <div className="absolute bottom-0 -left-20 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-20 mix-blend-overlay animate-blob animation-delay-4000"></div>
             </div>
 
             <motion.div

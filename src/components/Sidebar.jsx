@@ -58,8 +58,8 @@ const Sidebar = () => {
                 />
             )}
 
-            {/* Sidebar Container */}
-            <div className={`h-screen flex flex-col transition-all duration-300 bg-gradient-to-b from-indigo-900 via-purple-900 to-slate-900 border-r border-white/10 shadow-2xl z-50
+            {/* Sidebar Container - Increased Z-Index to sit above Footer */}
+            <div className={`h-screen flex flex-col transition-all duration-300 bg-gradient-to-b from-indigo-900 via-purple-900 to-slate-900 border-r border-white/10 shadow-2xl z-[60]
                 fixed md:sticky top-0 left-0
                 ${mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
                 ${collapsed ? 'md:w-24' : 'md:w-72'}
@@ -67,7 +67,7 @@ const Sidebar = () => {
                 {/* Header */}
                 <div className="p-8 flex items-center gap-4 border-b border-white/10">
                     <div className="relative">
-                        <img src="/src/assets/logo.jpg" alt="Logo" className="w-12 h-12 rounded-xl bg-white/10 object-contain p-0.5 border border-white/20 shadow-md backdrop-blur-sm" />
+                        <img src="/logo.jpg" alt="Logo" className="w-12 h-12 rounded-xl bg-white/10 object-contain p-0.5 border border-white/20 shadow-md backdrop-blur-sm" />
                         <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-indigo-900"></div>
                     </div>
                     {(!collapsed || mobileOpen) && (
