@@ -10,8 +10,22 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Check local storage for persisted session
         const storedUser = localStorage.getItem('sbh_user');
+        const loginTime = localStorage.getItem('sbh_login_time'); // Get login timestamp
+
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000; // 1 Hour in ms
+
+            // Check if session expired
+            if (loginTime && (now - parseInt(loginTime) > oneHour)) {
+                // Session Expired
+                localStorage.removeItem('sbh_user');
+                localStorage.removeItem('sbh_login_time');
+                setUser(null);
+            } else {
+                // Valid Session
+                setUser(JSON.parse(storedUser));
+            }
         }
         setLoading(false);
     }, []);
@@ -27,6 +41,7 @@ export const AuthProvider = ({ children }) => {
                 const adminUser = { Username: 'admin', Role: 'admin', Department: 'ADMIN', Status: 'Active' };
                 setUser(adminUser);
                 localStorage.setItem('sbh_user', JSON.stringify(adminUser));
+                localStorage.setItem('sbh_login_time', Date.now().toString()); // Set Session Start
                 return adminUser;
             }
 
@@ -42,6 +57,7 @@ export const AuthProvider = ({ children }) => {
 
             setUser(foundUser);
             localStorage.setItem('sbh_user', JSON.stringify(foundUser));
+            localStorage.setItem('sbh_login_time', Date.now().toString()); // Set Session Start
             return foundUser;
         } catch (error) {
             console.error(error);
@@ -59,6 +75,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         localStorage.removeItem('sbh_user');
+        localStorage.removeItem('sbh_login_time');
     };
 
     return (
