@@ -38,7 +38,7 @@ const Login = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-lg p-6 md:p-10 relative z-10 bg-white/10 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20"
+                className="w-full max-w-lg p-6 md:p-10 relative z-10 bg-slate-900/40 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20"
             >
                 <div className="flex flex-col items-center mb-10">
                     <div className="relative w-48 h-auto mb-6 p-4 bg-white/20 rounded-2xl shadow-lg border border-white/30 backdrop-blur-sm">

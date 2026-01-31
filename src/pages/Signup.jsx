@@ -42,7 +42,7 @@ const Signup = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md p-6 md:p-10 relative z-10 bg-white/10 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20"
+                className="w-full max-w-md p-6 md:p-10 relative z-10 bg-slate-900/40 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20"
             >
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-md">Create Account</h2>
