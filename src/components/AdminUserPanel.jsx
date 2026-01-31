@@ -23,74 +23,90 @@ const AdminUserPanel = () => {
     };
 
     const updateUserRole = async (username, newRole, newStatus) => {
-        // NOTE: This usually requires a server-side update to the sheet row.
-        // Client-side without Row ID is hard. We will "Mock" the update in the UI.
-        console.log(`Updating ${username} to ${newRole}/${newStatus}`);
+        try {
+            await sheetsService.updateUser({ Username: username, Role: newRole, Status: newStatus });
 
-        setUsers(users.map(u =>
-            u.Username === username ? { ...u, Role: newRole, Status: newStatus } : u
-        ));
-
-        // In a real implementation: find row index, update cells.
-        alert("User updated! (Note: Actual sheet update requires Backend/Script, this is UI only)");
+            setUsers(users.map(u =>
+                u.Username === username ? { ...u, Role: newRole, Status: newStatus } : u
+            ));
+        } catch (error) {
+            console.error("Failed to update user", error);
+            alert("Failed to update user on server.");
+        }
     };
 
-    if (loading) return <div className="text-center py-4">Loading users...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center py-10">
+            <div className="w-8 h-8 border-4 border-slate-200 border-t-pink-500 rounded-full animate-spin"></div>
+        </div>
+    );
 
     return (
-        <div className="glass-panel p-6">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-teal-900">
-                <Shield size={24} /> User Management
+        <div className="glass-panel p-8 !bg-white/80 border !border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <h3 className="text-2xl font-black mb-6 flex items-center gap-3 text-slate-800">
+                <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+                    <Shield size={24} />
+                </div>
+                User Management
             </h3>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="border-b border-gray-200 text-gray-600 text-sm">
-                            <th className="p-3">Username</th>
-                            <th className="p-3">Department</th>
-                            <th className="p-3">Current Role</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3">Actions</th>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-xs uppercase tracking-widest font-bold">
+                            <th className="p-4 rounded-tl-2xl">Username</th>
+                            <th className="p-4">Department</th>
+                            <th className="p-4">Current Role</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 rounded-tr-2xl">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-50">
                         {users.map((user, idx) => (
-                            <tr key={idx} className="border-b border-gray-100 hover:bg-white/30 transition-colors">
-                                <td className="p-3 font-medium">{user.Username}</td>
-                                <td className="p-3">{user.Department}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${user.Role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                            user.Role === 'manager' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-gray-100 text-gray-700'
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                                <td className="p-4 font-bold text-slate-700 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center text-xs font-bold ring-2 ring-white">
+                                        {user.Username.charAt(0).toUpperCase()}
+                                    </div>
+                                    {user.Username}
+                                </td>
+                                <td className="p-4 text-slate-500 font-medium text-sm">{user.Department}</td>
+                                <td className="p-4">
+                                    <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${user.Role === 'admin' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-500/10' :
+                                            user.Role === 'manager' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-500/10' :
+                                                'bg-slate-100 text-slate-500 ring-1 ring-slate-500/10'
                                         }`}>
                                         {user.Role}
                                     </span>
                                 </td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${user.Status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                <td className="p-4">
+                                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${user.Status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
                                         }`}>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${user.Status === 'Active' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
                                         {user.Status}
                                     </span>
                                 </td>
-                                <td className="p-3 flex gap-2">
+                                <td className="p-4 flex items-center gap-3">
                                     {user.Status !== 'Active' && (
                                         <button
                                             onClick={() => updateUserRole(user.Username, user.Role, 'Active')}
-                                            className="p-1 bg-green-500 text-white rounded hover:bg-green-600"
+                                            className="p-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl shadow-lg shadow-green-200 hover:scale-105 active:scale-95 transition-all"
                                             title="Approve User"
                                         >
                                             <Check size={16} />
                                         </button>
                                     )}
-                                    <select
-                                        className="text-xs border rounded p-1 bg-white/50"
-                                        value={user.Role}
-                                        onChange={(e) => updateUserRole(user.Username, e.target.value, 'Active')}
-                                    >
-                                        <option value="user">User</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            className="text-xs font-bold border border-slate-200 rounded-lg py-2 pl-3 pr-8 bg-white text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none appearance-none cursor-pointer hover:border-indigo-300 transition-colors"
+                                            value={user.Role}
+                                            onChange={(e) => updateUserRole(user.Username, e.target.value, 'Active')}
+                                        >
+                                            <option value="user">User</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                        <div className="absolute right-2.5 top-2.5 pointer-events-none text-slate-400">▼</div>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

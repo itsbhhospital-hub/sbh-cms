@@ -26,37 +26,38 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden">
-
-            {/* Ambient Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                <div className="absolute -top-20 -left-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-                <div className="absolute top-0 -right-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute -bottom-32 left-20 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
+            {/* Animated Background Elements */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+                <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob"></div>
+                <div className="absolute top-20 -right-20 w-[600px] h-[600px] bg-pink-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob animation-delay-2000"></div>
+                <div className="absolute -bottom-40 left-1/2 w-[600px] h-[600px] bg-yellow-500 rounded-full blur-3xl opacity-30 mix-blend-overlay animate-blob animation-delay-4000"></div>
             </div>
 
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="glass-panel w-full max-w-lg p-8 relative z-10 !bg-white/10 !border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] backdrop-blur-xl rounded-2xl border border-white/10"
+                className="w-full max-w-lg p-6 md:p-10 relative z-10 bg-white/10 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20"
             >
-                <div className="flex flex-col items-center mb-8">
-                    {/* Modified Logo Container for 986x435 Aspect Ratio */}
-                    <div className="relative w-full max-w-[240px] aspect-[2.2/1] bg-white/10 rounded-xl mb-6 shadow-2xl p-2 border border-white/10">
-                        <img src="/src/assets/logo.jpg" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
+                <div className="flex flex-col items-center mb-10">
+                    <div className="relative w-48 h-auto mb-6 p-4 bg-white/20 rounded-2xl shadow-lg border border-white/30 backdrop-blur-sm">
+                        <img src="/src/assets/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-xl" />
                     </div>
-                    <h2 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-pink-200 tracking-tight mb-2 text-center drop-shadow-sm leading-tight">
-                        SBH Complaint Management
+                    <p className="text-white/80 font-bold tracking-widest text-xs uppercase drop-shadow-sm mb-2">SBH Group of Hospitals</p>
+                    <h2 className="text-4xl font-black text-white tracking-tight mb-4 text-center drop-shadow-md leading-tight">
+                        SBH Complaints System
                     </h2>
-                    <p className="text-blue-200/80 font-bold tracking-widest text-xs uppercase">SBH Group of Hospitals</p>
+                    <p className="text-white/90 font-bold text-[10px] uppercase drop-shadow-sm bg-white/20 px-4 py-2 rounded-xl border border-white/20 backdrop-blur-md">
+                        (Please Use Only For the complaint)
+                    </p>
                 </div>
 
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="bg-red-500/20 border border-red-500/50 text-red-100 p-4 mb-8 rounded-xl flex items-center gap-3 backdrop-blur-md"
+                        className="bg-red-500/20 border border-red-500/50 text-white p-4 mb-8 rounded-xl flex items-center gap-3 backdrop-blur-sm"
                     >
                         <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
                         <p className="text-sm font-bold">{error}</p>
@@ -65,13 +66,13 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="relative group">
-                        <div className="absolute left-0 top-0 bottom-0 w-14 flex items-center justify-center bg-white/5 rounded-l-xl border-r border-white/10 z-10 transition-colors group-focus-within:bg-blue-500/20">
-                            <User className="text-blue-200" size={20} />
+                        <div className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-center bg-white/10 rounded-l-2xl border-r border-white/10 group-focus-within:bg-white/20 transition-colors">
+                            <User className="text-white/70 group-focus-within:text-white transition-colors" size={20} />
                         </div>
                         <input
                             type="text"
                             placeholder="Username"
-                            className="w-full pl-20 pr-4 py-4 bg-slate-900/40 backdrop-blur-md border border-white/10 focus:border-blue-400/50 rounded-xl outline-none transition-all placeholder:text-slate-400 text-white font-bold shadow-inner focus:bg-slate-900/60"
+                            className="w-full pl-20 pr-6 py-5 bg-white/10 border border-white/10 rounded-2xl outline-none focus:ring-4 focus:ring-white/20 focus:border-white/40 transition-all placeholder:text-white/50 text-white font-bold shadow-lg"
                             value={formData.username}
                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                             required
@@ -79,13 +80,13 @@ const Login = () => {
                     </div>
 
                     <div className="relative group">
-                        <div className="absolute left-0 top-0 bottom-0 w-14 flex items-center justify-center bg-white/5 rounded-l-xl border-r border-white/10 z-10 transition-colors group-focus-within:bg-purple-500/20">
-                            <Lock className="text-purple-200" size={20} />
+                        <div className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-center bg-white/10 rounded-l-2xl border-r border-white/10 group-focus-within:bg-white/20 transition-colors">
+                            <Lock className="text-white/70 group-focus-within:text-white transition-colors" size={20} />
                         </div>
                         <input
                             type="password"
                             placeholder="Password"
-                            className="w-full pl-20 pr-4 py-4 bg-slate-900/40 backdrop-blur-md border border-white/10 focus:border-purple-400/50 rounded-xl outline-none transition-all placeholder:text-slate-400 text-white font-bold shadow-inner focus:bg-slate-900/60"
+                            className="w-full pl-20 pr-6 py-5 bg-white/10 border border-white/10 rounded-2xl outline-none focus:ring-4 focus:ring-white/20 focus:border-white/40 transition-all placeholder:text-white/50 text-white font-bold shadow-lg"
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             required
@@ -95,32 +96,31 @@ const Login = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full btn-primary flex items-center justify-center gap-3 group !bg-gradient-to-r !from-blue-600 !via-purple-600 !to-pink-600 !shadow-lg !shadow-purple-500/40 !py-4 hover:!scale-[1.02] active:!scale-95 text-lg uppercase tracking-wider !rounded-xl border-t border-white/20 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full py-5 bg-white text-indigo-600 font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl hover:shadow-2xl hover:bg-slate-50 hover:scale-[1.01] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-wait mt-4"
                     >
                         {isLoading ? (
-                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <div className="w-5 h-5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></div>
                         ) : (
                             <>
-                                <span className="font-bold">Access Dashboard</span>
-                                <motion.div>
-                                    <Lock size={18} className="opacity-80 group-hover:translate-x-1 transition-transform" />
-                                </motion.div>
+                                <span>Sign In to Dashboard</span>
+                                <Lock size={16} className="opacity-70" />
                             </>
                         )}
                     </button>
                 </form>
 
-                <div className="mt-8 text-center text-sm">
-                    <p className="text-slate-400 font-medium"> //
+                <div className="mt-10 text-center">
+                    <p className="text-white/60 font-medium text-sm">
                         New Staff Member?{' '}
-                        <Link to="/signup" className="text-blue-300 font-bold hover:text-white transition-colors hover:underline underline-offset-4 decoration-pink-500 decoration-2">
+                        <Link to="/signup" className="text-white font-bold hover:underline decoration-2 underline-offset-4 decoration-yellow-400">
                             Request Access
                         </Link>
                     </p>
                 </div>
-                <Footer />
             </motion.div>
 
+            {/* Fixed Footer */}
+            <Footer />
         </div>
     );
 };

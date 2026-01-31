@@ -19,10 +19,10 @@ import Footer from './components/Footer';
 // Layout component with Sidebar
 const Layout = ({ children }) => {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-slate-50 relative">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-10 ml-0 transition-all overflow-x-hidden flex flex-col min-h-screen">
-        <div className="flex-grow pb-24">
+      <main className="flex-1 p-4 md:p-10 ml-0 transition-all overflow-x-hidden flex flex-col min-h-screen">
+        <div className="flex-grow pb-24 max-w-[100vw]">
           {children}
         </div>
         <Footer />
@@ -52,7 +52,7 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-          <Route path="/users" element={
+          <Route path="/admin-users" element={
             <ProtectedRoute>
               <Layout>
                 <UserManagement />

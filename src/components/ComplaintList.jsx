@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
-import { Clock, CheckCircle, AlertTriangle, Filter, Search } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, Filter, Search, Calendar, Hash } from 'lucide-react';
 
 const ComplaintList = () => {
     const { user } = useAuth();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('All');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchDate, setSearchDate] = useState('');
 
     // Modal State
     const [modalOpen, setModalOpen] = useState(false);
@@ -58,19 +60,50 @@ const ComplaintList = () => {
         }
     };
 
-    // Filter Logic
+    // Filter & Sort Logic
     const filteredComplaints = complaints.filter(c => {
+        // 1. Role Limitation
         const role = user?.Role?.toLowerCase() || '';
         const dept = user?.Department || '';
         const username = user?.Username || '';
 
-        if (role === 'admin') return true;
-        if (c.Department === dept) return true;
-        if (c.ReportedBy === username) return true;
-        return false;
-    }).filter(c => {
-        if (filter === 'All') return true;
-        return c.Status === filter;
+        let isVisible = false;
+        if (role === 'admin') isVisible = true;
+        else if (c.Department === dept) isVisible = true;
+        else if (c.ReportedBy === username) isVisible = true;
+
+        if (!isVisible) return false;
+
+        // 2. Status Filter
+        if (filter !== 'All' && c.Status !== filter) return false;
+
+        // 3. Search Filter (ID, Description, ReportedBy)
+        const term = searchTerm.toLowerCase();
+        const matchesSearch =
+            (c.ID && c.ID.toString().toLowerCase().includes(term)) ||
+            (c.Description && c.Description.toLowerCase().includes(term)) ||
+            (c.ReportedBy && c.ReportedBy.toLowerCase().includes(term));
+
+        if (!matchesSearch) return false;
+
+        // 4. Date Filter
+        if (searchDate) {
+            // Compare YYYY-MM-DD
+            const cDate = new Date(c.Date).toISOString().split('T')[0];
+            if (cDate !== searchDate) return false;
+        }
+
+        return true;
+    }).sort((a, b) => {
+        // Priority: Open(1) > Solved(2) > Closed(3)
+        const priority = { 'Open': 1, 'Solved': 2, 'Closed': 3 };
+        const pA = priority[a.Status] || 99;
+        const pB = priority[b.Status] || 99;
+
+        if (pA !== pB) return pA - pB;
+
+        // Secondary: Date Newest First
+        return new Date(b.Date) - new Date(a.Date);
     });
 
     const getStatusStyle = (status) => {
@@ -88,92 +121,155 @@ const ComplaintList = () => {
         </div>
     );
 
+    const getCardStyle = (status) => {
+        switch (status) {
+            case 'Open': return 'bg-amber-50 border-l-4 border-l-amber-500 border-y border-r border-amber-100 shadow-sm hover:shadow-md';
+            case 'Solved': return 'bg-emerald-50 border-l-4 border-l-emerald-500 border-y border-r border-emerald-100 shadow-sm hover:shadow-md';
+            case 'Closed': return 'bg-rose-50 border-l-4 border-l-rose-500 border-y border-r border-rose-100 shadow-sm hover:shadow-md';
+            default: return 'bg-slate-50 border border-slate-200';
+        }
+    };
+
     return (
-        <div className="bg-slate-900/50 p-6 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b border-white/5 pb-6">
-                <div>
-                    <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-lg"><Clock size={24} className="text-white" /></div>
-                        Complaint Feed
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1 ml-14">Live tracking of hospital issues</p>
+        <div className="bg-white/50 p-6 rounded-3xl border border-white/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            {/* Header & Controls */}
+            <div className="flex flex-col gap-6 mb-8 border-b border-slate-100 pb-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                            <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/20 text-white">
+                                <Clock size={24} />
+                            </div>
+                            Complaint Feed
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1 ml-14 font-medium">Live tracking of hospital issues</p>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-white/10">
-                    <Filter size={18} className="text-gray-400 ml-2" />
-                    <select
-                        className="bg-transparent border-none text-sm font-semibold focus:ring-0 text-gray-200 cursor-pointer min-w-[120px] outline-none"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                    >
-                        <option value="All" className="bg-slate-900">All Status</option>
-                        <option value="Open" className="bg-slate-900">Open</option>
-                        <option value="Solved" className="bg-slate-900">Solved</option>
-                        <option value="Closed" className="bg-slate-900">Closed</option>
-                    </select>
+                {/* Filter Toolbar */}
+                <div className="flex flex-wrap gap-3 items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+                    {/* Search */}
+                    <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                        <Search size={18} className="text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search ID, Description..."
+                            className="bg-transparent border-none outline-none text-sm font-semibold text-slate-700 placeholder:text-slate-400 w-full"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Date Picker */}
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer">
+                        <Calendar size={18} className="text-slate-400" />
+                        <input
+                            type="date"
+                            className="bg-transparent border-none outline-none text-sm font-bold text-slate-600 cursor-pointer"
+                            value={searchDate}
+                            onChange={(e) => setSearchDate(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Status Select */}
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200">
+                        <Filter size={18} className="text-slate-400" />
+                        <select
+                            className="bg-transparent border-none text-sm font-bold focus:ring-0 text-slate-600 cursor-pointer outline-none"
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Open">Open</option>
+                            <option value="Solved">Solved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             {filteredComplaints.length === 0 ? (
-                <div className="text-center py-16 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                    <CheckCircle size={64} className="mx-auto mb-4 text-white/20" />
-                    <p className="text-lg font-medium text-white/60">No complaints found</p>
+                <div className="text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle size={40} className="text-slate-300" />
+                    </div>
+                    <p className="text-lg font-bold text-slate-400">No complaints found</p>
                 </div>
             ) : (
                 <div className="grid gap-4">
                     {filteredComplaints.map((complaint, idx) => (
-                        <div key={idx} className="group relative bg-gradient-to-r from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-6 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]">
-                            <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
-                                <div className="flex-1 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-xs font-bold text-cyan-300 bg-cyan-900/30 px-3 py-1 rounded-full border border-cyan-500/30 uppercase tracking-wider">
+                        <div key={idx} className={`group relative rounded-2xl p-6 transition-all duration-300 ${getCardStyle(complaint.Status)}`}>
+                            <div className="flex flex-col md:flex-row gap-6 justify-between items-start">
+                                <div className="flex-1 space-y-4">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className={`text-xs font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${complaint.Status === 'Open' ? 'bg-orange-100 text-orange-800' :
+                                                complaint.Status === 'Solved' ? 'bg-emerald-100 text-emerald-800' :
+                                                    'bg-rose-100 text-rose-800'
+                                            }`}>
                                             {complaint.Department}
                                         </span>
-                                        <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                                            <Clock size={12} /> {new Date(complaint.Date).toLocaleDateString()}
+                                        {/* ID Display */}
+                                        <span className="text-xs font-bold text-slate-500 flex items-center gap-1 bg-white/50 px-2 py-1 rounded-md border border-slate-200/50">
+                                            <Hash size={12} /> {complaint.ID || 'NO-ID'}
+                                        </span>
+                                        <span className="text-sm font-bold text-slate-500 flex items-center gap-1">
+                                            <Clock size={14} /> {new Date(complaint.Date).toLocaleDateString()}
                                         </span>
                                     </div>
-                                    <h4 className="text-white font-bold text-lg leading-snug">{complaint.Description}</h4>
+                                    <h4 className="text-slate-800 font-bold text-xl leading-relaxed tracking-wide">{complaint.Description}</h4>
 
                                     {/* Remarks Display */}
                                     {complaint.Remark && (
-                                        <div className="bg-white/5 p-3 rounded-xl border-l-2 border-purple-500 mt-2">
-                                            <p className="text-xs text-purple-300 font-bold mb-0.5">Remark:</p>
-                                            <p className="text-sm text-gray-300 italic">"{complaint.Remark}"</p>
+                                        <div className="bg-slate-50 p-5 rounded-2xl border-l-4 border-slate-300 mt-4">
+                                            <p className="text-xs text-slate-400 font-bold mb-1 uppercase tracking-wider flex items-center gap-1">
+                                                Remark
+                                            </p>
+                                            <p className="text-base text-slate-600 font-medium mb-3">"{complaint.Remark}"</p>
+
+                                            {(complaint.Status === 'Closed' || complaint.Status === 'Solved') && complaint.ResolvedBy && (
+                                                <div className="flex items-center gap-2 pt-3 border-t border-slate-200 mt-2">
+                                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                                                        {complaint.ResolvedBy[0]?.toUpperCase()}
+                                                    </div>
+                                                    <p className="text-sm text-slate-500 font-medium">
+                                                        Resolved by <span className="text-slate-700">{complaint.ResolvedBy}</span>
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
-                                    <div className="flex items-center gap-2 text-sm text-gray-400 pt-2">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs font-bold ring-1 ring-indigo-500/40">
+                                    <div className="flex items-center gap-2 text-sm text-slate-400 pt-2">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold border border-slate-200">
                                             {complaint.ReportedBy ? complaint.ReportedBy[0]?.toUpperCase() : '?'}
                                         </div>
-                                        <span>Reported by <span className="text-indigo-300 font-medium">{complaint.ReportedBy || 'Unknown'}</span></span>
+                                        <span>Reported by <span className="text-slate-700 font-bold">{complaint.ReportedBy || 'Unknown'}</span></span>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col items-end gap-3 min-w-[140px]">
-                                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${getStatusStyle(complaint.Status)}`}>
-                                        <div className={`w-2 h-2 rounded-full ${complaint.Status === 'Open' ? 'bg-yellow-400 animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.6)]' : complaint.Status === 'Solved' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]'}`}></div>
-                                        {complaint.Status}
+                                    <span className={`px-5 py-2 rounded-2xl text-xs font-black shadow-sm border flex items-center gap-2 ${getStatusStyle(complaint.Status)}`}>
+                                        <div className={`w-2 h-2 rounded-full ${complaint.Status === 'Open' ? 'bg-amber-400 animate-pulse' : complaint.Status === 'Solved' ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
+                                        {complaint.Status.toUpperCase()}
                                     </span>
 
                                     {/* Actions */}
-                                    <div className="flex gap-2 mt-2">
+                                    <div className="flex flex-col gap-2 mt-2 w-full">
                                         {user?.Role?.toLowerCase() === 'manager' && complaint.Status === 'Open' && (
                                             <button
                                                 onClick={() => openActionModal(complaint, 'Solved')}
-                                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all flex items-center gap-2"
+                                                className="w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                                             >
-                                                <CheckCircle size={14} /> Resolve
+                                                <CheckCircle size={16} /> Resolve
                                             </button>
                                         )}
 
                                         {user?.Role?.toLowerCase() === 'admin' && complaint.Status !== 'Closed' && (
                                             <button
                                                 onClick={() => openActionModal(complaint, 'Closed')}
-                                                className="px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-900/20 transition-all flex items-center gap-2"
+                                                className="w-full px-4 py-3 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                                             >
-                                                <AlertTriangle size={14} /> Force Close
+                                                <AlertTriangle size={16} /> Force Close
                                             </button>
                                         )}
                                     </div>
