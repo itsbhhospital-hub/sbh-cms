@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, User, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Footer from '../components/Footer';
 
 const Signup = () => {
     const [formData, setFormData] = useState({ username: '', password: '', department: '' });
@@ -101,6 +102,8 @@ const Signup = () => {
                     </p>
                 </div>
             </motion.div>
+
+            <Footer />
         </div>
     );
 };

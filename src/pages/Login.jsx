@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Footer from '../components/Footer';
 
 const Login = () => {
     const [formData, setFormData] = useState({ username: '', password: '' });
@@ -117,7 +118,9 @@ const Login = () => {
                         </Link>
                     </p>
                 </div>
+                <Footer />
             </motion.div>
+
         </div>
     );
 };

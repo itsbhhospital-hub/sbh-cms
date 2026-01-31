@@ -14,14 +14,18 @@ const ProtectedRoute = ({ children }) => {
 };
 
 import Sidebar from './components/Sidebar';
+import Footer from './components/Footer';
 
 // Layout component with Sidebar
 const Layout = ({ children }) => {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-10 ml-0 transition-all overflow-x-hidden">
-        {children}
+      <main className="flex-1 p-6 md:p-10 ml-0 transition-all overflow-x-hidden flex flex-col min-h-screen">
+        <div className="flex-grow pb-24">
+          {children}
+        </div>
+        <Footer />
       </main>
     </div>
   );
