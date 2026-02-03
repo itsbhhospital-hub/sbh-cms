@@ -5,7 +5,7 @@ import axios from 'axios';
 // 1. Go to Google Apps Script -> Deploy -> Manage Deployments
 // 2. Copy the 'Web App URL'
 // 3. Paste it below:
-const API_URL = 'https://script.google.com/macros/s/AKfycbwAxx7PkRMx7aCNsv0NqC-QTB4AKPd2OpkPzEIxnCLm4PrWct8ioqI-8pPCBHbKtsRU/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzfL0B9lHgrn1fwntf2AYvaLOS3JlRSMMCWHerRBTYX3lSe7O-nKaEIryslISI6FTzV/exec';
 
 // --- MOCK DATA FALLBACK ---
 const MOCK_USERS = [
@@ -25,12 +25,12 @@ const getCachedData = (key) => {
         const now = Date.now();
 
         if (now - timestamp > CACHE_DURATION) {
-            console.log(`[Cache] Expired for ${key}`);
+            // console.log(`[Cache] Expired for ${key}`);
             localStorage.removeItem(CACHE_PREFIX + key);
             return null;
         }
 
-        console.log(`[Cache] Hit for ${key}`);
+        // console.log(`[Cache] Hit for ${key}`);
         return value;
     } catch (e) {
         console.error("Cache Read Error", e);
@@ -65,7 +65,7 @@ const fetchSheetData = async (sheetName, forceRefresh = false) => {
 
     // 2. Fetch Network
     try {
-        console.log(`[API] Fetching ${sheetName}...`);
+        // console.log(`[API] Fetching ${sheetName}...`);
         // Use fetch with no-cache to ensure we get fresh data from server when we actually ask
         const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}`, { cache: "no-store" });
         const data = await response.json();
@@ -159,5 +159,9 @@ export const sheetsService = {
 
     updateUser: async (user) => {
         return sendToSheet('updateUser', user);
+    },
+
+    deleteUser: async (username) => {
+        return sendToSheet('deleteUser', { Username: username });
     }
 };
