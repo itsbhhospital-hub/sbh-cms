@@ -59,7 +59,7 @@ function findCol(headers, target) {
 
 function getColMap(headers) {
     const map = {};
-    const keys = ['ID', 'Date', 'Department', 'Description', 'Status', 'ReportedBy', 'ResolvedBy', 'Remark', 'Username', 'Password', 'Role', 'Mobile', 'Resolved Date', 'Unit', 'History', 'TargetDate'];
+    const keys = ['ID', 'Date', 'Department', 'Description', 'Status', 'ReportedBy', 'ResolvedBy', 'Remark', 'Username', 'Password', 'Role', 'Mobile', 'Resolved Date', 'Unit', 'History', 'TargetDate', 'Reopened Date', 'Rating'];
     keys.forEach(k => {
         const idx = findCol(headers, k);
         if (idx !== -1) map[k] = idx;
@@ -253,6 +253,19 @@ function updateComplaintStatus(payload) {
     if (headers.length === 0 && data.length > 0) headers = data[0];
 
     const colMap = getColMap(headers);
+
+    // SELF HEALING: Ensure Rating column exists for updates too
+    if (!colMap.Rating) {
+        const lastCol = sheet.getLastColumn();
+        sheet.getRange(headerRowIndex + 1, lastCol + 1).setValue('Rating');
+        // Final Re-map
+        const newData = sheet.getDataRange().getValues();
+        const newHeaders = newData[headerRowIndex];
+        // Merge new map
+        const newCol = findCol(newHeaders, 'Rating');
+        if (newCol !== -1) colMap.Rating = newCol;
+    }
+
     if (!colMap.ID) return response('error', 'ID column not found for update. Headers: ' + headers.join(', '));
 
     let rowIndex = -1;
@@ -274,6 +287,9 @@ function updateComplaintStatus(payload) {
 
     // --- LOGIC HANDLING ---
 
+    // Get current status early for logic and notifications
+    const currentStatus = (rowIndex > 1 && colMap.Status) ? String(data[rowIndex - 1][colMap.Status - 1] || '').trim() : '';
+
     // CASE 1: EXTENSION
     if (payload.Status === 'Extend') {
         if (colMap.TargetDate && payload.TargetDate) {
@@ -282,82 +298,149 @@ function updateComplaintStatus(payload) {
         } else {
             actionLog = `[${timestamp}] Extended by ${payload.ResolvedBy}. Reason: ${payload.Remark} (No Target Date provided)`;
         }
-        // Important: We do not change the main 'Status' column to 'Extend' usually, 
-        // unless you want a specific status. Often extensions keep the ticket 'Open' 
-        // or put it in 'In Progress'. Let's keep it as is or set to 'In Progress' if logic dictates.
-        // For now, allow Status update if provided explicitly, otherwise don't change 'Status' col.
+    }
+
+    // CASE 1.5: FORCE CLOSE (Admin ONLY)
+    else if (payload.Status === 'Force Close') {
+        const actionBy = payload.ResolvedBy || 'Admin';
+        if (colMap.Status) sheet.getRange(rowIndex, colMap.Status).setValue('Closed');
+
+        let label = "FORCE CLOSED";
+        let statusLog = `[${timestamp}] ${label} by ${actionBy}`;
+        if (payload.Remark) statusLog += `. Remark: ${payload.Remark}`;
+
+        const separator = currentHistory ? '\n' : '';
+        actionLog = currentHistory + separator + statusLog;
+        if (colMap.History) sheet.getRange(rowIndex, colMap.History).setValue(actionLog);
+
+        // Ensure Resolved Date is set if not already
+        if (colMap['Resolved Date'] && !String(sheet.getRange(rowIndex, colMap['Resolved Date']).getValue()).trim()) {
+            sheet.getRange(rowIndex, colMap['Resolved Date']).setValue(timestamp);
+        }
+
+        return response('success', 'Ticket Force Closed');
     }
 
     // CASE 2: RESOLUTION / CLOSURE / RE-OPEN
     else {
         const actionBy = payload.ResolvedBy || 'User';
-        const shouldUpdateResolver = (payload.Status === 'Resolved' || payload.Status === 'Solved');
 
         // Update STATUS
         if (colMap.Status && payload.Status) sheet.getRange(rowIndex, colMap.Status).setValue(payload.Status);
 
-        // Update RESOLVER (Only if first time closing or staff update)
-        // If Status is already 'Closed', skip updating 'ResolvedBy' to prevent user overwrite.
-        const currentStatus = (rowIndex > 1 && colMap.Status) ? data[rowIndex - 1][colMap.Status - 1] : '';
-        if (colMap.ResolvedBy && currentStatus !== 'Closed') {
+        // Update RESOLVER (Only if NOT already set)
+        // This ensures the FIRST person to solve it stays as the Resolver.
+        const existingResolver = colMap.ResolvedBy ? String(data[rowIndex - 1][colMap.ResolvedBy - 1] || '').trim() : '';
+        if (colMap.ResolvedBy && (payload.Status === 'Closed' || payload.Status === 'Resolved') && !existingResolver) {
             sheet.getRange(rowIndex, colMap.ResolvedBy).setValue(actionBy);
         }
 
         let historyLines = [];
 
-        // 1. Status Log
-        let statusLog = `[${timestamp}] Status: ${payload.Status} by ${actionBy}`;
-        if (!payload.Rating && payload.Remark) statusLog += `. Remark: ${payload.Remark}`; // Attach remark here if NO rating
-        historyLines.push(statusLog);
+        // 1. Status Log (Only Open, Closed, Re-open)
+        // Fix: Only log to history if Status actually CHANGED to prevent spam when rating
+        if ((payload.Status === 'Open' || payload.Status === 'Closed') && payload.Status !== currentStatus) {
+            const label = (payload.Status === 'Open' && currentStatus === 'Closed') ? 'RE-OPEN' : payload.Status.toUpperCase();
+            let statusLog = `[${timestamp}] ${label} by ${actionBy}`;
+            if (payload.Remark) statusLog += `. Remark: ${payload.Remark}`;
+            historyLines.push(statusLog);
+        }
 
-        // 2. Rating Log (Separate Row)
+        // 2. Rating Update (Main Sheet Column only, NOT journey log)
         if (colMap.Rating && payload.Rating) {
-            sheet.getRange(rowIndex, colMap.Rating).setValue(payload.Rating);
-            historyLines.push(`[${timestamp}] ⭐ Rated ${payload.Rating}/5 by ${actionBy}. Feedback: ${payload.Remark}`);
 
-            // Log to dedicated Ratings sheet
+            // STRICT VALIDATION: Check if already rated in 'ratings' sheet
+            if (isAlreadyRated(payload.ID)) {
+                return response('error', 'Strict Architecture Rule: Rating already exists. You cannot rate twice.');
+            }
+
+            sheet.getRange(rowIndex, colMap.Rating).setValue(payload.Rating);
+            // Log to dedicated Ratings sheet for analytics
+            const resolverName = colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : 'Unknown';
             logRating({
                 ID: payload.ID,
                 Rating: payload.Rating,
                 Remark: payload.Remark,
-                Resolver: colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : 'Unknown',
+                Resolver: resolverName,
                 Reporter: actionBy
             });
+
+            // SEND WHATSAPP NOTIFICATION TO RESOLVER
+            // REMOVED as per User Request (Dashboard Only)
+            // if (resolverName !== 'Unknown') {
+            //      sendRatingNotification(payload.ID, resolverName, payload.Rating, payload.Remark, actionBy);
+            // }
         }
 
-        // Combine for History
-        actionLog = historyLines.join('\n');
+        // Combine for History Column (Ticket Journey)
+        // Only append if we actually have new relevant journey lines
+        if (historyLines.length > 0) {
+            const separator = currentHistory ? '\n' : '';
+            actionLog = currentHistory + separator + historyLines.join('\n');
+            if (colMap.History) sheet.getRange(rowIndex, colMap.History).setValue(actionLog);
+        }
 
         // Capture Resolved Date (Only on first closure)
-        if (payload.Status === 'Closed' && colMap['Resolved Date'] && currentStatus !== 'Closed') {
+        if (payload.Status === 'Closed' && colMap['Resolved Date'] && !String(sheet.getRange(rowIndex, colMap['Resolved Date']).getValue()).trim()) {
             sheet.getRange(rowIndex, colMap['Resolved Date']).setValue(timestamp);
         }
+
+        // Global Remark Update (Always show latest remark in main column)
+        if (colMap.Remark && payload.Remark) sheet.getRange(rowIndex, colMap.Remark).setValue(payload.Remark);
+
+        // --- NEW: LOG TO DEDICATED HISTORY SHEET ---
+        logToAuditHistory({
+            ID: payload.ID,
+            Action: payload.Status === 'Extend' ? 'Extension' : payload.Status,
+            By: actionBy || payload.ResolvedBy || 'User',
+            Remark: payload.Remark,
+            Rating: payload.Rating,
+            OldStatus: currentStatus,
+            NewStatus: payload.Status
+        });
+
+        // Notifications
+        // 1. Resolution / Closure (To Reporter)
+        if (payload.Status === 'Closed' && currentStatus === 'Open') {
+            const reportedByUser = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : 'User';
+            sendResolutionNotification(payload.ID, reportedByUser, payload.Status, payload.ResolvedBy || 'Staff', payload.Remark);
+        }
+
+        // 2. Re-open Alert (To original Staff Resolver)
+        if (payload.Status === 'Open' && currentStatus === 'Closed') {
+            const originalStaff = colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : null;
+            if (originalStaff) {
+                sendReopenNotification(payload.ID, originalStaff, payload.ResolvedBy || 'User', payload.Remark);
+
+                // Set Reopened Date in sheet for Escalation Tracking
+                if (colMap['Reopened Date']) {
+                    sheet.getRange(rowIndex, colMap['Reopened Date']).setValue(new Date());
+                }
+
+                // [IMMUTABLE RATING FIX]
+                // We DO NOT clear the rating anymore. 
+                // "Write Once, Read Forever" rule by User.
+                // The rating will persist even if the ticket is re-opened.
+
+                // ESCALATION L3 NOTIFICATION (Notify L3 when someone re-opens)
+                const L3 = getEscalationContact('L3');
+                if (L3 && L3.mobile) {
+                    const escMsg = `🚨 L3 ESCALATION: TICKET RE-OPENED\n\nTicket ID: #${payload.ID}\nOriginal Staff: ${originalStaff}\nReopened By: ${payload.ResolvedBy || 'User'}\nReason: ${payload.Remark || 'NA'}\n\nLink: https://sbh-cms.vercel.app/`;
+                    sendWhatsApp(L3.mobile, escMsg);
+                }
+            }
+        }
+        // 3. Extension
+        else if (payload.Status === 'Extend') {
+            const reportedBy = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : '';
+            sendExtensionNotification(payload.ID, reportedBy, payload.ResolvedBy, payload.TargetDate, payload.Remark);
+        }
+
+        // FORCE WRITE (Fix for "Rate button reappearing" - ensures data is saved before read)
+        SpreadsheetApp.flush();
+
+        return response('success', 'Status Updated');
     }
-
-
-    // Global Remark Update (Always show latest remark in main column)
-    if (colMap.Remark && payload.Remark) sheet.getRange(rowIndex, colMap.Remark).setValue(payload.Remark);
-
-    // Append History Log
-    if (colMap.History && actionLog) {
-        const separator = currentHistory ? '\n' : '';
-        sheet.getRange(rowIndex, colMap.History).setValue(currentHistory + separator + actionLog);
-    }
-
-    // Notifications
-    // 1. Resolution / Closure
-    if (payload.Status === 'Resolved' || payload.Status === 'Closed') {
-        const reportedBy = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : '';
-        sendResolutionNotification(payload.ID, reportedBy, payload.Status, payload.ResolvedBy, payload.Remark);
-    }
-    // 2. Extension
-    else if (payload.Status === 'Extend') {
-        const reportedBy = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : '';
-        // (complaintId, reportedByUser, extendedBy, newDate, reason)
-        sendExtensionNotification(payload.ID, reportedBy, payload.ResolvedBy, payload.TargetDate, payload.Remark);
-    }
-
-    return response('success', 'Status Updated');
 }
 
 function deleteUser(payload) {
@@ -472,7 +555,7 @@ function sendResolutionNotification(complaintId, reportedByUser, status, resolve
     }
 
     if (userMobile) {
-        const msg = `Dear ${reportedByUser},\n\nUpdate on Ticket #${complaintId}:\n\nStatus: ${status}\nAction By: ${resolvedBy}\nRemark: ${remark || 'N/A'}\n\nPlease login to review the resolution and rate the service: https://sbh-cms.vercel.app/\n\nRegards,\nSBH Support Team`;
+        const msg = `Dear ${reportedByUser},\n\nUpdate on Ticket #${complaintId}:\n\nStatus: ${status}\nAction By: ${resolvedBy}\nRemark: ${remark || 'N/A'}\n\nView details: https://sbh-cms.vercel.app/\n\nRegards,\nSBH Support Team`;
         sendWhatsApp(userMobile, msg);
     }
 }
@@ -502,6 +585,121 @@ function sendExtensionNotification(complaintId, reportedByUser, extendedBy, newD
     }
 }
 
+function getEscalationContact(level) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('escalation_matrix');
+
+    // Create sheet if not exists with placeholder data
+    if (!sheet) {
+        sheet = ss.insertSheet('escalation_matrix');
+        sheet.appendRow(['Level', 'Name', 'Mobile', 'Role']);
+        sheet.appendRow(['L1', 'Director Sir', '9999999999', 'Director']);
+        sheet.appendRow(['L2', 'Operations Head', '8888888888', 'Ops Head']);
+        sheet.appendRow(['L3', 'Staff Manager', '7777777777', 'Manager']);
+        sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#fee2e2"); // Light red header
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const row = data.find(r => String(r[0]).trim().toUpperCase() === String(level).toUpperCase());
+    return row ? { name: row[1], mobile: row[2] } : null;
+}
+
+function sendReopenNotification(ticketId, staffName, reopenedBy, remark) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const masterSheet = ss.getSheetByName('master');
+    const data = masterSheet.getDataRange().getValues();
+    const headers = data[0];
+    const usernameCol = headers.indexOf('Username');
+    const mobileCol = headers.indexOf('Mobile');
+
+    let staffMobile = null;
+    const searchName = String(staffName || '').trim().toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+        const rowUser = String(data[i][usernameCol] || '').trim().toLowerCase();
+        if (rowUser === searchName) {
+            staffMobile = data[i][mobileCol];
+            break;
+        }
+    }
+
+    if (staffMobile) {
+        const msg = `🚨 RE-OPEN ALERT: Ticket #${ticketId}\n\nA ticket you previously closed has been RE-OPENED by ${reopenedBy}.\n\nRemark: ${remark || 'No reason provided'}\n\nPlease take immediate action: https://sbh-cms.vercel.app/\n\nSBH Support Automation`;
+        sendWhatsApp(staffMobile, msg);
+    }
+}
+
+function logToAuditHistory(data) {
+    const sheetName = 'history';
+    let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+
+    // Create sheet if not exists
+    if (!sheet) {
+        sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(sheetName);
+        sheet.appendRow(['Date', 'Ticket ID', 'Action', 'Performed By', 'Remarks', 'Old Status', 'New Status', 'Rating']);
+        sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#f0fdf4"); // Light green header
+    }
+
+    const timestamp = Utilities.formatDate(new Date(), "GMT+5:30", "yyyy-MM-dd HH:mm:ss");
+
+    sheet.appendRow([
+        timestamp,
+        data.ID,
+        data.Action,
+        data.By,
+        data.Remark || '',
+        data.OldStatus || 'N/A',
+        data.NewStatus || 'N/A',
+        data.Rating || ''
+    ]);
+}
+
+/**
+ * Periodically check for re-opened tickets that are still pending.
+ * Set this as a Time-Driven Trigger (every hour or 4 hours).
+ */
+function checkEscalationStatus() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('data');
+    if (!sheet) return;
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const colMap = getColMap(headers);
+    if (!colMap.Status || !colMap['Reopened Date']) return;
+
+    const now = new Date();
+    const L1 = getEscalationContact('L1');
+    const L2 = getEscalationContact('L2');
+
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const status = String(row[colMap.Status - 1] || '').trim();
+        const reopDateStr = row[colMap['Reopened Date'] - 1];
+
+        if (status === 'Open' && reopDateStr) {
+            const reopDate = new Date(reopDateStr);
+            const hoursDiff = (now - reopDate) / (1000 * 60 * 60);
+            const ticketId = row[colMap.ID - 1];
+
+            // 1. L1 Escalation (Director) - If pending > 24 hours
+            if (hoursDiff >= 24) {
+                if (L1 && L1.mobile) {
+                    const msg = `🔥 CRITICAL L1 ESCALATION (24H+)\n\nDirector Sir, Ticket #${ticketId} is critically delayed.\n\nDescription: ${row[colMap.Description - 1]}\nResolver: ${row[colMap.ResolvedBy - 1]}\nReopened Status: UNRESOLVED\n\nIntervention required: https://sbh-cms.vercel.app/`;
+                    sendWhatsApp(L1.mobile, msg);
+                }
+            }
+            // 2. L2 Escalation (Ops Head) - If pending > 4 hours
+            else if (hoursDiff >= 4) {
+                if (L2 && L2.mobile) {
+                    const msg = `⚠️ L2 MANAGEMENT ALERT (4H+)\n\nTicket #${ticketId} is pending for over 4 hours after re-opening.\n\nStaff: ${row[colMap.ResolvedBy - 1]}\n\nPlease review: https://sbh-cms.vercel.app/`;
+                    sendWhatsApp(L2.mobile, msg);
+                }
+            }
+        }
+    }
+}
+
 function logRating(data) {
     const sheetName = 'ratings';
     let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
@@ -523,4 +721,58 @@ function logRating(data) {
         data.Rating,
         data.Remark || ''
     ]);
+}
+
+// HELPER: Check if a ticket has already been rated in the dedicated 'ratings' sheet
+function isAlreadyRated(ticketId) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ratings');
+    if (!sheet) return false;
+
+    // Check cache/last rows optimization could be done, but for safety scan all
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return false; // Only headers
+
+    // Find the 'Ticket ID' column index in 'ratings' sheet
+    // Usually it is Col 2 (Index 1) based on logRating function: [Date, Ticket ID, ...]
+    const headers = data[0];
+    const idIndex = headers.indexOf('Ticket ID');
+
+    if (idIndex === -1) return false;
+
+    const targetId = String(ticketId).trim().toLowerCase();
+
+    // Scan all rows
+    for (let i = 1; i < data.length; i++) {
+        const rowId = String(data[i][idIndex] || '').trim().toLowerCase();
+        if (rowId === targetId) return true; // Found existing rating
+    }
+    return false;
+}
+
+function sendRatingNotification(ticketId, resolverName, rating, remark, raterName) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const masterSheet = ss.getSheetByName('master');
+    const data = masterSheet.getDataRange().getValues();
+    const headers = data[0];
+    const usernameCol = headers.indexOf('Username');
+    const mobileCol = headers.indexOf('Mobile');
+
+    let staffMobile = null;
+    const searchName = String(resolverName || '').trim().toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+        const rowUser = String(data[i][usernameCol] || '').trim().toLowerCase();
+        if (rowUser === searchName) {
+            staffMobile = data[i][mobileCol];
+            break;
+        }
+    }
+
+    if (staffMobile) {
+        let stars = '';
+        for (let k = 0; k < parseInt(rating); k++) stars += '⭐';
+
+        const msg = `🎉 *New Rating Received*\n\nDear ${resolverName},\n\nUser ${raterName} has rated your service for Ticket #${ticketId}.\n\nRating: ${rating}/5 ${stars}\nFeedback: ${remark || 'No remark'}\n\nKeep up the good work!\n\nSBH CMS`;
+        sendWhatsApp(staffMobile, msg);
+    }
 }

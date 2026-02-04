@@ -11,6 +11,7 @@ const WorkReport = () => {
     const { user } = useAuth();
     const [users, setUsers] = useState([]);
     const [complaints, setComplaints] = useState([]);
+    const [ratings, setRatings] = useState([]); // NEW
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,12 +22,14 @@ const WorkReport = () => {
 
     const loadData = async () => {
         try {
-            const [usersData, complaintsData] = await Promise.all([
+            const [usersData, complaintsData, ratingsData] = await Promise.all([
                 sheetsService.getUsers(),
-                sheetsService.getComplaints(true)
+                sheetsService.getComplaints(true),
+                sheetsService.getRatings(true) // Fetch comprehensive ratings logs
             ]);
             setUsers(usersData);
             setComplaints(complaintsData);
+            setRatings(ratingsData);
         } catch (err) {
             console.error("Failed to load report data", err);
         } finally {
@@ -34,38 +37,45 @@ const WorkReport = () => {
         }
     };
 
-    const safeGet = (obj, key) => {
-        if (!obj) return '';
-        const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const target = norm(key);
-        return obj[Object.keys(obj).find(k => norm(k) === target)] || '';
-    };
-
     // Calculate Metrics for All Users
     const userMetrics = useMemo(() => {
         return users.map(u => {
-            const username = safeGet(u, 'Username');
+            const username = u.Username || '';
 
             // Tickets Resolved by this user
             const resolvedTickets = complaints.filter(c =>
-                (safeGet(c, 'ResolvedBy') || '').toLowerCase() === username.toLowerCase()
+                (c.ResolvedBy || '').toLowerCase() === username.toLowerCase()
             );
 
             // Tickets Reported by this user
             const reportedTickets = complaints.filter(c =>
-                (safeGet(c, 'ReportedBy') || '').toLowerCase() === username.toLowerCase()
+                (c.ReportedBy || '').toLowerCase() === username.toLowerCase()
             );
 
-            // Calculate Rating
-            const ratedCount = resolvedTickets.filter(c => safeGet(c, 'Rating')).length;
-            const totalRating = resolvedTickets.reduce((acc, c) => acc + (Number(safeGet(c, 'Rating')) || 0), 0);
-            const avgRating = ratedCount ? (totalRating / ratedCount).toFixed(1) : 0;
+            // Calculate Rating (Using 'ratings' sheet log for comprehensive history)
+            // Fallback to current ticket status if log is empty
+            const userRatings = ratings.filter(r => {
+                const resolver = (r.ResolvedBy || '').toLowerCase();
+                return resolver === username.toLowerCase() && Number(r.Rating) > 0;
+            });
+
+            let avgRating = '0.0';
+            if (userRatings.length > 0) {
+                const total = userRatings.reduce((acc, r) => acc + Number(r.Rating), 0);
+                avgRating = (total / userRatings.length).toFixed(1);
+            } else {
+                // FALLBACK: Use current active complaints if 'ratings' sheet is empty/missing
+                const currentRated = resolvedTickets.filter(c => Number(c.Rating) > 0);
+                if (currentRated.length > 0) {
+                    const total = currentRated.reduce((acc, c) => acc + Number(c.Rating), 0);
+                    avgRating = (total / currentRated.length).toFixed(1);
+                }
+            }
 
             // Delayed (Simple logic: Resolved Date > Target Date if Target exists)
-            // Or roughly tickets that took > 48h? Let's use TargetDate if available
             const delayedCount = resolvedTickets.filter(c => {
-                const target = safeGet(c, 'TargetDate');
-                const resolved = safeGet(c, 'Resolved Date');
+                const target = c.TargetDate;
+                const resolved = c.ResolvedDate;
                 if (target && resolved) {
                     return new Date(resolved) > new Date(target);
                 }
@@ -77,18 +87,19 @@ const WorkReport = () => {
                 stats: {
                     resolved: resolvedTickets.length,
                     reported: reportedTickets.length,
-                    active: reportedTickets.filter(c => safeGet(c, 'Status') === 'Open').length,
+                    active: reportedTickets.filter(c => c.Status === 'Open').length,
                     avgRating,
+                    ratingCount: userRatings.length > 0 ? userRatings.length : 0, // Track count
                     delayed: delayedCount,
                     history: [...resolvedTickets, ...reportedTickets] // Combined history
                 }
             };
         });
-    }, [users, complaints]);
+    }, [users, complaints, ratings]);
 
     const filteredUsers = userMetrics.filter(u =>
-        safeGet(u, 'Username').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        safeGet(u, 'Department').toLowerCase().includes(searchTerm.toLowerCase())
+        (u.Username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.Department || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (loading) return (
@@ -108,11 +119,11 @@ const WorkReport = () => {
                             <button onClick={() => setSelectedUser(null)} className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm mb-6 transition-colors">
                                 <ArrowRight className="rotate-180" size={16} /> Back to List
                             </button>
-                            <h1 className="text-3xl font-black mb-2">{safeGet(selectedUser, 'Username')}</h1>
+                            <h1 className="text-3xl font-black mb-2">{selectedUser.Username}</h1>
                             <div className="flex flex-wrap gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
-                                <span className="flex items-center gap-2"><Building2 size={14} className="text-blue-400" /> {safeGet(selectedUser, 'Department')}</span>
-                                <span className="flex items-center gap-2"><Shield size={14} className="text-purple-400" /> {safeGet(selectedUser, 'Role')}</span>
-                                <span className="flex items-center gap-2"><Phone size={14} className="text-emerald-400" /> {safeGet(selectedUser, 'Mobile')}</span>
+                                <span className="flex items-center gap-2"><Building2 size={14} className="text-blue-400" /> {selectedUser.Department}</span>
+                                <span className="flex items-center gap-2"><Shield size={14} className="text-purple-400" /> {selectedUser.Role}</span>
+                                <span className="flex items-center gap-2"><Phone size={14} className="text-emerald-400" /> {selectedUser.Mobile}</span>
                             </div>
                         </div>
                         <div className="text-right">
@@ -167,26 +178,34 @@ const WorkReport = () => {
                                         <tr><td colSpan="6" className="p-8 text-center text-slate-400 font-bold">No activity found.</td></tr>
                                     ) : (
                                         selectedUser.stats.history.map((c, i) => {
-                                            const isResolver = (safeGet(c, 'ResolvedBy') || '').toLowerCase() === safeGet(selectedUser, 'Username').toLowerCase();
+                                            const isResolver = (c.ResolvedBy || '').toLowerCase() === (selectedUser.Username || '').toLowerCase();
                                             return (
                                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                    <td className="p-4 font-bold text-slate-600">#{safeGet(c, 'ID')}</td>
+                                                    <td className="p-4 font-bold text-slate-600">#{c.ID}</td>
                                                     <td className="p-4 text-slate-500 font-medium">
-                                                        {new Date(safeGet(c, 'Date')).toLocaleDateString()}
+                                                        {new Date(c.Date).toLocaleDateString()}
                                                     </td>
                                                     <td className="p-4">
                                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${isResolver ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {isResolver ? 'Resolver' : 'Reporter'}
                                                         </span>
                                                     </td>
-                                                    <td className="p-4 font-medium text-slate-800 max-w-xs truncate">{safeGet(c, 'Description')}</td>
+                                                    <td className="p-4 font-medium text-slate-800 max-w-xs truncate">{c.Description}</td>
                                                     <td className="p-4">
-                                                        <span className={`font-bold ${safeGet(c, 'Status') === 'Closed' || safeGet(c, 'Status') === 'Solved' ? 'text-emerald-600' :
-                                                            safeGet(c, 'Status') === 'Open' ? 'text-amber-600' : 'text-slate-400'
-                                                            }`}>{safeGet(c, 'Status')}</span>
+                                                        <span className={`font-bold ${c.Status === 'Closed' || c.Status === 'Solved' ? 'text-emerald-600' :
+                                                            c.Status === 'Open' ? 'text-amber-600' : 'text-slate-400'
+                                                            }`}>{c.Status}</span>
                                                     </td>
-                                                    <td className="p-4 text-center font-bold text-amber-500">
-                                                        {safeGet(c, 'Rating') ? `${safeGet(c, 'Rating')} ★` : '-'}
+                                                    <td className="p-4 text-center">
+                                                        {c.Rating ? (
+                                                            <div className="flex items-center justify-center gap-0.5">
+                                                                {[...Array(5)].map((_, i) => (
+                                                                    <Star key={i} size={12} className={i < Number(c.Rating) ? "text-amber-500 fill-amber-500" : "text-amber-200"} />
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-300 font-bold">-</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );
@@ -237,8 +256,8 @@ const WorkReport = () => {
                                         <span className="text-xs font-black text-amber-700">{u.stats.avgRating || '0.0'}</span>
                                     </div>
                                 </div>
-                                <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors mb-1">{safeGet(u, 'Username')}</h3>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">{safeGet(u, 'Role')} • {safeGet(u, 'Department')}</p>
+                                <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors mb-1">{u.Username}</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">{u.Role} • {u.Department}</p>
 
                                 <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-4">
                                     <div className="text-center">

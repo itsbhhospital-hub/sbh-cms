@@ -27,19 +27,12 @@ const Signup = () => {
         try {
             const users = await sheetsService.getUsers();
 
-            const safeGet = (obj, key) => {
-                const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                const target = norm(key);
-                const foundKey = Object.keys(obj).find(k => norm(k) === target);
-                return foundKey ? obj[foundKey] : '';
-            };
-
             const newUsername = formData.username.trim().toLowerCase();
             const newMobile = formData.mobile.trim();
 
-            const duplicateUser = users.find(u => safeGet(u, 'Username').toLowerCase() === newUsername);
+            const duplicateUser = users.find(u => (u.Username || '').toLowerCase() === newUsername);
             const duplicateMobile = users.find(u => {
-                const m = safeGet(u, 'Mobile');
+                const m = u.Mobile;
                 return m && String(m) === newMobile;
             });
 
@@ -269,9 +262,7 @@ const Signup = () => {
             )}
 
             {/* Simple Footer Link/Copyright */}
-            <div className="absolute bottom-4 text-center w-full">
-                <Footer />
-            </div>
+            <Footer />
         </div>
     );
 };

@@ -56,41 +56,86 @@ const invalidateCache = (key) => {
 
 // --- API HELPERS ---
 
+// --- DATA NORMALIZATION HELPER ---
+const normalizeRows = (rows) => {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    // Map messy keys to standard internal keys
+    return rows.map(row => {
+        const normalized = {};
+        const keys = Object.keys(row);
+
+        const findValue = (possibleKeys) => {
+            const match = keys.find(k => {
+                const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return possibleKeys.some(p => p.toLowerCase().replace(/[^a-z0-9]/g, '') === nk);
+            });
+            return match ? row[match] : '';
+        };
+
+        // Standard Schema Mapping
+        normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID']);
+        normalized.Date = findValue(['Date', 'Timestamp', 'Created Date']);
+        normalized.Department = findValue(['Department', 'Dept']);
+        normalized.Description = findValue(['Description', 'Desc', 'Complaint']);
+        normalized.Status = findValue(['Status']);
+        normalized.ReportedBy = findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name']);
+        normalized.ResolvedBy = findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name (Resolver)']);
+        normalized.Remark = findValue(['Remark', 'Comments', 'Feedback']);
+        normalized.Unit = findValue(['Unit', 'Section', 'Ward']);
+        normalized.TargetDate = findValue(['TargetDate', 'DueDate']);
+        normalized.ResolvedDate = findValue(['Resolved Date', 'ClosureDate']);
+        normalized.ReopenedDate = findValue(['Reopened Date']);
+        normalized.History = findValue(['History', 'Logs']);
+        normalized.Rating = findValue(['Rating', 'Stars']);
+
+        // Master Sheet specific
+        normalized.Username = findValue(['Username', 'Name']);
+        normalized.Password = findValue(['Password']);
+        normalized.Role = findValue(['Role', 'UserType']);
+        normalized.Mobile = findValue(['Mobile', 'Phone', 'WhatsApp']);
+
+        return normalized;
+    });
+};
+
 const fetchSheetData = async (sheetName, forceRefresh = false) => {
     // 1. Check Cache
-    if (!forceRefresh) {
-        const cached = getCachedData(sheetName);
-        if (cached) return cached;
+    const cached = getCachedData(sheetName);
+
+    if (!forceRefresh && cached) {
+        // Fetch in background WITHOUT awaiting
+        fetch(`${API_URL}?action=read&sheet=${sheetName}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.status !== 'error') {
+                    const normalized = normalizeRows(data);
+                    setCachedData(sheetName, normalized);
+                }
+            })
+            .catch(err => console.error("Background Refresh error:", err));
+
+        return cached;
     }
 
-    // 2. Fetch Network
+    // 2. Fetch Network (Sync)
     try {
-        // console.log(`[API] Fetching ${sheetName}...`);
-        // Use fetch with no-cache to ensure we get fresh data from server when we actually ask
-        const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}`, { cache: "no-store" });
+        const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}&t=${Date.now()}`);
         const data = await response.json();
 
-        // Check for Script Error
         if (data.status === 'error') throw new Error(data.message);
 
-        const result = Array.isArray(data) ? data : [];
+        const normalized = normalizeRows(Array.isArray(data) ? data : []);
 
         // 3. Update Cache
-        setCachedData(sheetName, result);
-        return result;
+        setCachedData(sheetName, normalized);
+        return normalized;
     } catch (error) {
         console.error("API Read Error:", error);
-
-        // Fallback to cache even if expired if network fails? 
-        // For now, if master fails and we have nothing, return mock
         if (sheetName === 'master') {
-            // Try to get expired cache if available?
             const stale = localStorage.getItem(CACHE_PREFIX + sheetName);
-            if (stale) {
-                console.warn("Returning stale cache due to API error");
-                return JSON.parse(stale).value;
-            }
-            return MOCK_USERS;
+            if (stale) return normalizeRows(JSON.parse(stale).value);
+            return normalizeRows(MOCK_USERS);
         }
         return [];
     }
@@ -125,6 +170,7 @@ const sendToSheet = async (action, payload) => {
 export const sheetsService = {
     getComplaints: (force = false) => fetchSheetData('data', force),
     getUsers: (force = false) => fetchSheetData('master', force),
+    getRatings: (force = false) => fetchSheetData('ratings', force),
 
     createComplaint: async (complaint) => {
         const payload = {
@@ -156,7 +202,8 @@ export const sheetsService = {
             Password: user.Password || user.password,
             Department: user.Department || user.department || '',
             Mobile: user.Mobile || user.mobile || '',
-            Role: user.Role || user.role || 'user'
+            Role: user.Role || user.role || 'user',
+            Status: user.Status || 'Pending' // Fix: Pass status so Admin can auto-approve
         };
         return sendToSheet('registerUser', payload);
     },

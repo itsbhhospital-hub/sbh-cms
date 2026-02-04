@@ -22,34 +22,15 @@ const AdminUserPanel = () => {
         }
     };
 
-    const safeGet = (obj, key) => {
-        if (!obj) return '';
-        const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const target = norm(key);
-        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
-        const foundKey = Object.keys(obj).find(k => norm(k) === target);
-        if (foundKey) return obj[foundKey];
-
-        if (target === 'mobile' || target === 'phone') {
-            const mKey = Object.keys(obj).find(k => norm(k).includes('mobile') || norm(k).includes('phone'));
-            if (mKey) return obj[mKey];
-        }
-        if (target === 'department' || target === 'dept') {
-            const dKey = Object.keys(obj).find(k => norm(k).includes('department') || norm(k).includes('dept'));
-            if (dKey) return obj[dKey];
-        }
-        return '';
-    };
-
     const updateUserRole = async (targetUser, newRole, newStatus) => {
-        const username = safeGet(targetUser, 'Username');
+        const username = targetUser.Username;
         try {
             const fullPayload = {
                 OldUsername: username,
                 Username: username,
-                Password: safeGet(targetUser, 'Password'),
-                Department: safeGet(targetUser, 'Department'),
-                Mobile: safeGet(targetUser, 'Mobile'),
+                Password: targetUser.Password,
+                Department: targetUser.Department,
+                Mobile: targetUser.Mobile,
                 Role: newRole,
                 Status: newStatus
             };
@@ -57,7 +38,7 @@ const AdminUserPanel = () => {
             await sheetsService.updateUser(fullPayload);
 
             setUsers(users.map(u =>
-                safeGet(u, 'Username') === username ? { ...u, Role: newRole, Status: newStatus } : u
+                u.Username === username ? { ...u, Role: newRole, Status: newStatus } : u
             ));
         } catch (error) {
             console.error("Failed to update user", error);
@@ -92,10 +73,10 @@ const AdminUserPanel = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                         {users.map((user, idx) => {
-                            const uName = safeGet(user, 'Username');
-                            const uDept = safeGet(user, 'Department');
-                            const uRole = safeGet(user, 'Role');
-                            const uStatus = safeGet(user, 'Status');
+                            const uName = user.Username || '';
+                            const uDept = user.Department || '';
+                            const uRole = user.Role || '';
+                            const uStatus = user.Status || '';
 
                             return (
                                 <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">

@@ -12,40 +12,8 @@ const UserManagement = () => {
     const [editingUser, setEditingUser] = useState(null);
     const [editForm, setEditForm] = useState({});
 
-    // Helper to safely get properties (handles case/spaces/common variations)
-    const safeGet = (obj, key) => {
-        if (!obj) return '';
-        const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const target = norm(key);
+    // safeGet is no longer needed due to data normalization
 
-        // 1. Direct match
-        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
-
-        // 2. Normalized match (handles case, spaces, special chars)
-        const foundKey = Object.keys(obj).find(k => norm(k) === target);
-        if (foundKey) return obj[foundKey];
-
-        // 3. Special handling for common aliases/mismatches
-        if (target === 'id' || target === 'tid' || target === 'ticketid') {
-            const idKey = Object.keys(obj).find(k => {
-                const nk = norm(k);
-                return nk === 'id' || nk === 'tid' || nk === 'ticketid' || nk.includes('ticketid') || (nk.includes('id') && nk.length < 15);
-            });
-            if (idKey) return obj[idKey];
-        }
-
-        if (target === 'mobile' || target === 'phone') {
-            const mKey = Object.keys(obj).find(k => norm(k).includes('mobile') || norm(k).includes('phone'));
-            if (mKey) return obj[mKey];
-        }
-
-        if (target === 'department' || target === 'dept') {
-            const dKey = Object.keys(obj).find(k => norm(k).includes('department') || norm(k).includes('dept'));
-            if (dKey) return obj[dKey];
-        }
-
-        return '';
-    };
 
     // Add User State
     const [addingUser, setAddingUser] = useState(false);
@@ -84,16 +52,16 @@ const UserManagement = () => {
     };
 
     const handleEditClick = (u) => {
-        const username = safeGet(u, 'Username');
+        const username = u.Username;
         setEditingUser(username);
         // Store OldUsername to identify row if username is changed
         setEditForm({
             Username: username,
-            Password: safeGet(u, 'Password'),
-            Department: safeGet(u, 'Department'),
-            Mobile: safeGet(u, 'Mobile'),
-            Role: safeGet(u, 'Role'),
-            Status: safeGet(u, 'Status'),
+            Password: u.Password,
+            Department: u.Department,
+            Mobile: u.Mobile,
+            Role: u.Role,
+            Status: u.Status,
             OldUsername: username
         });
     };
@@ -174,8 +142,8 @@ const UserManagement = () => {
     };
 
     const filteredUsers = users.filter(u =>
-        safeGet(u, 'Username').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        safeGet(u, 'Department').toLowerCase().includes(searchTerm.toLowerCase())
+        (u.Username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.Department || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Pagination Logic
@@ -202,7 +170,7 @@ const UserManagement = () => {
                     </h1>
                     <p className="text-slate-500 font-medium mt-1 ml-1">
                         Total Users: <span className="font-bold text-slate-800">{users.length}</span> •
-                        Active: <span className="font-bold text-emerald-600">{users.filter(u => safeGet(u, 'Status') === 'Active').length}</span>
+                        Active: <span className="font-bold text-emerald-600">{users.filter(u => u.Status === 'Active').length}</span>
                     </p>
                 </div>
 
@@ -249,7 +217,7 @@ const UserManagement = () => {
                         </div>
                         <h3 className="text-lg font-bold text-slate-800 mb-2">Delete User?</h3>
                         <p className="text-slate-500 text-sm mb-6">
-                            This will permanently remove <span className="font-bold text-slate-800">{safeGet(deleteConfirm, 'Username')}</span>.
+                            This will permanently remove <span className="font-bold text-slate-800">{deleteConfirm.Username}</span>.
                             This action cannot be undone.
                         </p>
                         <div className="flex gap-3">
@@ -370,11 +338,11 @@ const UserManagement = () => {
                                 <tr key={idx} className="hover:bg-emerald-50/50 transition-colors group">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border ${safeGet(u, 'Role') === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border ${u.Role === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                                 }`}>
-                                                {safeGet(u, 'Username')[0]?.toUpperCase() || '?'}
+                                                {u.Username ? u.Username[0].toUpperCase() : '?'}
                                             </div>
-                                            {editingUser === safeGet(u, 'Username') ? (
+                                            {editingUser === u.Username ? (
                                                 <input
                                                     type="text"
                                                     className="w-32 p-1 border rounded bg-white text-sm font-bold focus:border-emerald-500 outline-none"
@@ -382,13 +350,13 @@ const UserManagement = () => {
                                                     onChange={(e) => setEditForm({ ...editForm, Username: e.target.value })}
                                                 />
                                             ) : (
-                                                <span className="font-bold text-slate-700">{safeGet(u, 'Username')}</span>
+                                                <span className="font-bold text-slate-700">{u.Username}</span>
                                             )}
                                         </div>
                                     </td>
 
                                     <td className="p-4">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <select
                                                 className="p-2 border rounded-lg bg-white text-sm w-full outline-none focus:border-emerald-500"
                                                 value={editForm.Department || 'General'}
@@ -421,12 +389,12 @@ const UserManagement = () => {
                                                 <option value="OTHER">OTHER</option>
                                             </select>
                                         ) : (
-                                            <span className="text-slate-600 font-medium bg-slate-100 px-2.5 py-1 rounded-md text-xs border border-slate-200">{safeGet(u, 'Department')}</span>
+                                            <span className="text-slate-600 font-medium bg-slate-100 px-2.5 py-1 rounded-md text-xs border border-slate-200">{u.Department}</span>
                                         )}
                                     </td>
 
                                     <td className="p-4">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <input
                                                 type="text"
                                                 className="w-32 p-2 border rounded-lg bg-white text-sm outline-none focus:border-emerald-500"
@@ -437,13 +405,13 @@ const UserManagement = () => {
                                         ) : (
                                             <div className="flex items-center gap-2 text-sm text-slate-600">
                                                 <Phone size={14} className="text-slate-400" />
-                                                {safeGet(u, 'Mobile') || <span className="text-slate-300 italic">--</span>}
+                                                {u.Mobile || <span className="text-slate-300 italic">--</span>}
                                             </div>
                                         )}
                                     </td>
 
                                     <td className="p-4">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <select
                                                 className="p-2 border rounded-lg bg-white text-sm outline-none focus:border-emerald-500"
                                                 value={editForm.Role || 'user'}
@@ -454,16 +422,16 @@ const UserManagement = () => {
                                                 <option value="admin">Admin</option>
                                             </select>
                                         ) : (
-                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide ${safeGet(u, 'Role') === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                safeGet(u, 'Role') === 'manager' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide ${u.Role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                                u.Role === 'manager' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
                                                 }`}>
-                                                {safeGet(u, 'Role')}
+                                                {u.Role}
                                             </span>
                                         )}
                                     </td>
 
                                     <td className="p-4">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <select
                                                 className="p-2 border rounded-lg bg-white text-sm outline-none focus:border-emerald-500"
                                                 value={editForm.Status || 'Pending'}
@@ -475,9 +443,9 @@ const UserManagement = () => {
                                             </select>
                                         ) : (
                                             <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${safeGet(u, 'Status') === 'Active' ? 'bg-emerald-500' : safeGet(u, 'Status') === 'Terminated' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                                                <span className={`text-sm font-bold ${safeGet(u, 'Status') === 'Active' ? 'text-emerald-700' : safeGet(u, 'Status') === 'Terminated' ? 'text-red-700' : 'text-amber-600'}`}>
-                                                    {safeGet(u, 'Status')}
+                                                <div className={`w-2 h-2 rounded-full ${u.Status === 'Active' ? 'bg-emerald-500' : u.Status === 'Terminated' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                                                <span className={`text-sm font-bold ${u.Status === 'Active' ? 'text-emerald-700' : u.Status === 'Terminated' ? 'text-red-700' : 'text-amber-600'}`}>
+                                                    {u.Status}
                                                 </span>
                                             </div>
                                         )}
@@ -494,7 +462,7 @@ const UserManagement = () => {
                                         ) : (
                                             <div className="flex items-center gap-2 group/pass">
                                                 <span className="text-slate-500 font-mono text-xs">
-                                                    {u.showPass ? safeGet(u, 'Password') : '••••'}
+                                                    {u.showPass ? u.Password : '••••'}
                                                 </span>
                                                 <button
                                                     onClick={() => setUsers(users.map(item => item === u ? { ...item, showPass: !item.showPass } : item))}
@@ -508,17 +476,17 @@ const UserManagement = () => {
 
 
                                     <td className="p-4 text-right">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={handleSave} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow-sm transition-colors" title="Save Changes"><Save size={16} /></button>
                                                 <button onClick={() => setEditingUser(null)} className="p-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors" title="Cancel"><X size={16} /></button>
                                             </div>
                                         ) : (
                                             <div className="flex justify-end gap-1 items-center">
-                                                {safeGet(u, 'Status') === 'Pending' && (
+                                                {u.Status === 'Pending' && (
                                                     <button
                                                         onClick={() => {
-                                                            const username = safeGet(u, 'Username');
+                                                            const username = u.Username;
                                                             sheetsService.updateUser({
                                                                 OldUsername: username,
                                                                 Username: username,
@@ -533,7 +501,7 @@ const UserManagement = () => {
                                                         APPROVE
                                                     </button>
                                                 )}
-                                                {safeGet(u, 'Status') === 'Pending' && safeGet(u, 'Username') !== user.Username && (
+                                                {u.Status === 'Pending' && u.Username !== user.Username && (
                                                     <button
                                                         onClick={() => setRejectConfirm(u)}
                                                         className="px-2 py-1 bg-red-500 text-white text-[10px] font-black rounded shadow-sm hover:scale-105 transition-transform"
@@ -544,7 +512,7 @@ const UserManagement = () => {
                                                 <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit User">
                                                     <Edit2 size={18} />
                                                 </button>
-                                                {safeGet(u, 'Username') !== user.Username && (
+                                                {u.Username !== user.Username && (
                                                     <button onClick={() => handleDeleteClick(u)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete User">
                                                         <Trash2 size={18} />
                                                     </button>
@@ -576,13 +544,13 @@ const UserManagement = () => {
                             <p className="text-red-600 font-bold text-[10px] uppercase tracking-widest mb-4">Termination Request</p>
 
                             <p className="text-slate-500 mb-8 font-medium leading-relaxed">
-                                Are you sure you want to REJECT or TERMINATE <span className="font-bold text-slate-800">{safeGet(rejectConfirm, 'Username')}</span>? They will be blocked from logging in.
+                                Are you sure you want to REJECT or TERMINATE <span className="font-bold text-slate-800">{rejectConfirm.Username}</span>? They will be blocked from logging in.
                             </p>
 
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={async () => {
-                                        const username = safeGet(rejectConfirm, 'Username').trim();
+                                        const username = rejectConfirm.Username.trim();
                                         const target = rejectConfirm;
                                         setRejectConfirm(null);
                                         try {

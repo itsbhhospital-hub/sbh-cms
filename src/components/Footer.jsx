@@ -3,26 +3,31 @@ import { Heart } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className="w-full py-6 mt-auto relative z-50">
-            <div className="flex flex-col items-center justify-center gap-2">
+        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-slate-900 text-white py-3 border-t border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-center">
 
-                {/* Glass Container */}
-                <div className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg px-6 py-3 rounded-full flex items-center gap-3 hover:bg-white/20 transition-all duration-300 group cursor-default">
-                    <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-700 transition-colors">
-                        © 2026 SBH Health Group
-                    </span>
+                <a
+                    href="https://sbhhospital.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 transition-colors"
+                >
+                    SBH Group Of Hospitals
+                </a>
 
-                    <div className="w-px h-3 bg-slate-300/50"></div>
+                <div className="hidden sm:block w-px h-3 bg-slate-700"></div>
 
-                    <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
-                            Made with
-                        </span>
-                        <Heart size={10} className="text-rose-400 fill-rose-400 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
-                            by Naman Mishra
-                        </span>
-                    </div>
+                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-400">
+                    <span>Developed By</span>
+                    <a
+                        href="https://www.instagram.com/ignamanmishra"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-white hover:text-emerald-400 transition-colors"
+                    >
+                        Naman Mishra
+                    </a>
+                    <Heart size={12} className="text-rose-500 fill-rose-500 animate-pulse ml-0.5" />
                 </div>
 
             </div>

@@ -170,9 +170,7 @@ const Login = () => {
             )}
 
             {/* Simple Footer Link/Copyright */}
-            <div className="absolute bottom-4 text-center w-full">
-                <Footer />
-            </div>
+            <Footer />
         </div>
     );
 };

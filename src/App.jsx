@@ -11,8 +11,15 @@ import WorkReport from './pages/WorkReport'; // NEW
 import sbhBg from './assets/sbh.png'; // Global Background Image
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Loading...</div>;
+  const auth = useAuth();
+  if (!auth) return <div>Initializing...</div>; // Safety check
+  const { user, loading } = auth;
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
   if (!user) return <Navigate to="/login" />;
   return children;
 };
@@ -31,7 +38,7 @@ const Layout = ({ children }) => {
         {/* Optimized Main Content: Removed overflow-x-hidden to prevent sticky conflict, removed 100vw to prevent scrollbar shift */}
         <main className="flex-1 ml-0 transition-all flex flex-col min-h-screen">
           <Navbar />
-          <div className="flex-grow p-4 md:p-10 pb-10 w-full">
+          <div className="flex-grow p-4 md:p-10 pb-20 w-full">
             {children}
           </div>
           <Footer />

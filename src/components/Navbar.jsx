@@ -16,25 +16,8 @@ const Navbar = () => {
     const dropdownRef = useRef(null);
 
     // Robust Getter Helper
-    const safeGet = (obj, key) => {
-        if (!obj) return '';
-        const norm = (s) => String(s || '').toLowerCase().replace(/\s/g, '');
-        const target = norm(key);
-        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+    // safeGet is no longer needed due to data normalization
 
-        const foundKey = Object.keys(obj).find(k => norm(k) === target);
-        if (foundKey) return obj[foundKey];
-
-        // Specific handling for 'ID'
-        if (target === 'id') {
-            const idKey = Object.keys(obj).find(k => {
-                const nk = norm(k);
-                return nk === 'ticketid' || nk === 'complaintid' || nk === 'tid' || (nk.includes('id') && nk.length < 10);
-            });
-            if (idKey) return obj[idKey];
-        }
-        return '';
-    };
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState('');
@@ -67,38 +50,38 @@ const Navbar = () => {
                 if (role.includes('admin')) {
                     // SUPER ADMIN: Everything Open or Assigned to me
                     const newTickets = data.filter(c =>
-                        safeGet(c, 'Status') === 'Open' || (safeGet(c, 'ResolvedBy') || '').toLowerCase() === username
+                        c.Status === 'Open' || (c.ResolvedBy || '').toLowerCase() === username
                     );
                     alerts = newTickets.map(t => ({
-                        id: safeGet(t, 'ID'),
+                        id: t.ID,
                         type: 'alert',
-                        msg: `Ticket #${safeGet(t, 'ID')} is Open in ${safeGet(t, 'Department')}`,
-                        time: safeGet(t, 'Date')
+                        msg: `Ticket #${t.ID} is Open in ${t.Department}`,
+                        time: t.Date
                     }));
                 } else {
                     // STANDARD USER & DEPT STAFF
                     // 1. "My Ticket" Updates (Reported By Me) - Show Status Changes (Solved/Closed)
                     const myReports = data.filter(c =>
-                        (safeGet(c, 'ReportedBy') || '').toLowerCase() === username &&
-                        (safeGet(c, 'Status') === 'Solved' || safeGet(c, 'Status') === 'Closed')
+                        (c.ReportedBy || '').toLowerCase() === username &&
+                        (c.Status === 'Solved' || c.Status === 'Closed')
                     ).map(t => ({
-                        id: safeGet(t, 'ID'),
-                        type: safeGet(t, 'Status') === 'Closed' || safeGet(t, 'Status') === 'Solved' ? 'success' : 'info',
-                        msg: `Your Ticket #${safeGet(t, 'ID')} is ${safeGet(t, 'Status')}`,
-                        time: safeGet(t, 'Resolved Date') || safeGet(t, 'Date')
+                        id: t.ID,
+                        type: t.Status === 'Closed' || t.Status === 'Solved' ? 'success' : 'info',
+                        msg: `Your Ticket #${t.ID} is ${t.Status}`,
+                        time: t.ResolvedDate || t.Date
                     }));
 
                     // 2. "My Department" Tickets (Assigned TO My Dept) - Show OPEN tickets (For Staff to work on)
                     let deptAlerts = [];
                     if (dept) {
                         deptAlerts = data.filter(c =>
-                            (safeGet(c, 'Department') || '').toLowerCase() === dept &&
-                            safeGet(c, 'Status') === 'Open'
+                            (c.Department || '').toLowerCase() === dept &&
+                            c.Status === 'Open'
                         ).map(t => ({
-                            id: safeGet(t, 'ID'),
+                            id: t.ID,
                             type: 'alert',
-                            msg: `New Ticket #${safeGet(t, 'ID')} for ${dept}`,
-                            time: safeGet(t, 'Date')
+                            msg: `New Ticket #${t.ID} for ${dept}`,
+                            time: t.Date
                         }));
                     }
 
