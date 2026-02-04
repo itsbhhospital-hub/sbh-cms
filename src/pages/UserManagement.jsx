@@ -452,7 +452,7 @@ const UserManagement = () => {
                                     </td>
 
                                     <td className="p-4">
-                                        {editingUser === safeGet(u, 'Username') ? (
+                                        {editingUser === u.Username ? (
                                             <input
                                                 type="text"
                                                 className="w-24 p-2 border rounded-lg bg-white text-sm font-mono outline-none focus:border-emerald-500"
