@@ -132,17 +132,20 @@ export const sheetsService = {
             Date: new Date().toISOString(),
             Department: complaint.department,
             Description: complaint.description,
-            ReportedBy: complaint.reportedBy
+            ReportedBy: complaint.reportedBy,
+            Unit: complaint.unit // NEW
         };
         return sendToSheet('createComplaint', payload);
     },
 
-    updateComplaintStatus: async (id, status, resolvedBy, remark = '') => {
+    updateComplaintStatus: async (id, status, resolvedBy, remark = '', targetDate = '', rating = '') => {
         const payload = {
             ID: id,
             Status: status,
             ResolvedBy: resolvedBy,
-            Remark: remark
+            Remark: remark,
+            TargetDate: targetDate, // NEW (For Extensions)
+            Rating: rating // NEW (For Feedback)
         };
         return sendToSheet('updateComplaintStatus', payload);
     },

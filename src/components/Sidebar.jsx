@@ -9,15 +9,17 @@ import {
     Settings,
     Menu,
     X,
-    Shield
+    Shield,
+    BarChart3
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useLayout } from '../context/LayoutContext';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
-    const [mobileOpen, setMobileOpen] = useState(false);
+    const { mobileOpen, setMobileOpen } = useLayout();
     const [timeLeft, setTimeLeft] = useState('');
 
     // Timer Logic
@@ -68,13 +70,6 @@ const Sidebar = () => {
 
     return (
         <>
-            {/* Mobile Toggle Button (Visible only on Mobile when sidebar closed) */}
-            <button
-                onClick={() => setMobileOpen(true)}
-                className="md:hidden fixed top-4 left-4 z-40 bg-indigo-900 text-white p-2.5 rounded-xl shadow-lg border border-white/20 active:scale-95 transition-transform"
-            >
-                <Menu size={24} />
-            </button>
 
             {/* Backdrop for Mobile */}
             {mobileOpen && (
@@ -85,7 +80,7 @@ const Sidebar = () => {
             )}
 
             {/* Sidebar Container - Increased Z-Index to sit above Footer */}
-            <div className={`h-screen flex flex-col transition-all duration-300 bg-gradient-to-b from-indigo-900 via-purple-900 to-slate-900 border-r border-white/10 shadow-2xl z-[60]
+            <div className={`h-screen flex flex-col transition-all duration-300 bg-gradient-to-b from-emerald-900 via-green-800 to-teal-900 border-r border-white/10 shadow-2xl z-[120]
                 fixed md:sticky top-0 left-0
                 ${mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
                 ${collapsed ? 'md:w-24' : 'md:w-72'}
@@ -94,12 +89,12 @@ const Sidebar = () => {
                 <div className="p-8 flex items-center gap-4 border-b border-white/10">
                     <div className="relative">
                         <img src="/logo.jpg" alt="Logo" className="w-12 h-12 rounded-xl bg-white/10 object-contain p-0.5 border border-white/20 shadow-md backdrop-blur-sm" />
-                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-indigo-900"></div>
+                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-emerald-900"></div>
                     </div>
                     {(!collapsed || mobileOpen) && (
                         <div>
                             <h1 className="font-bold text-xl leading-tight text-white">SBH Group</h1>
-                            <p className="text-[10px] text-indigo-200 uppercase font-bold tracking-wide">Portal</p>
+                            <p className="text-[10px] text-emerald-200 uppercase font-bold tracking-wide">Portal</p>
                         </div>
                     )}
 
@@ -112,7 +107,7 @@ const Sidebar = () => {
                 {/* Desktop Toggle (Hidden on Mobile) */}
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="hidden md:flex absolute -right-3 top-10 bg-indigo-600 text-white p-2 rounded-full shadow-lg hover:bg-indigo-500 transition-colors border border-white/20 z-50 hover:scale-110 active:scale-95 items-center justify-center"
+                    className="hidden md:flex absolute -right-3 top-10 bg-emerald-600 text-white p-2 rounded-full shadow-lg hover:bg-emerald-500 transition-colors border border-white/20 z-50 hover:scale-110 active:scale-95 items-center justify-center"
                 >
                     {collapsed ? <Menu size={14} /> : <X size={14} />}
                 </button>
@@ -133,6 +128,7 @@ const Sidebar = () => {
                                 {(!collapsed || mobileOpen) && 'Administration'}
                             </div>
                             <NavItem to="/user-management" icon={Users} label="User Management" />
+                            <NavItem to="/work-report" icon={BarChart3} label="Work Report" />
                         </>
                     )}
                 </div>

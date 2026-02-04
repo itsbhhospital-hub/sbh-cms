@@ -1,15 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff } from 'lucide-react';
+import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLayout } from '../context/LayoutContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/googleSheets';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
+    const { setMobileOpen } = useLayout();
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const dropdownRef = useRef(null);
+
+    // Robust Getter Helper
+    const safeGet = (obj, key) => {
+        if (!obj) return '';
+        const norm = (s) => String(s || '').toLowerCase().replace(/\s/g, '');
+        const target = norm(key);
+        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+
+        const foundKey = Object.keys(obj).find(k => norm(k) === target);
+        if (foundKey) return obj[foundKey];
+
+        // Specific handling for 'ID'
+        if (target === 'id') {
+            const idKey = Object.keys(obj).find(k => {
+                const nk = norm(k);
+                return nk === 'ticketid' || nk === 'complaintid' || nk === 'tid' || (nk.includes('id') && nk.length < 10);
+            });
+            if (idKey) return obj[idKey];
+        }
+        return '';
+    };
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState('');
@@ -22,11 +47,76 @@ const Navbar = () => {
     const [passError, setPassError] = useState('');
     const [passSuccess, setPassSuccess] = useState(false);
 
+    // Notifications
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const notifRef = useRef(null);
+
+    // Fetch Notifications
+    useEffect(() => {
+        if (!user) return;
+        const fetchNotifs = async () => {
+            try {
+                const data = await sheetsService.getComplaints(true);
+                const role = (user.Role || '').toLowerCase();
+                const username = (user.Username || '').toLowerCase();
+                const dept = (user.Department || '').toLowerCase();
+
+                let alerts = [];
+
+                if (role.includes('admin')) {
+                    // SUPER ADMIN: Everything Open or Assigned to me
+                    const newTickets = data.filter(c =>
+                        safeGet(c, 'Status') === 'Open' || (safeGet(c, 'ResolvedBy') || '').toLowerCase() === username
+                    );
+                    alerts = newTickets.map(t => ({
+                        id: safeGet(t, 'ID'),
+                        type: 'alert',
+                        msg: `Ticket #${safeGet(t, 'ID')} is Open in ${safeGet(t, 'Department')}`,
+                        time: safeGet(t, 'Date')
+                    }));
+                } else {
+                    // STANDARD USER & DEPT STAFF
+                    // 1. "My Ticket" Updates (Reported By Me) - Show Status Changes (Solved/Closed)
+                    const myReports = data.filter(c =>
+                        (safeGet(c, 'ReportedBy') || '').toLowerCase() === username &&
+                        (safeGet(c, 'Status') === 'Solved' || safeGet(c, 'Status') === 'Resolved' || safeGet(c, 'Status') === 'Closed')
+                    ).map(t => ({
+                        id: safeGet(t, 'ID'),
+                        type: safeGet(t, 'Status') === 'Solved' ? 'success' : 'info',
+                        msg: `Your Ticket #${safeGet(t, 'ID')} is ${safeGet(t, 'Status')}`,
+                        time: safeGet(t, 'Resolved Date') || safeGet(t, 'Date')
+                    }));
+
+                    // 2. "My Department" Tickets (Assigned TO My Dept) - Show OPEN tickets (For Staff to work on)
+                    let deptAlerts = [];
+                    if (dept) {
+                        deptAlerts = data.filter(c =>
+                            (safeGet(c, 'Department') || '').toLowerCase() === dept &&
+                            safeGet(c, 'Status') === 'Open'
+                        ).map(t => ({
+                            id: safeGet(t, 'ID'),
+                            type: 'alert',
+                            msg: `New Ticket #${safeGet(t, 'ID')} for ${dept}`,
+                            time: safeGet(t, 'Date')
+                        }));
+                    }
+
+                    alerts = [...myReports, ...deptAlerts];
+                }
+                // Sort by TIME desc (Latest first)
+                setNotifications(alerts.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5));
+            } catch (e) { console.error(e); }
+        };
+        fetchNotifs();
+        const interval = setInterval(fetchNotifs, 30000); // Poll every 30s
+        return () => clearInterval(interval);
+    }, [user]);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+            if (notifRef.current && !notifRef.current.contains(event.target)) setShowNotifications(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -101,19 +191,79 @@ const Navbar = () => {
 
     return (
         <nav className="sticky top-0 z-[100] w-full px-4 py-3">
-            <div className="max-w-7xl mx-auto flex justify-end items-center gap-4">
+            <div className="max-w-7xl mx-auto flex justify-between md:justify-end items-center gap-4">
 
-                {/* Session Timer Display */}
+                {/* Mobile Menu Button - Left Aligned */}
+                <button
+                    onClick={() => setMobileOpen(true)}
+                    className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                    <Menu size={24} />
+                </button>
+
+                {/* Session Timer Display - Visible on Mobile now */}
                 <div className={`
-                    hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-300
+                    flex items-center gap-2 px-3 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-300
                     ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' :
                         timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-200' :
                             'bg-white/60 text-slate-500 border-emerald-50'}
                 `}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Session</p>
-                    <p className={`font-mono font-semibold text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-700'}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 hidden sm:block">Session</p>
+                    <p className={`font-mono font-semibold text-xs sm:text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-700'}`}>
                         {timeLeft}
                     </p>
+                </div>
+
+                {/* Notification Bell */}
+                <div className="relative z-50" ref={notifRef}>
+                    <button
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="w-10 h-10 bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white shadow-sm transition-all relative"
+                    >
+                        <Bell size={20} />
+                        {notifications.length > 0 && (
+                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+                        )}
+                    </button>
+
+                    <AnimatePresence>
+                        {showNotifications && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-100 p-4 overflow-hidden z-[200]"
+                            >
+                                <h4 className="font-black text-slate-800 mb-3 px-2 flex justify-between items-center">
+                                    Notifications <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full text-slate-500">{notifications.length}</span>
+                                </h4>
+                                <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                    {notifications.length === 0 ? (
+                                        <p className="text-center text-xs font-bold text-slate-400 py-4">No new notifications</p>
+                                    ) : (
+                                        notifications.map((n, i) => (
+                                            <div
+                                                key={i}
+                                                onClick={() => {
+                                                    setShowNotifications(false);
+                                                    navigate(`/my-complaints?ticketId=${n.id}`);
+                                                }}
+                                                className="p-3 bg-slate-50 rounded-xl hover:bg-blue-50 transition-colors border border-slate-100 cursor-pointer group"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`w-2 h-2 mt-1.5 rounded-full ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-700 group-hover:text-blue-700 transition-colors">{n.msg}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 mt-1">{new Date(n.time).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <div className="relative" ref={dropdownRef}>
@@ -127,7 +277,7 @@ const Navbar = () => {
                                 {user.Username}
                             </span>
                             <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide leading-none">
-                                {user.Role}
+                                {(user.Username || '').toLowerCase() === 'admin' ? 'Super Admin' : user.Role}
                             </span>
                         </div>
                         <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50 group-hover:rotate-6 transition-transform">
@@ -223,7 +373,7 @@ const Navbar = () => {
                                     <Shield className="text-slate-400" size={20} />
                                     <div>
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter leading-none">System Role</p>
-                                        <p className="text-emerald-700 font-black uppercase text-xs tracking-widest">{user.Role}</p>
+                                        <p className="text-emerald-700 font-black uppercase text-xs tracking-widest">{(user.Username || '').toLowerCase() === 'admin' ? 'Super Admin' : user.Role}</p>
                                     </div>
                                 </div>
                             </div>
@@ -323,7 +473,7 @@ const Navbar = () => {
                     </div>
                 )}
             </AnimatePresence>
-        </nav>
+        </nav >
     );
 };
 
