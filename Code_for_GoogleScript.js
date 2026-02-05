@@ -3,6 +3,47 @@
 // 3. Paste this ENTIRE code into Code.gs (Delete old code)
 // 4. Click Deploy > Manage Deployments > Edit (Pencil) > Version: New Version > Deploy
 // 5. COPY the URL
+// 6. TRIGGERS: Add a new trigger -> Function: onEditTrigger, Event Source: Spreadsheet, Event Type: On edit.
+
+function onEditTrigger(e) {
+    try {
+        const sheet = e.source.getActiveSheet();
+        if (sheet.getName() !== 'data') return;
+
+        const range = e.range;
+        const col = range.getColumn();
+        const row = range.getRow();
+        if (row <= 1) return; // Header
+
+        const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        const colMap = getColMap(headers);
+
+        // If Status Changed to Closed/Resolved Manually
+        if (col === colMap.Status) {
+            const newStatus = e.value; // String value
+            // Check if Closed or Resolved
+            if (newStatus && (newStatus.toLowerCase() === 'closed' || newStatus.toLowerCase() === 'resolved')) {
+                const ticketId = sheet.getRange(row, colMap.ID).getValue();
+                const reportedBy = colMap.ReportedBy ? sheet.getRange(row, colMap.ReportedBy).getValue() : '';
+                const resolver = colMap.ResolvedBy ? sheet.getRange(row, colMap.ResolvedBy).getValue() : 'Admin (Manual)';
+
+                if (reportedBy && ticketId) {
+                    sendResolutionNotification(ticketId, reportedBy, newStatus, resolver, 'Manual Sheet Update');
+                    // Log to history
+                    const historyCol = colMap.History;
+                    if (historyCol) {
+                        const timestamp = Utilities.formatDate(new Date(), "GMT+5:30", "yyyy-MM-dd HH:mm:ss");
+                        const msg = `[${timestamp}] ${newStatus.toUpperCase()} (Manual Edit). Action by Sheet User.`;
+                        const currentHist = sheet.getRange(row, historyCol).getValue();
+                        sheet.getRange(row, historyCol).setValue(currentHist ? currentHist + '\n' + msg : msg);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        Logger.log(err.toString());
+    }
+}
 
 function doGet(e) {
     const action = e.parameter.action;
@@ -24,6 +65,7 @@ function doPost(e) {
         if (action === 'registerUser') return registerUser(payload);
         if (action === 'updateUser') return updateUser(payload);
         if (action === 'deleteUser') return deleteUser(payload);
+        if (action === 'changePassword') return changePassword(payload);
         if (action === 'updateComplaintStatus') return updateComplaintStatus(payload);
 
         return response('error', 'Invalid action');
@@ -356,12 +398,18 @@ function updateComplaintStatus(payload) {
 
             sheet.getRange(rowIndex, colMap.Rating).setValue(payload.Rating);
             // Log to dedicated Ratings sheet for analytics
-            const resolverName = colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : 'Unknown';
+            // BUG FIX: data is stale. If we just set the resolver in lines 330-336, we must use actionBy.
+            let resolverName = colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : '';
+            if (!resolverName || resolverName === '') {
+                // If it was empty in the sheet, we likely just set it to actionBy (if status is closed/resolved)
+                resolverName = actionBy;
+            }
+
             logRating({
                 ID: payload.ID,
                 Rating: payload.Rating,
                 Remark: payload.Remark,
-                Resolver: resolverName,
+                Resolver: resolverName || 'Unknown',
                 Reporter: actionBy
             });
 
@@ -401,7 +449,9 @@ function updateComplaintStatus(payload) {
 
         // Notifications
         // 1. Resolution / Closure (To Reporter)
-        if (payload.Status === 'Closed' && currentStatus === 'Open') {
+        // BUG FIX: now triggers if status becomes Closed OR Resolved, regardless of previous status
+        // and ONLY if the status actually changed.
+        if ((payload.Status === 'Closed' || payload.Status === 'Resolved') && payload.Status !== currentStatus) {
             const reportedByUser = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : 'User';
             sendResolutionNotification(payload.ID, reportedByUser, payload.Status, payload.ResolvedBy || 'Staff', payload.Remark);
         }
@@ -453,6 +503,37 @@ function deleteUser(payload) {
         if (String(data[i][usernameCol]).trim().toLowerCase() === String(payload.Username).trim().toLowerCase()) {
             sheet.deleteRow(i + 1);
             return response('success', 'User Deleted');
+        }
+    }
+    return response('error', 'User not found');
+}
+
+function changePassword(payload) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('master');
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const colMap = getColMap(headers);
+
+    if (!colMap.Username || !colMap.Password) return response('error', 'Critical columns missing');
+
+    const targetUser = String(payload.Username || '').trim().toLowerCase();
+    const oldPass = String(payload.OldPassword || '').trim();
+    const newPass = String(payload.NewPassword || '').trim();
+
+    for (let i = 1; i < data.length; i++) {
+        const rowUser = String(data[i][colMap.Username - 1] || '').trim().toLowerCase();
+
+        if (rowUser === targetUser) {
+            const currentPass = String(data[i][colMap.Password - 1] || '').trim();
+
+            // Verify Old Password
+            if (currentPass !== oldPass) {
+                return response('error', 'Current Password Incorrect');
+            }
+
+            // Update New Password
+            sheet.getRange(i + 1, colMap.Password).setValue(newPass);
+            return response('success', 'Password Changed Successfully');
         }
     }
     return response('error', 'User not found');

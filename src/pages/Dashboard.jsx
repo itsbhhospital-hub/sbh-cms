@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { sheetsService } from '../services/googleSheets';
 import ComplaintList from '../components/ComplaintList';
 import { motion } from 'framer-motion';
-import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Database, LayoutDashboard } from 'lucide-react';
+import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Database, LayoutDashboard, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -18,9 +18,10 @@ const Dashboard = () => {
     }, []);
 
     const calculateStats = async () => {
-        const [complaintsData, usersData] = await Promise.all([
+        const [complaintsData, usersData, ratingsData] = await Promise.all([
             sheetsService.getComplaints(),
-            isAdmin ? sheetsService.getUsers() : Promise.resolve([])
+            isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
+            sheetsService.getRatings(true) // Fetch comprehensive ratings
         ]);
 
         const role = (user.Role || '').toLowerCase().trim();
@@ -55,7 +56,25 @@ const Dashboard = () => {
         // Calculate Staff Count (Active Users)
         const staffCount = isAdmin ? usersData.filter(u => u.Status === 'Active').length : 0;
 
-        setStats({ open, resolved, delayed, total, staffCount });
+        // New Efficiency Logic (Based on Immutable Ratings Sheet)
+        let efficiencyScore = '0.0';
+        if (isAdmin) {
+            // System-wide Average
+            const validRatings = ratingsData.filter(r => Number(r.Rating) > 0);
+            if (validRatings.length > 0) {
+                const sum = validRatings.reduce((acc, r) => acc + Number(r.Rating), 0);
+                efficiencyScore = (sum / validRatings.length).toFixed(1);
+            }
+        } else {
+            // Personal Efficiency (If I am a Staff member)
+            const myRatings = ratingsData.filter(r => (r.ResolvedBy || '').toLowerCase() === username && Number(r.Rating) > 0);
+            if (myRatings.length > 0) {
+                const sum = myRatings.reduce((acc, r) => acc + Number(r.Rating), 0);
+                efficiencyScore = (sum / myRatings.length).toFixed(1);
+            }
+        }
+
+        setStats({ open, resolved, delayed, total, staffCount, efficiencyScore });
 
         // Check for Re-opened tickets assigned to ME
         if (role !== 'user') {
@@ -176,6 +195,10 @@ const Dashboard = () => {
                 <StatCard
                     icon={CheckCircle} title="Resolved" value={stats.resolved}
                     bgClass="bg-emerald-50" colorClass="text-emerald-600" delay={0.2}
+                />
+                <StatCard
+                    icon={Star} title="Efficiency" value={stats.efficiencyScore || 'N/A'}
+                    bgClass="bg-amber-50" colorClass="text-amber-600" delay={0.25}
                 />
                 {!isAdmin ? (
                     <StatCard

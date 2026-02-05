@@ -214,5 +214,14 @@ export const sheetsService = {
 
     deleteUser: async (username) => {
         return sendToSheet('deleteUser', { Username: username });
+    },
+
+    changePassword: async (username, oldPassword, newPassword) => {
+        const payload = {
+            Username: username,
+            OldPassword: oldPassword,
+            NewPassword: newPassword
+        };
+        return sendToSheet('changePassword', payload);
     }
 };
