@@ -51,15 +51,13 @@ const Login = () => {
                 className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden relative z-10 border border-slate-100"
             >
                 {/* Header Section */}
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-8 text-center text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-
+                <div className="bg-slate-900 p-8 text-center text-white relative overflow-hidden">
                     <div className="relative z-10 flex flex-col items-center">
-                        <div className="w-20 h-20 bg-white rounded-2xl p-2 shadow-lg mb-4 flex items-center justify-center">
+                        <div className="w-20 h-20 bg-white rounded-2xl p-2 shadow-sm mb-4 flex items-center justify-center">
                             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain mix-blend-multiply" />
                         </div>
-                        <h2 className="text-2xl font-bold tracking-tight">Welcome Back</h2>
-                        <p className="text-emerald-50 text-sm mt-1">SBH Complaints System</p>
+                        <h2 className="text-2xl font-black tracking-tight">Welcome Back</h2>
+                        <p className="text-slate-400 text-sm mt-1 font-bold tracking-wide uppercase">SBH Complaints System</p>
                     </div>
                 </div>
 
@@ -113,13 +111,13 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:shadow-xl transition-all active:scale-[0.99] flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-wait"
+                            className="w-full py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.99] flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-wait"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
                                 <>
-                                    <span>Sign In</span>
+                                    <span>Secure Login</span>
                                     <ChevronRight size={16} />
                                 </>
                             )}

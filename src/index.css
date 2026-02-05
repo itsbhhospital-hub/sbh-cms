@@ -3,23 +3,107 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    overflow-y: scroll;
-    /* Fix scroll jitter */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    /* @apply antialiased text-slate-800 min-h-screen relative bg-slate-50 overflow-x-hidden; */
-    /* Use standard CSS if needed or rely on App.jsx classes which already handle this */
+    background-color: #f8fafc;
+    /* slate-50 */
+    color: #1e293b;
+    /* slate-800 */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   }
 }
 
-/* 
-   Legacy classes commented out to prevent @apply errors. 
-   Enable them only if PostCSS is creating 500 errors.
-*/
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 
-/*
-.glass-panel {
-  @apply bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0, 0, 0, 0.06)] border border-white/60;
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Animations */
+  .animate-in {
+    animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Specific Override for slide-in-from-right */
+  .slide-in-from-right {
+    animation-name: slideInRight;
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .zoom-in-95 {
+    animation-name: zoomIn;
+  }
+
+  @keyframes zoomIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }
-*/

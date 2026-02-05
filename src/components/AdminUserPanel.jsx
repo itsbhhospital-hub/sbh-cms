@@ -53,10 +53,10 @@ const AdminUserPanel = () => {
     );
 
     return (
-        <div className="glass-panel p-8 !bg-white/80 border !border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 className="text-2xl font-black mb-6 flex items-center gap-3 text-slate-800">
-                <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
-                    <Shield size={24} />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-900">
+                <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+                    <Shield size={20} />
                 </div>
                 User Management
             </h3>
@@ -96,20 +96,20 @@ const AdminUserPanel = () => {
                                         </span>
                                     </td>
                                     <td className="p-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${uStatus === 'Active' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 w-fit ${uStatus === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
                                             }`}>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${uStatus === 'Active' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                                            {uStatus}
+                                            <div className={`w-1.5 h-1.5 rounded-full ${uStatus === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                                            {uStatus === 'Active' ? 'APPROVED' : 'PENDING'}
                                         </span>
                                     </td>
                                     <td className="p-4 flex items-center gap-3">
                                         {uStatus !== 'Active' && (
                                             <button
                                                 onClick={() => updateUserRole(user, uRole, 'Active')}
-                                                className="p-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl shadow-lg shadow-green-200 hover:scale-105 active:scale-95 transition-all"
+                                                className="p-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-all border border-emerald-700"
                                                 title="Approve User"
                                             >
-                                                <Check size={16} />
+                                                <Check size={14} strokeWidth={3} />
                                             </button>
                                         )}
                                         <div className="relative">

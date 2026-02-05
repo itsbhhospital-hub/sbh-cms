@@ -61,7 +61,7 @@ const Signup = () => {
 
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-900/20">
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-50">
             {/* Blurred Background Image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
                 <img
@@ -69,7 +69,7 @@ const Signup = () => {
                     alt="Background"
                     className="w-full h-full object-cover blur-md scale-105 opacity-60 pointer-events-none"
                 />
-                <div className="absolute inset-0 bg-black/10"></div> {/* Overlay for contrast */}
+                <div className="absolute inset-0 bg-white/40"></div> {/* Overlay for contrast */}
             </div>
 
             <motion.div
@@ -77,10 +77,10 @@ const Signup = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden relative z-10 border border-slate-100"
             >
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-8 text-center text-white relative">
+                <div className="bg-slate-900 p-8 text-center text-white relative">
                     <div className="relative z-10">
-                        <h2 className="text-2xl font-bold tracking-tight">Create Account</h2>
-                        <p className="text-emerald-50 text-sm mt-1">Join the SBH Team</p>
+                        <h2 className="text-2xl font-black tracking-tight">Create Account</h2>
+                        <p className="text-slate-400 text-sm mt-1 font-bold tracking-wide uppercase">Join the SBH Team</p>
                     </div>
                 </div>
 
@@ -90,13 +90,13 @@ const Signup = () => {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Username</label>
                                 <div className="relative group">
-                                    <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
+                                    <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                                         <User size={18} />
                                     </div>
                                     <input
                                         type="text"
                                         placeholder="Username"
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all text-slate-700 font-medium text-sm"
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-slate-700 font-medium text-sm"
                                         value={formData.username}
                                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                         required
@@ -107,13 +107,13 @@ const Signup = () => {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Password</label>
                                 <div className="relative group">
-                                    <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
+                                    <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                                         <Lock size={18} />
                                     </div>
                                     <input
                                         type="password"
                                         placeholder="Password"
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all text-slate-700 font-medium text-sm"
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-slate-700 font-medium text-sm"
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         required
@@ -125,11 +125,11 @@ const Signup = () => {
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Department</label>
                             <div className="relative group">
-                                <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
+                                <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                                     <Building size={18} />
                                 </div>
                                 <select
-                                    className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all text-slate-700 font-medium text-sm appearance-none cursor-pointer"
+                                    className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-slate-700 font-medium text-sm appearance-none cursor-pointer"
                                     value={formData.department}
                                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                     required
@@ -146,13 +146,13 @@ const Signup = () => {
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Mobile</label>
                             <div className="relative group">
-                                <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
+                                <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                                     <Phone size={18} />
                                 </div>
                                 <input
                                     type="tel"
                                     placeholder="10-Digit Mobile Number"
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all text-slate-700 font-medium text-sm"
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-slate-700 font-medium text-sm"
                                     value={formData.mobile}
                                     onChange={(e) => {
                                         const val = e.target.value.replace(/\D/g, '');
@@ -167,7 +167,7 @@ const Signup = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:shadow-xl transition-all active:scale-[0.99] flex items-center justify-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-wait"
+                            className="w-full py-3.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.99] flex items-center justify-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-wait"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>

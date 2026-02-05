@@ -219,17 +219,17 @@ const WorkReport = () => {
             ) : (
                 // --- MAIN DASHBOARD VIEW ---
                 <>
-                    <div className="flex flex-col md:flex-row justify-between items-end gap-4 p-8 bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl shadow-xl text-white relative overflow-hidden">
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-4 p-8 bg-slate-900 rounded-3xl shadow-sm text-white relative overflow-hidden">
                         <div className="relative z-10">
                             <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest backdrop-blur-sm border border-white/10 mb-3 inline-block">Super Admin Console</span>
                             <h1 className="text-3xl font-black mb-2">Work Report & Analytics</h1>
-                            <p className="text-slate-300 font-medium max-w-lg">Monitor staff performance, track resolution times, and analyze user efficiency.</p>
+                            <p className="text-slate-400 font-medium max-w-lg">Monitor staff performance, track resolution times, and analyze user efficiency.</p>
                         </div>
                         <div className="relative z-10 w-full md:w-auto">
                             <div className="relative">
                                 <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
                                 <input
-                                    className="pl-12 pr-6 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/40 font-bold focus:bg-white/20 outline-none w-full md:w-64 backdrop-blur-md"
+                                    className="pl-12 pr-6 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/40 font-bold focus:bg-white/20 outline-none w-full md:w-64 backdrop-blur-md transition-all focus:ring-2 focus:ring-white/20"
                                     placeholder="Search User..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}

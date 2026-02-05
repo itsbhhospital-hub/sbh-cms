@@ -3,33 +3,32 @@ import { Heart } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-slate-900 text-white py-3 border-t border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-            <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-center">
+        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-slate-900 border-t border-slate-800 backdrop-blur-xl">
+            <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] uppercase font-bold tracking-widest text-slate-500">
+                <span className="hover:text-slate-300 transition-colors cursor-default">
+                    © 2026 SBH Group
+                </span>
 
-                <a
-                    href="https://sbhhospital.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 transition-colors"
-                >
-                    SBH Group Of Hospitals
-                </a>
-
-                <div className="hidden sm:block w-px h-3 bg-slate-700"></div>
-
-                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-400">
-                    <span>Developed By</span>
+                <div className="flex items-center gap-4">
+                    <a
+                        href="https://sbhhospital.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-emerald-400 transition-colors"
+                    >
+                        Enterprise Portal
+                    </a>
+                    <span className="w-px h-3 bg-slate-800"></span>
                     <a
                         href="https://www.instagram.com/ignamanmishra"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-bold text-white hover:text-emerald-400 transition-colors"
+                        className="flex items-center gap-1.5 hover:text-white transition-colors group"
                     >
-                        Naman Mishra
+                        <span>System Architect</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)] transition-all"></div>
                     </a>
-                    <Heart size={12} className="text-rose-500 fill-rose-500 animate-pulse ml-0.5" />
                 </div>
-
             </div>
         </footer>
     );

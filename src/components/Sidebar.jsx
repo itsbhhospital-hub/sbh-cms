@@ -59,8 +59,8 @@ const Sidebar = () => {
             onClick={onClick}
             className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 mb-1 group
         ${isActive(to)
-                    ? 'bg-white/20 text-white shadow-lg border border-white/20 backdrop-blur-md'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
+                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
                 }`}
         >
             <Icon size={20} className={`${!collapsed && 'group-hover:translate-x-1'} transition-transform ${isActive(to) ? 'text-white' : 'text-white/60 group-hover:text-white'}`} />
@@ -80,7 +80,7 @@ const Sidebar = () => {
             )}
 
             {/* Sidebar Container - Increased Z-Index to sit above Footer */}
-            <div className={`h-screen flex flex-col transition-all duration-300 bg-gradient-to-b from-emerald-900 via-green-800 to-teal-900 border-r border-white/10 shadow-2xl z-[120]
+            <div className={`h-screen flex flex-col transition-all duration-300 bg-slate-900 border-r border-slate-800 shadow-2xl z-[120]
                 fixed md:sticky top-0 left-0
                 ${mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
                 ${collapsed ? 'md:w-24' : 'md:w-72'}

@@ -136,10 +136,6 @@ const Navbar = () => {
         e.preventDefault();
         setPassError('');
 
-        if (passForm.current !== user.Password) {
-            setPassError('Current password is incorrect');
-            return;
-        }
         if (passForm.new.length < 4) {
             setPassError('New password must be at least 4 characters');
             return;
@@ -151,11 +147,7 @@ const Navbar = () => {
 
         setIsChanging(true);
         try {
-            await sheetsService.updateUser({
-                OldUsername: user.Username,
-                Username: user.Username,
-                Password: passForm.new
-            });
+            await sheetsService.changePassword(user.Username, passForm.current, passForm.new);
             setPassSuccess(true);
             setTimeout(() => {
                 setShowPasswordModal(false);
@@ -164,7 +156,8 @@ const Navbar = () => {
                 logout(); // Logout after password change for security
             }, 2000);
         } catch (err) {
-            setPassError('Failed to update password. Try again.');
+            // Display backend error message (e.g., 'Current Password Incorrect')
+            setPassError(err.message || 'Failed to update password. Try again.');
         } finally {
             setIsChanging(false);
         }
@@ -186,10 +179,10 @@ const Navbar = () => {
 
                 {/* Session Timer Display - Visible on Mobile now */}
                 <div className={`
-                    flex items-center gap-2 px-3 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-300
+                    flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300
                     ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' :
                         timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                            'bg-white/60 text-slate-500 border-emerald-50'}
+                            'bg-white text-slate-500 border-slate-200 shadow-sm'}
                 `}>
                     <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 hidden sm:block">Session</p>
                     <p className={`font-mono font-semibold text-xs sm:text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-700'}`}>
@@ -201,7 +194,7 @@ const Navbar = () => {
                 <div className="relative z-50" ref={notifRef}>
                     <button
                         onClick={() => setShowNotifications(!showNotifications)}
-                        className="w-10 h-10 bg-white/70 backdrop-blur-xl border border-white/40 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white shadow-sm transition-all relative"
+                        className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-50 shadow-sm transition-all relative"
                     >
                         <Bell size={20} />
                         {notifications.length > 0 && (
@@ -253,7 +246,7 @@ const Navbar = () => {
                     {/* User Profile Button */}
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        className="flex items-center gap-3 bg-white/70 backdrop-blur-xl border border-emerald-100 px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group"
+                        className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 group"
                     >
                         <div className="flex flex-col items-end hidden sm:flex text-right">
                             <span className="text-sm font-bold text-slate-800 mb-1 capitalize">

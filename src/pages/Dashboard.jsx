@@ -90,148 +90,107 @@ const Dashboard = () => {
         }
     };
 
+    // Enterprise "StatCard" - High Performance, Minimalist
     const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, delay }) => (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay }}
-            className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group"
+            transition={{ delay, duration: 0.3, ease: "easeOut" }}
+            className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-default group"
         >
-            {/* Re-open Alert Modal */}
+            <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-xl ${bgClass} ${colorClass} bg-opacity-50 group-hover:scale-105 transition-transform`}>
+                    <Icon size={20} strokeWidth={2.5} />
+                </div>
+                {/* Optional: Add trend indicator here if available in future */}
+            </div>
+            <div>
+                <h4 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-1">{value}</h4>
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">{title}</p>
+            </div>
+
+            {/* Re-open Alert Warning (Logic Preserved) */}
             {showReopenModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
                     <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
+                        initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="bg-white rounded-3xl shadow-2xl border border-rose-100 max-w-md w-full overflow-hidden"
+                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
                     >
-                        <div className="p-1 bg-rose-500"></div>
-                        <div className="p-8 text-center">
-                            <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-                                <AlertCircle size={40} />
+                        <div className="p-6 text-center">
+                            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertCircle size={32} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Attention Required!</h3>
-                            <p className="text-slate-600 font-bold leading-relaxed">
-                                "Aapke dwara solve kiye gaye complaint ko fir se reopen kiya gaya hai. Krapaya is par jaldi karyawahi kare."
+                            <h3 className="text-lg font-bold text-slate-900 mb-2">Ticket Re-opened</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                                A ticket you resolved has been re-opened by the reporter. Please review immediately.
                             </p>
 
-                            <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Re-opened Tickets</p>
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {reopenedTickets.map(t => (
-                                        <span key={t.ID} className="px-3 py-1 bg-white border border-rose-200 text-rose-600 rounded-lg text-sm font-black shadow-sm">
-                                            #{t.ID}
-                                        </span>
-                                    ))}
-                                </div>
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-6 flex flex-wrap justify-center gap-2">
+                                {reopenedTickets.map(t => (
+                                    <span key={t.ID} className="px-2 py-1 bg-white border border-rose-100 text-rose-600 rounded text-xs font-bold shadow-sm">
+                                        #{t.ID}
+                                    </span>
+                                ))}
                             </div>
 
                             <button
                                 onClick={() => setShowReopenModal(false)}
-                                className="mt-8 w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-200 active:scale-95"
+                                className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
                             >
-                                Noted, Show Complaints
+                                Acknowledge & View
                             </button>
                         </div>
                     </motion.div>
                 </div>
             )}
-
-            <div className={`absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity transform group-hover:scale-110 duration-500`}>
-                <Icon size={100} className="text-slate-900" />
-            </div>
-
-            <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${bgClass} ${colorClass}`}>
-                    <Icon size={24} />
-                </div>
-                <div>
-                    <h4 className="text-2xl font-bold text-slate-800 mb-1">{value}</h4>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide">{title}</p>
-                </div>
-            </div>
         </motion.div>
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-60 pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 pb-32">
 
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2 text-emerald-600">
-                        <LayoutDashboard size={20} />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-emerald-900/60">
-                            {isAdmin ? 'Admin Console' : 'Staff Dashboard'}
+            {/* Enterprise Header */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                        Dashboard
+                        <span className="px-2 py-1 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            {isAdmin ? 'Admin' : 'Staff'}
                         </span>
-                    </div>
-                    <h1 className="text-3xl font-bold text-slate-800 mb-2">Overview</h1>
-                    <p className="text-slate-500 font-medium">
-                        Welcome back, <span className="text-slate-900 font-bold">{user.Username}</span>
-                        {user.Department && <span className="bg-slate-100 px-2 py-0.5 rounded-md text-sm ml-2 border border-slate-200">{user.Department}</span>}
-                    </p>
+                    </h1>
+                    <p className="text-slate-500 font-medium mt-1">Overview of system performance</p>
                 </div>
 
-                <div className="flex gap-3 relative z-10">
+                <div className="flex gap-3">
                     {isAdmin && (
-                        <Link to="/user-management" className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm hover:shadow">
-                            <Users size={18} /> <span className="hidden md:inline">Manage Users</span>
+                        <Link to="/user-management" className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                            <Users size={16} /> Users
                         </Link>
                     )}
-                    <Link to="/new-complaint" className="group flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all active:scale-[0.98] hover:bg-emerald-700">
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        <span>New Ticket</span>
+                    <Link to="/new-complaint" className="px-5 py-2.5 bg-slate-900 text-white hover:bg-black rounded-xl text-sm font-bold shadow-lg shadow-slate-200 transition-all flex items-center gap-2 active:scale-95">
+                        <Plus size={16} /> New Ticket
                     </Link>
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    icon={AlertCircle} title="Open Cases" value={stats.open}
-                    bgClass="bg-orange-50" colorClass="text-orange-600" delay={0.1}
-                />
-                <StatCard
-                    icon={CheckCircle} title="Resolved" value={stats.resolved}
-                    bgClass="bg-emerald-50" colorClass="text-emerald-600" delay={0.2}
-                />
-                <StatCard
-                    icon={Star} title="Efficiency" value={stats.efficiencyScore || 'N/A'}
-                    bgClass="bg-amber-50" colorClass="text-amber-600" delay={0.25}
-                />
+            {/* Stats Grid - Tighter, Cleaner */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon={AlertCircle} title="OPEN" value={stats.open} bgClass="bg-amber-50" colorClass="text-amber-600" delay={0} />
+                <StatCard icon={CheckCircle} title="SOLVED" value={stats.resolved} bgClass="bg-emerald-50" colorClass="text-emerald-600" delay={0.05} />
+                <StatCard icon={Star} title="PERFORMANCE" value={stats.efficiencyScore || 'N/A'} bgClass="bg-indigo-50" colorClass="text-indigo-600" delay={0.1} />
+
                 {!isAdmin ? (
-                    <StatCard
-                        icon={Clock} title="Delayed Cases" value={stats.delayed}
-                        bgClass="bg-red-50" colorClass="text-red-600" delay={0.3}
-                    />
+                    <StatCard icon={Clock} title="DELAYED" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" delay={0.15} />
                 ) : (
-                    <StatCard
-                        icon={Users} title="Active Staff" value={stats.staffCount}
-                        bgClass="bg-blue-50" colorClass="text-blue-600" delay={0.3}
-                    />
+                    <StatCard icon={Users} title="ACTIVE STAFF" value={stats.staffCount} bgClass="bg-blue-50" colorClass="text-blue-600" delay={0.15} />
                 )}
-
-                <StatCard
-                    icon={isAdmin ? Database : History} title={isAdmin ? "Total Records" : "My History"} value={stats.total}
-                    bgClass="bg-purple-50" colorClass="text-purple-600" delay={0.4}
-                />
             </div>
 
-            {/* Complaint Feed */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 px-2">
-                    <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                        <Activity size={20} />
-                    </div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Recent Activity Feed</h3>
-                </div>
-                {/* Clean container for list */}
-                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm relative min-h-[400px]">
-                    <ComplaintList />
-                </div>
+            {/* List Container */}
+            <div className="mt-8">
+                <ComplaintList />
             </div>
-
         </div>
     );
 };

@@ -67,6 +67,7 @@ function doPost(e) {
         if (action === 'deleteUser') return deleteUser(payload);
         if (action === 'changePassword') return changePassword(payload);
         if (action === 'updateComplaintStatus') return updateComplaintStatus(payload);
+        if (action === 'transferComplaint') return transferComplaint(payload); // NEW
 
         return response('error', 'Invalid action');
     } catch (err) {
@@ -539,6 +540,84 @@ function changePassword(payload) {
     return response('error', 'User not found');
 }
 
+function transferComplaint(payload) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('data');
+
+    // SMART HEADER DETECTION (Same as updateComplaintStatus)
+    let data = sheet.getDataRange().getValues();
+    let headerRowIndex = 0;
+    let headers = [];
+    for (let r = 0; r < Math.min(data.length, 5); r++) {
+        const rowStr = data[r].join(' ').toLowerCase();
+        if (rowStr.includes('date') && (rowStr.includes('desc') || rowStr.includes('status'))) {
+            headerRowIndex = r;
+            headers = data[r];
+            break;
+        }
+    }
+    if (headers.length === 0 && data.length > 0) headers = data[0];
+    const colMap = getColMap(headers);
+
+    if (!colMap.ID) return response('error', 'ID column not found');
+
+    const searchId = String(payload.ID || '').trim().toLowerCase();
+    let rowIndex = -1;
+    for (let i = headerRowIndex + 1; i < data.length; i++) {
+        const cellId = String(data[i][colMap.ID - 1] || '').trim().toLowerCase();
+        if (cellId === searchId) {
+            rowIndex = i + 1;
+            break;
+        }
+    }
+    if (rowIndex === -1) return response('error', 'Complaint not found');
+
+    // GET OLD DATA FOR LOGGING
+    const oldDept = colMap.Department ? String(data[rowIndex - 1][colMap.Department - 1]) : 'Unknown';
+    const oldResolver = colMap.ResolvedBy ? String(data[rowIndex - 1][colMap.ResolvedBy - 1]) : 'None';
+    const timestamp = Utilities.formatDate(new Date(), "GMT+5:30", "yyyy-MM-dd HH:mm:ss");
+
+    // UPDATE FIELDS
+    // 1. Department
+    if (colMap.Department && payload.NewDepartment) {
+        sheet.getRange(rowIndex, colMap.Department).setValue(payload.NewDepartment);
+    }
+    // 2. Assignee (Optional) OR Reset to Empty/Unknown if just dept transfer
+    if (colMap.ResolvedBy) {
+        sheet.getRange(rowIndex, colMap.ResolvedBy).setValue(payload.NewAssignee || '');
+    }
+    // 3. Status -> 'Transferred' (Signifies it's a fresh case for the new dept)
+    if (colMap.Status) {
+        sheet.getRange(rowIndex, colMap.Status).setValue('Transferred');
+    }
+
+    // 4. History Log
+    const transferMsg = `[${timestamp}] TRANSFERRED from ${oldDept} to ${payload.NewDepartment} by ${payload.TransferredBy}. Reason: ${payload.Reason}`;
+
+    let currentHistory = colMap.History ? String(sheet.getRange(rowIndex, colMap.History).getValue()) : '';
+    const separator = currentHistory ? '\n' : '';
+    if (colMap.History) {
+        sheet.getRange(rowIndex, colMap.History).setValue(currentHistory + separator + transferMsg);
+    }
+
+    // 5. Audit Log (History Sheet)
+    logToAuditHistory({
+        ID: payload.ID,
+        Action: 'Transfer',
+        By: payload.TransferredBy,
+        Remark: payload.Reason,
+        OldStatus: oldDept, // Tracking Dept change in status fields for audit
+        NewStatus: payload.NewDepartment
+    });
+
+    SpreadsheetApp.flush();
+
+    // 6. NOTIFICATION
+    // Notify the NEW Department
+    sendNewComplaintNotifications(payload.NewDepartment, payload.ID, payload.TransferredBy + " (Transfer)", payload.Reason + " (Original Desc maintained)");
+
+    return response('success', 'Case Transferred Successfully');
+}
+
 // --- WhatsApp Notification Logic ---
 const API_USERNAME = "SBH HOSPITAL";
 const API_PASS = "123456789";
@@ -566,7 +645,7 @@ function sendWhatsApp(number, message) {
 // --- PREMIUM TEMPLATES ---
 
 function sendAccountApprovalNotification(username, mobile) {
-    const msg = `Dear ${username},\n\nWe are pleased to inform you that your account registration for the SBH CMS Portal has been APPROVED.\n\nLogin Credentials:\nUsername: ${username}\nPortal Link: https://sbh-cms.vercel.app/\n\nYou may now access the dashboard to report or manage tickets.\n\nRegards,\nSBH IT Administration`;
+    const msg = `✅ [SBH CMS] Account Approved\n\nUser: ${username}\nCredentials Active.\nLogin: https://sbh-cms.vercel.app/\n\nSBH IT Admin`;
     sendWhatsApp(mobile, msg);
 }
 
@@ -603,13 +682,13 @@ function sendNewComplaintNotifications(department, complaintId, reportedByUser, 
     }
 
     if (userMobile) {
-        const msg = `Dear ${reportedByUser},\n\nYour complaint has been successfully registered.\n\nTicket ID: ${complaintId}\nDepartment: ${department}\nDescription: ${description}\n\nOur team has been notified and will address this shortly.\nTrack status: https://sbh-cms.vercel.app/\n\nRegards,\nSBH Support Team`;
+        const msg = `📝 [SBH CMS] Ticket #${complaintId} Created\nDept: ${department}\nStatus: Open\n\nTrack: https://sbh-cms.vercel.app/`;
         sendWhatsApp(userMobile, msg);
     }
 
     [...new Set(staffMobiles)].forEach(mob => {
         if (mob != userMobile && mob) {
-            const msg = `URGENT ALERT: New Incident Reported\n\nTicket ID: ${complaintId}\nDepartment: ${department}\nReported By: ${reportedByUser}\nIssue: ${description}\n\nPlease login to acknowledge and resolve: https://sbh-cms.vercel.app/\n\nSBH CMS Automation`;
+            const msg = `🔔 [SBH CMS] New Incident #${complaintId}\nDept: ${department}\nUser: ${reportedByUser}\nIssue: ${description}\n\nPlease Acknowledge: https://sbh-cms.vercel.app/`;
             sendWhatsApp(mob, msg);
             Utilities.sleep(1000);
         }
@@ -636,7 +715,7 @@ function sendResolutionNotification(complaintId, reportedByUser, status, resolve
     }
 
     if (userMobile) {
-        const msg = `Dear ${reportedByUser},\n\nUpdate on Ticket #${complaintId}:\n\nStatus: ${status}\nAction By: ${resolvedBy}\nRemark: ${remark || 'N/A'}\n\nView details: https://sbh-cms.vercel.app/\n\nRegards,\nSBH Support Team`;
+        const msg = `✅ [SBH CMS] Ticket #${complaintId} Update\nStatus: ${status}\nBy: ${resolvedBy}\nRemark: ${remark || 'N/A'}\n\nLink: https://sbh-cms.vercel.app/`;
         sendWhatsApp(userMobile, msg);
     }
 }
@@ -661,7 +740,7 @@ function sendExtensionNotification(complaintId, reportedByUser, extendedBy, newD
     }
 
     if (userMobile) {
-        const msg = `Dear ${reportedByUser},\n\nRegarding Ticket #${complaintId}: The target resolution date has been extended.\n\nNew Target Date: ${newDate}\nReason: ${reason}\nUpdated By: ${extendedBy}\n\nWe apologize for the delay.\n\nRegards,\nSBH Support Team`;
+        const msg = `🕒 [SBH CMS] Ticket #${complaintId} Extended\nTarget: ${newDate}\nReason: ${reason}\nBy: ${extendedBy}`;
         sendWhatsApp(userMobile, msg);
     }
 }
@@ -705,7 +784,7 @@ function sendReopenNotification(ticketId, staffName, reopenedBy, remark) {
     }
 
     if (staffMobile) {
-        const msg = `🚨 RE-OPEN ALERT: Ticket #${ticketId}\n\nA ticket you previously closed has been RE-OPENED by ${reopenedBy}.\n\nRemark: ${remark || 'No reason provided'}\n\nPlease take immediate action: https://sbh-cms.vercel.app/\n\nSBH Support Automation`;
+        const msg = `⚠️ [SBH CMS] Ticket #${ticketId} RE-OPENED\nBy: ${reopenedBy}\nReason: ${remark || 'N/A'}\n\nAction Required: https://sbh-cms.vercel.app/`;
         sendWhatsApp(staffMobile, msg);
     }
 }

@@ -223,5 +223,16 @@ export const sheetsService = {
             NewPassword: newPassword
         };
         return sendToSheet('changePassword', payload);
+    },
+
+    transferComplaint: async (id, newDept, newAssignee, reason, transferredBy) => {
+        const payload = {
+            ID: id,
+            NewDepartment: newDept,
+            NewAssignee: newAssignee,
+            Reason: reason,
+            TransferredBy: transferredBy
+        };
+        return sendToSheet('transferComplaint', payload);
     }
 };
