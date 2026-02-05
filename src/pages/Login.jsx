@@ -36,8 +36,7 @@ const Login = () => {
         <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden">
             {/* Subtle Professional Background - Zero Lag */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-0 w-full h-[50vh] bg-emerald-900/5"></div>
-                <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 left-0 w-full h-[50vh] bg-emerald-950/5"></div>
             </div>
 
             <motion.div
@@ -135,7 +134,7 @@ const Login = () => {
 
                         <button
                             onClick={() => setShowTerminated(false)}
-                            className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-black transition-all active:scale-[0.98]"
+                            className="w-full bg-emerald-800 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-emerald-900 transition-all active:scale-[0.98] uppercase tracking-widest text-xs"
                         >
                             Understood
                         </button>

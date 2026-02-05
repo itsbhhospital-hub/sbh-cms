@@ -57,9 +57,9 @@ const SessionTimer = () => {
         >
             <div className={`
                 flex items-center gap-2 px-4 py-2 rounded-full shadow-xl border backdrop-blur-md transition-all duration-500
-                ${status === 'critical' ? 'bg-red-500/90 border-red-600 text-white animate-pulse' :
-                    status === 'warning' ? 'bg-amber-500/90 border-amber-600 text-white' :
-                        'bg-white/80 border-slate-200 text-slate-700 hover:bg-white'}
+                ${status === 'critical' ? 'bg-red-500 text-white shadow-xl shadow-red-200' :
+                    status === 'warning' ? 'bg-amber-500 text-white shadow-xl shadow-amber-200' :
+                        'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 shadow-lg'}
             `}>
                 <motion.div
                     animate={status === 'critical' ? { rotate: [0, 10, -10, 0] } : {}}

@@ -180,7 +180,7 @@ const UserManagement = () => {
                         <input
                             type="text"
                             placeholder="Search users..."
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none shadow-sm text-slate-700 font-medium transition-all"
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 outline-none shadow-sm text-slate-700 font-medium transition-all"
                             value={searchTerm}
                             onChange={(e) => {
                                 setSearchTerm(e.target.value);
@@ -190,7 +190,7 @@ const UserManagement = () => {
                     </div>
                     <button
                         onClick={() => setAddingUser(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                        className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95"
                     >
                         <UserPlus size={20} />
                         <span className="hidden md:inline">Add User</span>
@@ -200,11 +200,11 @@ const UserManagement = () => {
 
             {/* Success Toast */}
             {actionSuccess && (
-                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600/90 backdrop-blur-xl text-white px-8 py-4 rounded-[2rem] shadow-2xl border border-white/20 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
-                    <div className="bg-white text-emerald-600 p-1 rounded-full shadow-inner">
+                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-emerald-800/95 backdrop-blur-xl text-white px-8 py-4 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
+                    <div className="bg-emerald-400 text-emerald-900 p-1.5 rounded-full shadow-inner">
                         <Check size={18} strokeWidth={4} />
                     </div>
-                    <span className="font-bold tracking-wide text-xs uppercase">{actionSuccess}</span>
+                    <span className="font-black tracking-widest text-[10px] uppercase">{actionSuccess}</span>
                 </div>
             )}
 
@@ -306,7 +306,7 @@ const UserManagement = () => {
                             </div>
                             <button
                                 onClick={handleAddUser}
-                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all mt-2"
+                                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl shadow-lg shadow-emerald-100 transition-all mt-2 active:scale-95 uppercase tracking-widest text-xs"
                             >
                                 Create & Approve
                             </button>
@@ -338,7 +338,7 @@ const UserManagement = () => {
                                 <tr key={idx} className="hover:bg-emerald-50/50 transition-colors group">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border ${u.Role === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black border tracking-tighter shadow-sm transition-transform group-hover:scale-105 ${u.Role === 'admin' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-100'
                                                 }`}>
                                                 {u.Username ? u.Username[0].toUpperCase() : '?'}
                                             </div>
@@ -422,8 +422,8 @@ const UserManagement = () => {
                                                 <option value="admin">Admin</option>
                                             </select>
                                         ) : (
-                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide ${u.Role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                u.Role === 'manager' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${u.Role === 'admin' ? 'bg-emerald-700 text-white shadow-sm' :
+                                                u.Role === 'manager' ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
                                                 }`}>
                                                 {u.Role}
                                             </span>
@@ -466,7 +466,7 @@ const UserManagement = () => {
                                                 </span>
                                                 <button
                                                     onClick={() => setUsers(users.map(item => item === u ? { ...item, showPass: !item.showPass } : item))}
-                                                    className="opacity-0 group-hover/pass:opacity-100 text-slate-400 hover:text-emerald-600 transition-all font-bold text-[10px] uppercase"
+                                                    className="opacity-0 group-hover/pass:opacity-100 text-emerald-600 hover:text-emerald-700 transition-all font-black text-[10px] uppercase tracking-widest"
                                                 >
                                                     {u.showPass ? 'Hide' : 'Show'}
                                                 </button>
@@ -509,7 +509,7 @@ const UserManagement = () => {
                                                         REJECT
                                                     </button>
                                                 )}
-                                                <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit User">
+                                                <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all" title="Edit User">
                                                     <Edit2 size={18} />
                                                 </button>
                                                 {u.Username !== user.Username && (

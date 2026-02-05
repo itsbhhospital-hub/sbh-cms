@@ -72,9 +72,9 @@ const PerformanceWidget = ({ complaints, user }) => {
                     </h3>
                 </div>
             </div>
-            <div className="bg-slate-900 p-5 rounded-2xl border border-slate-900 shadow-lg text-white flex flex-col justify-between relative overflow-hidden">
+            <div className="bg-emerald-950 p-5 rounded-2xl border border-emerald-900 shadow-lg text-white flex flex-col justify-between relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp size={48} /></div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Efficiency</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400/60">Efficiency Rank</p>
                 <h3 className="text-3xl font-black relative z-10">{stats.efficiency}%</h3>
             </div>
         </div>
@@ -88,7 +88,7 @@ const ComplaintRow = memo(({ complaint, onClick }) => {
             case 'Open': return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 rounded-full';
             case 'Solved':
             case 'Closed': return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 rounded-full';
-            case 'Transferred': return 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20 rounded-full';
+            case 'Transferred': return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 rounded-full';
             default: return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 rounded-full';
         }
     };
@@ -96,14 +96,14 @@ const ComplaintRow = memo(({ complaint, onClick }) => {
     return (
         <tr
             onClick={() => onClick(complaint)}
-            className="group border-b border-slate-50 hover:bg-indigo-50/40 transition-colors cursor-pointer"
+            className="group border-b border-slate-50 hover:bg-emerald-50/40 transition-colors cursor-pointer"
         >
             <td className="p-4 py-3">
                 <span className="font-mono text-xs font-bold text-slate-500">#{complaint.ID}</span>
             </td>
             <td className="p-4 py-3">
                 <div className="flex flex-col">
-                    <span className="font-bold text-slate-800 text-sm line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                    <span className="font-black text-slate-800 text-sm line-clamp-1 group-hover:text-emerald-700 transition-colors tracking-tight">
                         {complaint.Description}
                     </span>
                     <span className="text-[10px] text-slate-400 md:hidden">{new Date(complaint.Date).toLocaleDateString()}</span>
@@ -390,11 +390,11 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
 
                     <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="relative flex-1 md:w-64 group">
-                            <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                            <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
                             <input
                                 type="text"
                                 placeholder="Search by ID, Dept, or Name..."
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder:text-slate-400"
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 transition-all placeholder:text-slate-400"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -484,8 +484,8 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
 
             {/* DETAIL MODAL */}
             {detailModalOpen && selectedComplaint && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
 
                         {/* Modal Header */}
                         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
@@ -635,7 +635,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Transfer To Department</label>
                                                 <div className="relative">
                                                     <select
-                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 appearance-none"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 appearance-none"
                                                         value={transferDept}
                                                         onChange={e => setTransferDept(e.target.value)}
                                                     >
@@ -692,7 +692,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {selectedComplaint.Status === 'Open' &&
                                         (user.Role === 'admin' || (user.Department || '').toLowerCase() === (selectedComplaint.Department || '').toLowerCase()) && (
                                             <>
-                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5 transition-all">Mark as Resolved</button>
+                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-3 bg-emerald-700 text-white font-bold rounded-xl shadow-sm hover:bg-emerald-800 hover:-translate-y-0.5 transition-all">Mark as Resolved</button>
                                                 <button onClick={() => setActionMode('Extend')} className="flex-1 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all">Extend</button>
                                             </>
                                         )}
@@ -704,7 +704,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                         (selectedComplaint.ReportedBy || '').toLowerCase() === (user.Username || '').toLowerCase() && (
                                             <button
                                                 onClick={() => setActionMode('Rate')}
-                                                className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-all shadow-md active:scale-95"
+                                                className="flex-1 py-4 bg-emerald-800 text-white font-black rounded-xl hover:bg-emerald-900 transition-all shadow-md active:scale-95 uppercase tracking-widest text-xs"
                                             >
                                                 Rate This Service
                                             </button>
@@ -722,7 +722,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {/* OPTION 4: Transfer (Dept/Admin) */}
                                     {(selectedComplaint.Status === 'Open' || selectedComplaint.Status === 'Transferred') &&
                                         (user.Role === 'admin' || (user.Department || '').toLowerCase() === (selectedComplaint.Department || '').toLowerCase()) && (
-                                            <button onClick={() => setActionMode('Transfer')} className="w-full py-3 mt-2 bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 hover:border-indigo-300 transition-all shadow-sm">
+                                            <button onClick={() => setActionMode('Transfer')} className="w-full py-3 mt-2 bg-emerald-50 text-emerald-700 font-bold rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-all shadow-sm">
                                                 Transfer to Another Dept
                                             </button>
                                         )}
@@ -731,7 +731,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {user.Role === 'admin' && selectedComplaint.Status === 'Open' && (
                                         <button
                                             onClick={() => setActionMode('Force Close')}
-                                            className="w-full py-3 mt-2 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:border-rose-300 transition-all shadow-sm"
+                                            className="w-full py-3 mt-2 bg-rose-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:bg-rose-100 transition-all shadow-sm"
                                         >
                                             Force Close (Admin)
                                         </button>
@@ -744,11 +744,14 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                 </div>
             )}
 
-            <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm ${showSuccess ? 'block' : 'hidden'}`}>
-                <div className="bg-white p-8 rounded-2xl flex flex-col items-center animate-in zoom-in">
-                    <CheckCircle className="text-green-500 mb-4" size={48} />
-                    <h3 className="font-bold text-xl mb-4">Updated Successfully!</h3>
-                    <button onClick={() => setShowSuccess(false)} className="px-6 py-2 bg-slate-900 text-white font-bold rounded-lg">Continue</button>
+            <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/80 ${showSuccess ? 'block' : 'hidden'}`}>
+                <div className="bg-white p-10 rounded-2xl flex flex-col items-center animate-in zoom-in duration-300 shadow-2xl">
+                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
+                        <CheckCircle className="text-emerald-500" size={40} />
+                    </div>
+                    <h3 className="font-black text-2xl mb-2 text-slate-900 uppercase tracking-tight">System Updated</h3>
+                    <p className="text-slate-500 text-sm font-medium mb-8">Verification of ticket changes successful.</p>
+                    <button onClick={() => setShowSuccess(false)} className="w-full py-4 bg-emerald-700 text-white font-black rounded-xl hover:bg-emerald-800 transition-all active:scale-95 uppercase tracking-widest text-xs">Continue</button>
                 </div>
             </div>
         </div>

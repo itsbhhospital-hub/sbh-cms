@@ -20,7 +20,7 @@ const SuccessModal = ({ isOpen, onClose, complaintId }) => {
                 </p>
                 <button
                     onClick={onClose}
-                    className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-all active:scale-95"
+                    className="w-full bg-emerald-700 text-white font-bold py-3 rounded-xl hover:bg-emerald-800 transition-all active:scale-95 shadow-lg shadow-emerald-200"
                 >
                     Done
                 </button>
@@ -103,17 +103,17 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <button
                                 key={u.name}
                                 onClick={() => handleUnitSelect(u.name)}
-                                className={`group p-4 rounded-xl border transition-all duration-200 hover:shadow-md text-left flex items-start gap-4 ${unit === u.name ? 'border-indigo-500 bg-indigo-50/10 ring-1 ring-indigo-500' : 'border-slate-100 hover:border-indigo-300 bg-white'
+                                className={`group p-4 rounded-xl border transition-all duration-200 hover:shadow-md text-left flex items-start gap-4 ${unit === u.name ? 'border-emerald-500 bg-emerald-50/10 ring-1 ring-emerald-500' : 'border-slate-100 hover:border-emerald-300 bg-white'
                                     }`}
                             >
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 ${u.color}`}>
                                     {u.icon}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-800 text-sm truncate group-hover:text-indigo-700 transition-colors">{u.short}</h3>
+                                    <h3 className="font-bold text-slate-800 text-sm truncate group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{u.short}</h3>
                                     <p className="text-xs font-medium text-slate-400 mt-0.5 truncate">{u.name}</p>
                                 </div>
-                                <ChevronRight className="text-slate-300 group-hover:text-indigo-500 self-center" size={18} />
+                                <ChevronRight className="text-slate-300 group-hover:text-emerald-500 self-center" size={18} />
                             </button>
                         ))}
                     </div>
@@ -129,9 +129,9 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <ArrowLeft size={14} /> Back to Locations
                         </button>
 
-                        <div className="mb-6 flex items-center gap-3 p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-indigo-900">
+                        <div className="mb-6 flex items-center gap-3 p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-emerald-900">
                             <Building2 size={16} />
-                            <span className="text-sm font-bold truncate">{unit}</span>
+                            <span className="text-sm font-bold truncate tracking-tight">{unit}</span>
                         </div>
 
                         <div className="space-y-5">
@@ -139,7 +139,7 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 pl-1">Target Department</label>
                                 <div className="relative">
                                     <select
-                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 appearance-none transition-all"
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 appearance-none transition-all"
                                         value={department}
                                         onChange={(e) => setDepartment(e.target.value)}
                                         required
@@ -157,7 +157,7 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 pl-1">Description</label>
                                 <textarea
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 text-sm outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all h-32 resize-none placeholder:text-slate-400"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 text-sm outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all h-32 resize-none placeholder:text-slate-400"
                                     placeholder="Describe the issue clearly..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -168,7 +168,7 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+                                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
                             >
                                 {loading ? 'Submitting...' : <><Send size={16} /> Submit Ticket</>}
                             </button>

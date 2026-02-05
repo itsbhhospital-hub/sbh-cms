@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-10 h-10 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin"></div>
     </div>
   );
   if (!user) return <Navigate to="/login" />;

@@ -166,13 +166,13 @@ const Navbar = () => {
     if (!user) return null;
 
     return (
-        <nav className="sticky top-0 z-[100] w-full px-6 py-3 bg-white/70 backdrop-blur-xl border-b border-white/40 shadow-sm transition-all duration-300">
+        <nav className="sticky top-0 z-[100] w-full px-6 py-3 bg-white border-b border-slate-200 shadow-sm transition-all duration-300">
             <div className="max-w-7xl mx-auto flex justify-between md:justify-end items-center gap-4">
 
                 {/* Mobile Menu Button - Left Aligned */}
                 <button
                     onClick={() => setMobileOpen(true)}
-                    className="md:hidden p-2 text-slate-500 hover:bg-white/50 hover:text-indigo-600 rounded-xl transition-all"
+                    className="md:hidden p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all"
                 >
                     <Menu size={24} />
                 </button>
@@ -182,7 +182,7 @@ const Navbar = () => {
                     flex items-center gap-3 px-4 py-1.5 rounded-full border transition-all duration-500 shadow-sm
                     ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
                         timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                            'bg-gradient-to-r from-slate-50 to-white text-slate-600 border-slate-200/60'}
+                            'bg-slate-50 text-slate-600 border-slate-200/60'}
                 `}>
                     <div className={`w-2 h-2 rounded-full ${timerStatus === 'critical' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-60 hidden sm:block">Session</p>
@@ -195,7 +195,7 @@ const Navbar = () => {
                 <div className="relative z-50" ref={notifRef}>
                     <button
                         onClick={() => setShowNotifications(!showNotifications)}
-                        className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-50 shadow-sm transition-all relative"
+                        className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all relative"
                     >
                         <Bell size={20} />
                         {notifications.length > 0 && (
@@ -209,7 +209,7 @@ const Navbar = () => {
                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-100 p-4 overflow-hidden z-[200]"
+                                className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-4 overflow-hidden z-[200]"
                             >
                                 <h4 className="font-black text-slate-800 mb-3 px-2 flex justify-between items-center">
                                     Notifications <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full text-slate-500">{notifications.length}</span>
@@ -225,12 +225,12 @@ const Navbar = () => {
                                                     setShowNotifications(false);
                                                     navigate(`/my-complaints?ticketId=${n.id}`);
                                                 }}
-                                                className="p-3 bg-slate-50 rounded-xl hover:bg-blue-50 transition-colors border border-slate-100 cursor-pointer group"
+                                                className="p-3 bg-slate-50 rounded-xl hover:bg-emerald-50 transition-colors border border-slate-100 cursor-pointer group"
                                             >
                                                 <div className="flex items-start gap-3">
-                                                    <div className={`w-2 h-2 mt-1.5 rounded-full ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                                                    <div className={`w-2 h-2 mt-1.5 rounded-full ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-emerald-500' : 'bg-sky-500'}`}></div>
                                                     <div>
-                                                        <p className="text-xs font-bold text-slate-700 group-hover:text-blue-700 transition-colors">{n.msg}</p>
+                                                        <p className="text-xs font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">{n.msg}</p>
                                                         <p className="text-[10px] font-bold text-slate-400 mt-1">{new Date(n.time).toLocaleDateString()}</p>
                                                     </div>
                                                 </div>
@@ -257,7 +257,7 @@ const Navbar = () => {
                                 {(user.Username || '').toLowerCase() === 'admin' ? 'Super Admin' : user.Role}
                             </span>
                         </div>
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50 group-hover:rotate-6 transition-transform">
+                        <div className="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-emerald-200/50 group-hover:rotate-6 transition-transform">
                             <User size={20} strokeWidth={2.5} />
                         </div>
                     </button>
@@ -269,7 +269,7 @@ const Navbar = () => {
                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-100 p-3 overflow-hidden"
+                                className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-3 overflow-hidden"
                             >
                                 <div className="space-y-1">
                                     <button
@@ -284,9 +284,9 @@ const Navbar = () => {
 
                                     <button
                                         onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
-                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 transition-all group/item"
+                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 text-slate-600 hover:text-emerald-700 transition-all group/item"
                                     >
-                                        <div className="bg-slate-100 group-hover/item:bg-indigo-100 p-2 rounded-xl transition-colors">
+                                        <div className="bg-slate-100 group-hover/item:bg-emerald-100 p-2 rounded-xl transition-colors">
                                             <Key size={18} />
                                         </div>
                                         <span className="font-bold text-sm">Change Password</span>
@@ -313,18 +313,18 @@ const Navbar = () => {
             {/* Profile Modal */}
             <AnimatePresence>
                 {showProfile && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
                             className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden border border-emerald-50 shadow-2xl"
                         >
-                            <button onClick={() => setShowProfile(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all">
+                            <button onClick={() => setShowProfile(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all border border-slate-100">
                                 <X size={20} />
                             </button>
 
-                            <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-emerald-200">
+                            <div className="w-24 h-24 bg-emerald-700 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-emerald-200">
                                 <User size={40} strokeWidth={2} />
                             </div>
 
@@ -362,7 +362,7 @@ const Navbar = () => {
             {/* Change Password Modal */}
             <AnimatePresence>
                 {showPasswordModal && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -371,12 +371,12 @@ const Navbar = () => {
                         >
                             {!passSuccess ? (
                                 <>
-                                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                                         <Key size={28} />
                                     </div>
 
-                                    <h3 className="text-2xl font-black text-slate-800 text-center mb-1">Pass Management</h3>
-                                    <p className="text-indigo-600 font-bold text-[10px] text-center uppercase tracking-widest mb-8">Security Update</p>
+                                    <h3 className="text-2xl font-black text-slate-800 text-center mb-1 leading-tight">Pass Management</h3>
+                                    <p className="text-emerald-600 font-black text-[10px] text-center uppercase tracking-widest mb-8">Security Update</p>
 
                                     <form onSubmit={handleChangePassword} className="space-y-4">
                                         <div className="space-y-1">
@@ -430,7 +430,7 @@ const Navbar = () => {
                                             <button
                                                 type="submit"
                                                 disabled={isChanging}
-                                                className="flex-2 px-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                                                className="flex-2 px-8 py-4 bg-emerald-700 text-white font-black rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-800 transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-xs"
                                             >
                                                 {isChanging ? 'Updating...' : 'Update'}
                                             </button>

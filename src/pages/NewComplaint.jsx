@@ -16,7 +16,7 @@ const NewComplaint = () => {
                 onClick={() => navigate('/')}
                 className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-8 transition-colors font-bold group"
             >
-                <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 group-hover:border-emerald-500/50 transition-colors">
+                <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 group-hover:border-emerald-500/50 group-hover:bg-emerald-50/30 transition-all">
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                 </div>
                 Back to Dashboard

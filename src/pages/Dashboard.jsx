@@ -95,27 +95,23 @@ const Dashboard = () => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.4, ease: "circOut" }}
+            transition={{ delay, duration: 0.2 }}
             className={`
-                relative p-6 rounded-2xl bg-white shadow-sm border border-slate-100 
-                hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 group overflow-hidden
-                ${borderClass} border-t-4
+                relative p-6 rounded-xl bg-white shadow-sm border border-slate-200 
+                hover:shadow-md transition-all duration-200 group overflow-hidden
+                ${borderClass} border-t-[6px]
             `}
         >
-            {/* Background Glow */}
-            <div className={`absolute top-0 right-0 w-32 h-32 ${bgClass} rounded-full blur-3xl opacity-20 -mr-16 -mt-16 transition-opacity group-hover:opacity-40`}></div>
-
             <div className="relative flex justify-between items-start mb-4">
-                <div className={`p-3.5 rounded-2xl ${bgClass} ${colorClass} bg-opacity-10 group-hover:scale-110 transition-transform duration-300 shadow-sm ring-1 ring-inset ring-black/5`}>
-                    <Icon size={22} strokeWidth={2.5} />
+                <div className={`p-3 rounded-lg ${bgClass} ${colorClass} group-hover:scale-105 transition-transform duration-200 border border-black/5`}>
+                    <Icon size={24} strokeWidth={2.5} />
                 </div>
             </div>
 
             <div className="relative">
-                <h4 className="text-4xl font-black text-slate-900 tracking-tighter leading-none mb-2">{value}</h4>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                <h4 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">{value}</h4>
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest flex items-center gap-2">
                     {title}
-                    <span className={`w-1.5 h-1.5 rounded-full ${colorClass.replace('text-', 'bg-')} opacity-60`}></span>
                 </p>
             </div>
 
@@ -176,11 +172,11 @@ const Dashboard = () => {
 
                 <div className="flex gap-3">
                     {isAdmin && (
-                        <Link to="/user-management" className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                        <Link to="/user-management" className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm transition-all flex items-center gap-2">
                             <Users size={16} /> Users
                         </Link>
                     )}
-                    <Link to="/new-complaint" className="px-5 py-2.5 bg-slate-900 text-white hover:bg-black rounded-xl text-sm font-bold shadow-lg shadow-slate-200 transition-all flex items-center gap-2 active:scale-95">
+                    <Link to="/new-complaint" className="px-5 py-2.5 bg-emerald-700 text-white hover:bg-emerald-800 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm transition-all flex items-center gap-2 active:scale-95">
                         <Plus size={16} /> New Ticket
                     </Link>
                 </div>
@@ -188,14 +184,14 @@ const Dashboard = () => {
 
             {/* Stats Grid - Tighter, Cleaner */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={AlertCircle} title="OPEN" value={stats.open} bgClass="bg-amber-50" colorClass="text-amber-600" delay={0} />
-                <StatCard icon={CheckCircle} title="SOLVED" value={stats.resolved} bgClass="bg-emerald-50" colorClass="text-emerald-600" delay={0.05} />
-                <StatCard icon={Star} title="PERFORMANCE" value={stats.efficiencyScore || 'N/A'} bgClass="bg-indigo-50" colorClass="text-indigo-600" delay={0.1} />
+                <StatCard icon={AlertCircle} title="OPEN" value={stats.open} bgClass="bg-amber-100" colorClass="text-amber-700" borderClass="border-amber-500" delay={0} />
+                <StatCard icon={CheckCircle} title="SOLVED" value={stats.resolved} bgClass="bg-emerald-100" colorClass="text-emerald-700" borderClass="border-emerald-500" delay={0} />
+                <StatCard icon={Star} title="PERFORMANCE" value={stats.efficiencyScore || 'N/A'} bgClass="bg-indigo-100" colorClass="text-indigo-700" borderClass="border-indigo-500" delay={0} />
 
                 {!isAdmin ? (
-                    <StatCard icon={Clock} title="DELAYED" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" delay={0.15} />
+                    <StatCard icon={Clock} title="DELAYED" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" borderClass="border-rose-500" delay={0} />
                 ) : (
-                    <StatCard icon={Users} title="ACTIVE STAFF" value={stats.staffCount} bgClass="bg-blue-50" colorClass="text-blue-600" delay={0.15} />
+                    <StatCard icon={Users} title="ACTIVE STAFF" value={stats.staffCount} bgClass="bg-blue-100" colorClass="text-blue-700" borderClass="border-blue-500" delay={0} />
                 )}
             </div>
 

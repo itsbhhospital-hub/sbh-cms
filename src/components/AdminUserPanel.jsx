@@ -48,22 +48,22 @@ const AdminUserPanel = () => {
 
     if (loading) return (
         <div className="flex justify-center items-center py-10">
-            <div className="w-8 h-8 border-4 border-slate-200 border-t-pink-500 rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin"></div>
         </div>
     );
 
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-900">
-                <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+                <div className="p-2 bg-emerald-50 rounded-lg text-emerald-700">
                     <Shield size={20} />
                 </div>
-                User Management
+                User Access Control
             </h3>
             <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-xs uppercase tracking-widest font-bold">
+                        <tr className="bg-emerald-50/50 border-b border-emerald-100 text-emerald-800 text-xs uppercase tracking-widest font-black">
                             <th className="p-4 rounded-tl-2xl">Username</th>
                             <th className="p-4">Department</th>
                             <th className="p-4">Current Role</th>
@@ -79,9 +79,9 @@ const AdminUserPanel = () => {
                             const uStatus = user.Status || '';
 
                             return (
-                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                                <tr key={idx} className="hover:bg-emerald-50/30 transition-colors group">
                                     <td className="p-4 font-bold text-slate-700 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center text-xs font-bold ring-2 ring-white">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black shadow-sm group-hover:bg-emerald-200 transition-colors">
                                             {uName[0]?.toUpperCase() || '?'}
                                         </div>
                                         {uName}
@@ -106,7 +106,7 @@ const AdminUserPanel = () => {
                                         {uStatus !== 'Active' && (
                                             <button
                                                 onClick={() => updateUserRole(user, uRole, 'Active')}
-                                                className="p-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-all border border-emerald-700"
+                                                className="p-2 bg-emerald-700 text-white rounded-lg shadow-sm hover:bg-emerald-800 transition-all border border-emerald-800 active:scale-95"
                                                 title="Approve User"
                                             >
                                                 <Check size={14} strokeWidth={3} />
@@ -114,7 +114,7 @@ const AdminUserPanel = () => {
                                         )}
                                         <div className="relative">
                                             <select
-                                                className="text-xs font-bold border border-slate-200 rounded-lg py-2 pl-3 pr-8 bg-white text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none appearance-none cursor-pointer hover:border-indigo-300 transition-colors"
+                                                className="text-xs font-bold border border-slate-200 rounded-lg py-2 pl-3 pr-8 bg-white text-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none appearance-none cursor-pointer hover:border-emerald-300 transition-colors shadow-sm"
                                                 value={uRole}
                                                 onChange={(e) => updateUserRole(user, e.target.value, uStatus)}
                                             >
@@ -122,7 +122,7 @@ const AdminUserPanel = () => {
                                                 <option value="manager">Manager</option>
                                                 <option value="admin">Admin</option>
                                             </select>
-                                            <div className="absolute right-2.5 top-2.5 pointer-events-none text-slate-400">▼</div>
+                                            <div className="absolute right-2.5 top-2.5 pointer-events-none text-slate-400 text-[10px]">▼</div>
                                         </div>
                                     </td>
                                 </tr>

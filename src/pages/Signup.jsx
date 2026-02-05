@@ -64,8 +64,7 @@ const Signup = () => {
         <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden">
             {/* Subtle Professional Background */}
             <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 left-0 w-full h-[50vh] bg-emerald-900/5"></div>
-                <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 left-0 w-full h-[50vh] bg-emerald-950/5"></div>
             </div>
 
             <motion.div
@@ -169,7 +168,7 @@ const Signup = () => {
 
             {/* Duplicate User Modal - Clean & Fast */}
             {showDuplicate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <User className="text-emerald-600" size={28} />
@@ -202,7 +201,7 @@ const Signup = () => {
 
             {/* Success Modal - Clean & Fast */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="text-2xl text-emerald-600 font-bold">✓</span>
