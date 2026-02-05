@@ -166,26 +166,27 @@ const Navbar = () => {
     if (!user) return null;
 
     return (
-        <nav className="sticky top-0 z-[100] w-full px-4 py-3">
+        <nav className="sticky top-0 z-[100] w-full px-6 py-3 bg-white/70 backdrop-blur-xl border-b border-white/40 shadow-sm transition-all duration-300">
             <div className="max-w-7xl mx-auto flex justify-between md:justify-end items-center gap-4">
 
                 {/* Mobile Menu Button - Left Aligned */}
                 <button
                     onClick={() => setMobileOpen(true)}
-                    className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                    className="md:hidden p-2 text-slate-500 hover:bg-white/50 hover:text-indigo-600 rounded-xl transition-all"
                 >
                     <Menu size={24} />
                 </button>
 
-                {/* Session Timer Display - Visible on Mobile now */}
+                {/* Session Timer Display - Fluent Pill */}
                 <div className={`
-                    flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300
-                    ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' :
-                        timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                            'bg-white text-slate-500 border-slate-200 shadow-sm'}
+                    flex items-center gap-3 px-4 py-1.5 rounded-full border transition-all duration-500 shadow-sm
+                    ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
+                        timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-gradient-to-r from-slate-50 to-white text-slate-600 border-slate-200/60'}
                 `}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 hidden sm:block">Session</p>
-                    <p className={`font-mono font-semibold text-xs sm:text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-700'}`}>
+                    <div className={`w-2 h-2 rounded-full ${timerStatus === 'critical' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></div>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60 hidden sm:block">Session</p>
+                    <p className={`font-mono font-bold text-xs sm:text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-800'}`}>
                         {timeLeft}
                     </p>
                 </div>

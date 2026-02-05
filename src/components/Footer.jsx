@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-slate-900 border-t border-slate-800 backdrop-blur-xl">
+        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-indigo-950 border-t border-indigo-900/50 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] uppercase font-bold tracking-widest text-slate-500">
                 <span className="hover:text-slate-300 transition-colors cursor-default">
                     © 2026 SBH Group

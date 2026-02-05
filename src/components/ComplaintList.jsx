@@ -85,18 +85,18 @@ const PerformanceWidget = ({ complaints, user }) => {
 const ComplaintRow = memo(({ complaint, onClick }) => {
     const getStatusStyle = (status) => {
         switch (status) {
-            case 'Open': return 'bg-amber-100 text-amber-800 border-amber-200';
+            case 'Open': return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 rounded-full';
             case 'Solved':
-            case 'Closed': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-            case 'Transferred': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-            default: return 'bg-slate-100 text-slate-700 border-slate-200';
+            case 'Closed': return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 rounded-full';
+            case 'Transferred': return 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20 rounded-full';
+            default: return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 rounded-full';
         }
     };
 
     return (
         <tr
             onClick={() => onClick(complaint)}
-            className="group border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+            className="group border-b border-slate-50 hover:bg-indigo-50/40 transition-colors cursor-pointer"
         >
             <td className="p-4 py-3">
                 <span className="font-mono text-xs font-bold text-slate-500">#{complaint.ID}</span>
@@ -692,8 +692,8 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {selectedComplaint.Status === 'Open' &&
                                         (user.Role === 'admin' || (user.Department || '').toLowerCase() === (selectedComplaint.Department || '').toLowerCase()) && (
                                             <>
-                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all">Mark as Resolved</button>
-                                                <button onClick={() => setActionMode('Extend')} className="flex-1 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50">Extend</button>
+                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5 transition-all">Mark as Resolved</button>
+                                                <button onClick={() => setActionMode('Extend')} className="flex-1 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all">Extend</button>
                                             </>
                                         )}
 
@@ -722,7 +722,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {/* OPTION 4: Transfer (Dept/Admin) */}
                                     {(selectedComplaint.Status === 'Open' || selectedComplaint.Status === 'Transferred') &&
                                         (user.Role === 'admin' || (user.Department || '').toLowerCase() === (selectedComplaint.Department || '').toLowerCase()) && (
-                                            <button onClick={() => setActionMode('Transfer')} className="w-full py-3 mt-2 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-200 hover:bg-indigo-100 transition-all shadow-sm">
+                                            <button onClick={() => setActionMode('Transfer')} className="w-full py-3 mt-2 bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 hover:border-indigo-300 transition-all shadow-sm">
                                                 Transfer to Another Dept
                                             </button>
                                         )}
@@ -731,7 +731,7 @@ const ComplaintList = ({ onlyMyComplaints = false }) => {
                                     {user.Role === 'admin' && selectedComplaint.Status === 'Open' && (
                                         <button
                                             onClick={() => setActionMode('Force Close')}
-                                            className="w-full py-3 mt-2 bg-rose-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:bg-rose-100 transition-all shadow-sm"
+                                            className="w-full py-3 mt-2 bg-gradient-to-r from-rose-50 to-pink-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:border-rose-300 transition-all shadow-sm"
                                         >
                                             Force Close (Admin)
                                         </button>

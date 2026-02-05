@@ -90,45 +90,57 @@ const Dashboard = () => {
         }
     };
 
-    // Enterprise "StatCard" - High Performance, Minimalist
-    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, delay }) => (
+    // Enterprise "StatCard" - Fluent Design v3.0
+    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, borderClass, delay }) => (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.3, ease: "easeOut" }}
-            className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-default group"
+            transition={{ delay, duration: 0.4, ease: "circOut" }}
+            className={`
+                relative p-6 rounded-2xl bg-white shadow-sm border border-slate-100 
+                hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 group overflow-hidden
+                ${borderClass} border-t-4
+            `}
         >
-            <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${bgClass} ${colorClass} bg-opacity-50 group-hover:scale-105 transition-transform`}>
-                    <Icon size={20} strokeWidth={2.5} />
+            {/* Background Glow */}
+            <div className={`absolute top-0 right-0 w-32 h-32 ${bgClass} rounded-full blur-3xl opacity-20 -mr-16 -mt-16 transition-opacity group-hover:opacity-40`}></div>
+
+            <div className="relative flex justify-between items-start mb-4">
+                <div className={`p-3.5 rounded-2xl ${bgClass} ${colorClass} bg-opacity-10 group-hover:scale-110 transition-transform duration-300 shadow-sm ring-1 ring-inset ring-black/5`}>
+                    <Icon size={22} strokeWidth={2.5} />
                 </div>
-                {/* Optional: Add trend indicator here if available in future */}
             </div>
-            <div>
-                <h4 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-1">{value}</h4>
-                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">{title}</p>
+
+            <div className="relative">
+                <h4 className="text-4xl font-black text-slate-900 tracking-tighter leading-none mb-2">{value}</h4>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                    {title}
+                    <span className={`w-1.5 h-1.5 rounded-full ${colorClass.replace('text-', 'bg-')} opacity-60`}></span>
+                </p>
             </div>
 
             {/* Re-open Alert Warning (Logic Preserved) */}
             {showReopenModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+                        className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-rose-100"
                     >
-                        <div className="p-6 text-center">
-                            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="p-8 text-center relative overflow-hidden">
+                            <div className="absolute top-0 inset-x-0 h-1 bg-rose-500"></div>
+                            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-100 animate-pulse">
                                 <AlertCircle size={32} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-2">Ticket Re-opened</h3>
-                            <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                                A ticket you resolved has been re-opened by the reporter. Please review immediately.
+                            <h3 className="text-xl font-black text-slate-800 mb-2">Attention Required</h3>
+                            <p className="text-xs font-bold text-rose-600 uppercase tracking-widest mb-4">Ticket Re-opened</p>
+                            <p className="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                                A ticket you previously resolved has been flagged for review by the reporter.
                             </p>
 
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-6 flex flex-wrap justify-center gap-2">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 flex flex-wrap justify-center gap-2">
                                 {reopenedTickets.map(t => (
-                                    <span key={t.ID} className="px-2 py-1 bg-white border border-rose-100 text-rose-600 rounded text-xs font-bold shadow-sm">
+                                    <span key={t.ID} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-xs font-bold shadow-sm">
                                         #{t.ID}
                                     </span>
                                 ))}
@@ -136,9 +148,9 @@ const Dashboard = () => {
 
                             <button
                                 onClick={() => setShowReopenModal(false)}
-                                className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
+                                className="w-full py-3.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 active:scale-[0.98]"
                             >
-                                Acknowledge & View
+                                Acknowledge Issue
                             </button>
                         </div>
                     </motion.div>
