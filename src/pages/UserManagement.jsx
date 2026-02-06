@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
-import { Check, X, Shield, User as UserIcon, Lock, Search, Save, Edit2, Phone, ChevronLeft, ChevronRight, UserPlus, Trash2, Key } from 'lucide-react';
+import { DEPARTMENTS } from '../constants/appData';
+import { Check, X, Shield, User as UserIcon, Lock, Search, Save, Edit2, Phone, ChevronLeft, ChevronRight, UserPlus, Trash2, Key, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const UserManagement = () => {
@@ -92,6 +93,7 @@ const UserManagement = () => {
             alert("Mandatory fields missing.");
             return;
         }
+        setLoading(true);
         const tempUser = { ...newUserForm, Status: 'Active' };
         try {
             await sheetsService.registerUser(tempUser);
@@ -102,6 +104,8 @@ const UserManagement = () => {
         } catch (error) {
             alert("Failed to add user.");
             console.error(error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -244,18 +248,20 @@ const UserManagement = () => {
                                 </div>
                                 Add New Member
                             </h3>
-                            <button onClick={() => setAddingUser(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <button onClick={() => !loading && setAddingUser(false)} disabled={loading} className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50">
                                 <X size={24} />
                             </button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Full Name / ID</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">
+                                    Full Name / ID <span className="text-slate-300 normal-case tracking-normal ml-1">(e.g. Naman Mishra)</span>
+                                </label>
                                 <input
                                     type="text"
                                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
-                                    placeholder="e.g. John Doe"
+                                    placeholder="Example: Naman Mishra"
                                     value={newUserForm.Username}
                                     onChange={e => setNewUserForm({ ...newUserForm, Username: e.target.value })}
                                 />
@@ -276,13 +282,19 @@ const UserManagement = () => {
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Department</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none"
-                                        placeholder="e.g. IT"
-                                        value={newUserForm.Department}
-                                        onChange={e => setNewUserForm({ ...newUserForm, Department: e.target.value })}
-                                    />
+                                    <div className="relative">
+                                        <select
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none appearance-none"
+                                            value={newUserForm.Department}
+                                            onChange={e => setNewUserForm({ ...newUserForm, Department: e.target.value })}
+                                        >
+                                            <option value="General">General</option>
+                                            {DEPARTMENTS.sort().map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400 text-[10px]">▼</div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -310,9 +322,17 @@ const UserManagement = () => {
 
                             <button
                                 onClick={handleAddUser}
-                                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-black tracking-wide shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all active:scale-[0.98] mt-4"
+                                disabled={loading || !newUserForm.Username || !newUserForm.Password}
+                                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-black tracking-wide shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                Confirm Registration
+                                {loading ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        Confirm Registration
+                                        <ArrowRight size={18} />
+                                    </>
+                                )}
                             </button>
                         </div>
                     </motion.div>
