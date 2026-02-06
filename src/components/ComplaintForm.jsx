@@ -3,6 +3,7 @@ import { sheetsService } from '../services/googleSheets';
 import { Send, CheckCircle, Building2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import { DEPARTMENTS, UNITS } from '../constants/appData';
 
 const SuccessModal = ({ isOpen, onClose, complaintId }) => {
     if (!isOpen) return null;
@@ -47,7 +48,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
     const [showSuccess, setShowSuccess] = useState(false);
     const [successId, setSuccessId] = useState(null);
 
-    import { DEPARTMENTS, UNITS } from '../constants/appData';
 
     const handleUnitSelect = (selectedUnit) => {
         setUnit(selectedUnit);
