@@ -3,85 +3,103 @@ import { useAuth } from '../context/AuthContext';
 import { sheetsService } from '../services/googleSheets';
 import ComplaintList from '../components/ComplaintList';
 import { motion } from 'framer-motion';
-import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Database, LayoutDashboard, Star } from 'lucide-react';
+import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const [stats, setStats] = useState({ open: 0, resolved: 0, delayed: 0, total: 0, staffCount: 0 });
+    const [stats, setStats] = useState({
+        open: 0,
+        pending: 0,
+        solved: 0,
+        transferred: 0,
+        extended: 0,
+        delayed: 0,
+        activeStaff: 0
+    });
     const [reopenedTickets, setReopenedTickets] = useState([]);
     const [showReopenModal, setShowReopenModal] = useState(false);
-    const isAdmin = user?.Role?.toLowerCase() === 'admin';
+    const [activeFilter, setActiveFilter] = useState('All'); // For click-to-filter
+
+    const isSuperAdmin = user?.Role === 'SUPER_ADMIN';
+    const isAdmin = user?.Role?.toLowerCase() === 'admin' || isSuperAdmin;
 
     useEffect(() => {
         calculateStats();
     }, []);
 
     const calculateStats = async () => {
-        const [complaintsData, usersData, ratingsData] = await Promise.all([
+        const [complaintsData, usersData, extensionData] = await Promise.all([
             sheetsService.getComplaints(),
             isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
-            sheetsService.getRatings(true) // Fetch comprehensive ratings
+            sheetsService.getExtensionLogs()
         ]);
 
-        const role = (user.Role || '').toLowerCase().trim();
-        const userDept = (user.Department || '').toLowerCase().trim();
         const username = (user.Username || '').toLowerCase().trim();
+        const userDept = (user.Department || '').toLowerCase().trim();
 
+        // 1. Filter Relevant Complaints based on Role
         const relevant = complaintsData.filter(c => {
+            if (isAdmin) return true; // Admin sees all
+
+            // User sees own Department OR Reported by them
             const cDept = (c.Department || '').toLowerCase().trim();
             const cReportedBy = (c.ReportedBy || '').toLowerCase().trim();
-
-            if (role === 'admin') return true;
-            if (userDept && cDept === userDept) return true;
-            if (cReportedBy === username) return true;
-            return false;
+            return cDept === userDept || cReportedBy === username;
         });
 
+        // 2. Data Counting Logic
+        // Open: Status is explicitly 'Open'
         const open = relevant.filter(c => (c.Status || '').trim().toLowerCase() === 'open').length;
-        const resolved = relevant.filter(c => {
+
+        // Pending: Status is 'Pending' or 'In-Progress'
+        const pending = relevant.filter(c => {
             const s = (c.Status || '').trim().toLowerCase();
-            return s === 'solved' || s === 'closed';
+            return s === 'pending' || s === 'in-progress';
         }).length;
-        const total = relevant.length;
 
+        // Solved: Status is 'Resolved' or 'Closed'
+        const solved = relevant.filter(c => {
+            const s = (c.Status || '').trim().toLowerCase();
+            return s === 'resolved' || s === 'solved' || s === 'closed';
+        }).length;
+
+        // Transferred: Status is 'Transferred'
+        const transferred = relevant.filter(c => (c.Status || '').trim().toLowerCase() === 'transferred').length;
+
+        // Extended: Logic - Check extended_flag OR if ID exists in extension logs
+        const extended = relevant.filter(c => {
+            // Check if status is Extended (if used) OR flag exists
+            const s = (c.Status || '').trim().toLowerCase();
+            if (s === 'extended' || s === 'extend') return true;
+
+            // Check cross-reference with logs if needed (optional optimization)
+            const hasLog = extensionData.some(log => String(log.ComplaintID) === String(c.ID));
+            return hasLog;
+        }).length;
+
+        // Delayed: TargetDate < Today AND Status is NOT Solved/Closed
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
         const delayed = relevant.filter(c => {
-            if ((c.Status || '').trim().toLowerCase() !== 'open') return false;
-            const d = c.Date;
-            if (!d) return false;
-            const diff = Date.now() - new Date(d).getTime();
-            return diff > 86400000;
+            const s = (c.Status || '').trim().toLowerCase();
+            if (s === 'solved' || s === 'closed' || s === 'resolved') return false;
+
+            if (!c.TargetDate) return false;
+            const target = new Date(c.TargetDate);
+            return target < now;
         }).length;
 
-        // Calculate Staff Count (Active Users)
-        const staffCount = isAdmin ? usersData.filter(u => u.Status === 'Active').length : 0;
+        // Active Staff (Admin Only)
+        const activeStaff = isAdmin ? usersData.filter(u => u.Status === 'Active').length : 0;
 
-        // New Efficiency Logic (Based on Immutable Ratings Sheet)
-        let efficiencyScore = '0.0';
-        if (isAdmin) {
-            // System-wide Average
-            const validRatings = ratingsData.filter(r => Number(r.Rating) > 0);
-            if (validRatings.length > 0) {
-                const sum = validRatings.reduce((acc, r) => acc + Number(r.Rating), 0);
-                efficiencyScore = (sum / validRatings.length).toFixed(1);
-            }
-        } else {
-            // Personal Efficiency (If I am a Staff member)
-            const myRatings = ratingsData.filter(r => String(r.ResolvedBy || '').toLowerCase() === username && Number(r.Rating) > 0);
-            if (myRatings.length > 0) {
-                const sum = myRatings.reduce((acc, r) => acc + Number(r.Rating), 0);
-                efficiencyScore = (sum / myRatings.length).toFixed(1);
-            }
-        }
+        setStats({ open, pending, solved, transferred, extended, delayed, activeStaff });
 
-        setStats({ open, resolved, delayed, total, staffCount, efficiencyScore });
-
-        // Check for Re-opened tickets assigned to ME
-        if (role !== 'user') {
-            const reopens = complaintsData.filter(c =>
+        // Check for Re-opened tickets (For User/Staff)
+        if (!isAdmin) {
+            const reopens = relevant.filter(c =>
                 String(c.Status || '').trim().toLowerCase() === 'open' &&
-                String(c.ResolvedBy || '').toLowerCase() === username &&
-                username !== ''
+                String(c.ResolvedBy || '').toLowerCase() === username
             );
             if (reopens.length > 0) {
                 setReopenedTickets(reopens);
@@ -90,32 +108,43 @@ const Dashboard = () => {
         }
     };
 
-    // Enterprise "StatCard" - Fluent Design v3.0
-    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, borderClass, delay }) => (
+    const handleCardClick = (filterType) => {
+        setActiveFilter(filterType);
+        // Dispatch custom event or just let prop update trigger re-render in ComplaintList
+    };
+
+    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, borderClass, delay, filterType }) => (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.2 }}
-            className={`
-                relative p-6 rounded-xl bg-white shadow-sm border border-slate-200 
-                hover:shadow-md transition-all duration-200 group overflow-hidden
-                ${borderClass} border-t-[6px]
-            `}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay, duration: 0.3 }}
+            onClick={() => handleCardClick(filterType)}
+            className={`flex flex-col justify-between p-6 rounded-2xl bg-white border cursor-pointer relative overflow-hidden group 
+                ${activeFilter === filterType ? 'ring-2 ring-offset-2 ring-orange-500 shadow-lg' : 'border-slate-100 shadow-[0_2px_15px_-3px_rgb(0,0,0,0.04)]'} 
+                hover:shadow-lg transition-all active:scale-[0.98]`}
         >
-            <div className="relative flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-lg ${bgClass} ${colorClass} group-hover:scale-105 transition-transform duration-200 border border-black/5`}>
-                    <Icon size={24} strokeWidth={2.5} />
+            <div className={`absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity ${colorClass}`}>
+                <Icon size={64} />
+            </div>
+
+            <div className="flex justify-between items-start relative z-10">
+                <div className={`p-2.5 rounded-xl ${bgClass} ${colorClass}`}>
+                    <Icon size={22} />
                 </div>
+                {activeFilter === filterType && (
+                    <div className="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-in fade-in">Active</div>
+                )}
             </div>
-
-            <div className="relative">
-                <h4 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">{value}</h4>
-                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest flex items-center gap-2">
-                    {title}
-                </p>
+            <div className="relative z-10">
+                <h3 className="text-stat-number text-slate-900 leading-none mt-4">{value}</h3>
+                <p className="text-label font-bold text-slate-400 tracking-wide mt-1">{title}</p>
             </div>
+        </motion.div>
+    );
 
-            {/* Re-open Alert Warning (Logic Preserved) */}
+    return (
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 pb-32">
+            {/* Re-open Alert Warning */}
             {showReopenModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
                     <motion.div
@@ -129,7 +158,7 @@ const Dashboard = () => {
                                 <AlertCircle size={32} />
                             </div>
                             <h3 className="text-xl font-black text-slate-800 mb-2">Attention Required</h3>
-                            <p className="text-xs font-bold text-rose-600 uppercase tracking-widest mb-4">Ticket Re-opened</p>
+                            <p className="text-xs font-bold text-rose-600 tracking-wide mb-4">Ticket Re-opened</p>
                             <p className="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
                                 A ticket you previously resolved has been flagged for review by the reporter.
                             </p>
@@ -152,52 +181,60 @@ const Dashboard = () => {
                     </motion.div>
                 </div>
             )}
-        </motion.div>
-    );
-
-    return (
-        <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 pb-32">
 
             {/* Enterprise Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-2">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        Dashboard
-                        <span className="px-2 py-1 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                            {isAdmin ? 'Admin' : 'Staff'}
+                    <h1 className="text-page-title text-slate-900 tracking-tight flex items-center gap-3">
+                        Complaint Management
+                        <span className="px-2 py-0.5 rounded bg-orange-50 border border-orange-100 text-small-info font-bold text-orange-600 tracking-wide">
+                            Hospital Unit
                         </span>
                     </h1>
-                    <p className="text-slate-500 font-medium mt-1">Overview of system performance</p>
+                    <p className="text-table-data text-slate-500 font-bold mt-1.5 opacity-60 tracking-tight">System Resolution Monitor v4.0</p>
                 </div>
-
                 <div className="flex gap-3">
-                    {isAdmin && (
-                        <Link to="/user-management" className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm transition-all flex items-center gap-2">
-                            <Users size={16} /> Users
-                        </Link>
-                    )}
-                    <Link to="/new-complaint" className="px-5 py-2.5 bg-emerald-700 text-white hover:bg-emerald-800 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm transition-all flex items-center gap-2 active:scale-95">
-                        <Plus size={16} /> New Ticket
+                    <Link to="/new-complaint" className="px-6 py-3 bg-gradient-to-r from-orange-600 to-rose-600 text-white hover:shadow-xl hover:shadow-orange-500/20 rounded-xl text-small-info font-bold tracking-wide shadow-lg shadow-orange-500/10 transition-all active:scale-[0.98] flex items-center gap-2">
+                        <Plus size={16} strokeWidth={3} /> Create Ticket
                     </Link>
                 </div>
             </div>
 
-            {/* Stats Grid - Tighter, Cleaner */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={AlertCircle} title="OPEN" value={stats.open} bgClass="bg-amber-100" colorClass="text-amber-700" borderClass="border-amber-500" delay={0} />
-                <StatCard icon={CheckCircle} title="SOLVED" value={stats.resolved} bgClass="bg-emerald-100" colorClass="text-emerald-700" borderClass="border-emerald-500" delay={0} />
-                <StatCard icon={Star} title="PERFORMANCE" value={stats.efficiencyScore || 'N/A'} bgClass="bg-indigo-100" colorClass="text-indigo-700" borderClass="border-indigo-500" delay={0} />
+            {/* Filter Status Readout */}
+            {activeFilter !== 'All' && (
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-500 animate-in fade-in slide-in-from-left-2">
+                    <Filter size={16} className="text-orange-500" />
+                    Filtering view by: <span className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{activeFilter}</span>
+                    <button onClick={() => setActiveFilter('All')} className="ml-2 text-xs text-slate-400 hover:text-slate-600 underline">Clear Filter</button>
+                </div>
+            )}
 
-                {!isAdmin ? (
-                    <StatCard icon={Clock} title="DELAYED" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" borderClass="border-rose-500" delay={0} />
+            {/* Stats Grid - Role Based */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <StatCard icon={AlertCircle} title="Open" value={stats.open} bgClass="bg-amber-100" colorClass="text-amber-700" delay={0} filterType="Open" />
+
+                {/* Pending Only shown if non-zero or specific logic, but requested to show card */}
+                <StatCard icon={Timer} title="Pending" value={stats.pending} bgClass="bg-sky-100" colorClass="text-sky-700" delay={0.05} filterType="Pending" />
+
+                <StatCard icon={CheckCircle} title="Solved" value={stats.solved} bgClass="bg-emerald-100" colorClass="text-emerald-700" delay={0.1} filterType="Solved" />
+
+                <StatCard icon={Share2} title="Transferred" value={stats.transferred} bgClass="bg-purple-100" colorClass="text-purple-700" delay={0.15} filterType="Transferred" />
+
+                {isAdmin ? (
+                    // Admin View
+                    <StatCard icon={Users} title="Active Staff" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" delay={0.2} filterType="Active Staff" />
                 ) : (
-                    <StatCard icon={Users} title="ACTIVE STAFF" value={stats.staffCount} bgClass="bg-blue-100" colorClass="text-blue-700" borderClass="border-blue-500" delay={0} />
+                    // User View - Extended & Delayed
+                    <>
+                        <StatCard icon={History} title="Extended" value={stats.extended} bgClass="bg-blue-100" colorClass="text-blue-700" delay={0.2} filterType="Extended" />
+                        <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" delay={0.25} filterType="Delayed" />
+                    </>
                 )}
             </div>
 
-            {/* List Container */}
+            {/* List Container - Passing Filter Prop */}
             <div className="mt-8">
-                <ComplaintList />
+                <ComplaintList initialFilter={activeFilter} key={activeFilter} />
             </div>
         </div>
     );

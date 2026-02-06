@@ -56,10 +56,10 @@ const SessionTimer = () => {
             className="fixed top-4 right-4 z-[100]"
         >
             <div className={`
-                flex items-center gap-2 px-4 py-2 rounded-full shadow-xl border backdrop-blur-md transition-all duration-500
-                ${status === 'critical' ? 'bg-red-500 text-white shadow-xl shadow-red-200' :
-                    status === 'warning' ? 'bg-amber-500 text-white shadow-xl shadow-amber-200' :
-                        'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 shadow-lg'}
+                flex items-center gap-3 px-6 py-3 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border transition-all duration-500
+                ${status === 'critical' ? 'bg-rose-600 text-white border-rose-500 animate-pulse' :
+                    status === 'warning' ? 'bg-amber-500 text-white border-amber-400' :
+                        'bg-white border-slate-200 text-slate-800 hover:border-orange-300 shadow-2xl'}
             `}>
                 <motion.div
                     animate={status === 'critical' ? { rotate: [0, 10, -10, 0] } : {}}

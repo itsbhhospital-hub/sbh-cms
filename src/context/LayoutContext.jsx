@@ -4,9 +4,10 @@ const LayoutContext = createContext();
 
 export const LayoutProvider = ({ children }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <LayoutContext.Provider value={{ mobileOpen, setMobileOpen }}>
+        <LayoutContext.Provider value={{ mobileOpen, setMobileOpen, collapsed, setCollapsed }}>
             {children}
         </LayoutContext.Provider>
     );

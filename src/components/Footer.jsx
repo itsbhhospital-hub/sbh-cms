@@ -1,13 +1,37 @@
-import React from 'react';
-import { Heart } from 'lucide-react';
+import { useLayout } from '../context/LayoutContext';
 
 const Footer = () => {
+    const layout = useLayout();
+    const { mobileOpen = false, collapsed = false } = layout || {};
+
+    // Width Logic: 0px if no layout (Login/Signup), otherwise Sidebar width
+    const offset = layout ? (mobileOpen ? '0px' : (collapsed ? '5rem' : '18rem')) : '0px';
+
     return (
-        <footer className="fixed bottom-0 left-0 w-full z-[100] bg-emerald-950 border-t border-emerald-900 shadow-2xl">
-            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-center text-[11px] font-bold tracking-widest text-emerald-400/60 uppercase">
-                <span className="hover:text-emerald-300 transition-colors cursor-default">
-                    SBH Group Of Hospitals | Developed by Naman Mishra
-                </span>
+        <footer
+            style={{ left: offset, width: `calc(100% - ${offset})` }}
+            className="fixed bottom-0 z-[120] py-1.5 bg-gradient-to-r from-orange-600 to-rose-600 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-all duration-300"
+        >
+            <div className="max-w-7xl mx-auto px-6 text-center">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[10px] font-bold tracking-wide text-white/90">
+                    <a
+                        href="https://sbhhospital.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors flex items-center gap-2 group"
+                    >
+                        SBH Group of Hospitals
+                        <span className="w-1 h-1 bg-white/30 rounded-full hidden sm:block"></span>
+                    </a>
+                    <a
+                        href="https://www.instagram.com/ignamanmishra"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors group"
+                    >
+                        Architecture: <span className="opacity-70 group-hover:opacity-100 transition-opacity">Naman Mishra</span>
+                    </a>
+                </div>
             </div>
         </footer>
     );

@@ -2,29 +2,37 @@ import { useState } from 'react';
 import { sheetsService } from '../services/googleSheets';
 import { Send, CheckCircle, Building2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 const SuccessModal = ({ isOpen, onClose, complaintId }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm">
-                    <CheckCircle strokeWidth={3} size={32} />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-none animate-in fade-in duration-200">
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-[2rem] p-10 max-w-sm w-full text-center shadow-2xl border border-slate-100 relative overflow-hidden"
+            >
+                <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-orange-500 to-rose-600"></div>
+                <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <CheckCircle strokeWidth={3} size={40} />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-1">Ticket Registered</h3>
+                <h3 className="text-popup-title font-black text-slate-900 mb-2">Ticket Generated</h3>
                 {complaintId && (
-                    <p className="font-mono text-lg font-bold text-slate-500 mb-4">#{complaintId}</p>
+                    <div className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-lg inline-block mb-4 tracking-widest">
+                        #{complaintId}
+                    </div>
                 )}
-                <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
-                    The department has been notified. You can track this in your dashboard history.
+                <p className="text-table-data font-bold text-slate-500 mb-8 leading-relaxed">
+                    The support protocol has been initiated. Mission parameters are now visible in your dashboard.
                 </p>
                 <button
                     onClick={onClose}
-                    className="w-full bg-emerald-700 text-white font-bold py-3 rounded-xl hover:bg-emerald-800 transition-all active:scale-95 shadow-lg shadow-emerald-200"
+                    className="w-full bg-slate-900 hover:bg-black text-white text-button font-black py-4 rounded-2xl transition-all active:scale-95 shadow-xl shadow-slate-200 tracking-widest"
                 >
-                    Done
+                    Acknowledge
                 </button>
-            </div>
+            </motion.div>
         </div>
     );
 };
@@ -41,7 +49,7 @@ const ComplaintForm = ({ onComplaintCreated }) => {
 
     const UNITS = [
         { name: 'SBH WOMEN HOSPITAL RAIPUR', short: 'Women Hospital', color: 'bg-rose-50 text-rose-700', icon: '🏥' },
-        { name: 'SBH EYE HOSPITAL RAIPUR', short: 'Eye Raipur', color: 'bg-emerald-50 text-emerald-700', icon: '👁️' },
+        { name: 'SBH EYE HOSPITAL RAIPUR', short: 'Eye Raipur', color: 'bg-orange-50 text-orange-700', icon: '👁️' },
         { name: 'SBH EYE HOSPITAL FAFADIH', short: 'Eye Fafadih', color: 'bg-blue-50 text-blue-700', icon: '🏥' },
         { name: 'SBH EYE HOSPITAL BHILAI', short: 'Eye Bhilai', color: 'bg-indigo-50 text-indigo-700', icon: '🏬' }
     ];
@@ -85,35 +93,48 @@ const ComplaintForm = ({ onComplaintCreated }) => {
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]">
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 text-xs font-black text-slate-600">
-                        {step}
-                    </span>
-                    <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                        {step === 1 ? 'Select Location' : 'Issue Details'}
+            <div className="p-8 border-b border-slate-100 bg-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] rotate-12">
+                    <Building2 size={120} />
+                </div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-orange-600 text-[11px] font-black text-white shadow-lg shadow-orange-500/20">
+                            {step}
+                        </span>
+                        <span className="text-label text-slate-400 font-bold tracking-widest">Step {step} of 2</span>
+                    </div>
+                    <h2 className="text-page-title text-slate-900 tracking-tight font-black">
+                        {step === 1 ? 'Deployment Location' : 'Issue Parameters'}
                     </h2>
+                    <p className="text-small-info text-slate-500 font-bold mt-1 max-w-md">
+                        {step === 1
+                            ? 'Identify the specific hospital facility requiring attention.'
+                            : 'Define the exact requirements and departmental context.'}
+                    </p>
                 </div>
             </div>
 
             <div className="p-6 md:p-8">
                 {step === 1 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
                         {UNITS.map((u) => (
                             <button
                                 key={u.name}
                                 onClick={() => handleUnitSelect(u.name)}
-                                className={`group p-4 rounded-xl border transition-all duration-200 hover:shadow-md text-left flex items-start gap-4 ${unit === u.name ? 'border-emerald-500 bg-emerald-50/10 ring-1 ring-emerald-500' : 'border-slate-100 hover:border-emerald-300 bg-white'
+                                className={`group p-6 rounded-2xl border-2 transition-all duration-300 hover:shadow-xl text-left flex items-start gap-5 ${unit === u.name ? 'border-orange-600 bg-orange-50/20 shadow-lg' : 'border-slate-100 hover:border-orange-200 bg-white'
                                     }`}
                             >
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 ${u.color}`}>
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-inner group-hover:scale-110 transition-transform ${u.color}`}>
                                     {u.icon}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-800 text-sm truncate group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{u.short}</h3>
-                                    <p className="text-xs font-medium text-slate-400 mt-0.5 truncate">{u.name}</p>
+                                    <h3 className="font-black text-slate-800 text-base group-hover:text-orange-700 transition-colors tracking-tight leading-none mb-1">{u.short}</h3>
+                                    <p className="text-label font-bold text-slate-400 tracking-widest text-[10px] truncate">{u.name}</p>
+                                    <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-orange-600 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                                        Select Location <ChevronRight size={14} />
+                                    </div>
                                 </div>
-                                <ChevronRight className="text-slate-300 group-hover:text-emerald-500 self-center" size={18} />
                             </button>
                         ))}
                     </div>
@@ -129,17 +150,17 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <ArrowLeft size={14} /> Back to Locations
                         </button>
 
-                        <div className="mb-6 flex items-center gap-3 p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-emerald-900">
+                        <div className="mb-6 flex items-center gap-3 p-3 bg-orange-50/50 rounded-lg border border-orange-100 text-orange-900">
                             <Building2 size={16} />
                             <span className="text-sm font-bold truncate tracking-tight">{unit}</span>
                         </div>
 
-                        <div className="space-y-5">
+                        <div className="space-y-4">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 pl-1">Target Department</label>
+                                <label className="block text-table-header tracking-widest text-slate-500 mb-2 pl-1">Primary Department</label>
                                 <div className="relative">
                                     <select
-                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 appearance-none transition-all"
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-forms outline-none focus:ring-4 focus:ring-orange-50 focus:border-orange-600 appearance-none transition-all shadow-sm"
                                         value={department}
                                         onChange={(e) => setDepartment(e.target.value)}
                                         required
@@ -155,10 +176,10 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 pl-1">Description</label>
+                                <label className="block text-table-header tracking-widest text-slate-500 mb-2 pl-1">Case Parameters (Description)</label>
                                 <textarea
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 text-sm outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all h-32 resize-none placeholder:text-slate-400"
-                                    placeholder="Describe the issue clearly..."
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 text-forms outline-none focus:ring-4 focus:ring-orange-50 focus:border-orange-600 transition-all h-32 resize-none placeholder:text-slate-300 shadow-sm"
+                                    placeholder="Provide specialized details regarding the requirement..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     required
@@ -168,9 +189,16 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+                                className="w-full py-4.5 bg-slate-900 hover:bg-black text-white text-button font-black rounded-2xl shadow-xl shadow-slate-200 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-70 tracking-widest"
                             >
-                                {loading ? 'Submitting...' : <><Send size={16} /> Submit Ticket</>}
+                                {loading ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <Send size={18} />
+                                        Authorize Ticket
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>

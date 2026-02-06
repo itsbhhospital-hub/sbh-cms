@@ -10,6 +10,7 @@ const API_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 // --- MOCK DATA FALLBACK ---
 const MOCK_USERS = [
     { Username: 'admin', Password: 'admin123', Role: 'admin', Status: 'Active', Department: 'ADMIN' },
+    { Username: 'AM Sir', Password: 'Am@321', Role: 'SUPER_ADMIN', Status: 'Active', Department: 'ADMIN', Mobile: '0000000000' }
 ];
 
 // --- LOCAL STORAGE CACHE HELPERS ---
@@ -95,11 +96,27 @@ const normalizeRows = (rows) => {
         normalized.Role = findValue(['Role', 'UserType']);
         normalized.Mobile = findValue(['Mobile', 'Phone', 'WhatsApp']);
 
+        // Case Transfer Log specific
+        normalized.ComplaintID = findValue(['complaint_id', 'Complaint ID']);
+        normalized.TransferredBy = findValue(['transferred_by', 'Transferred By']);
+        normalized.FromDepartment = findValue(['from_department', 'From Department']);
+        normalized.ToDepartment = findValue(['to_department', 'To Department']);
+        normalized.ToUser = findValue(['to_user', 'To User']);
+        normalized.TransferTime = findValue(['transfer_time', 'Transfer Time']);
+        normalized.Reason = findValue(['reason', 'Reason']);
+
+        // Case Extend Log specific
+        normalized.ExtendedBy = findValue(['extended_by', 'Extended By']);
+        normalized.OldTargetDate = findValue(['old_target_date', 'Old Target Date']);
+        normalized.NewTargetDate = findValue(['new_target_date', 'New Target Date']);
+        normalized.DiffDays = findValue(['diff_days', 'Diff Days']);
+        normalized.ExtensionTime = findValue(['extension_time', 'Extension Time']);
+
         return normalized;
     });
 };
 
-const fetchSheetData = async (sheetName, forceRefresh = false) => {
+const fetchSheetData = async (sheetName, forceRefresh = false, options = {}) => {
     // 1. Check Cache
     const cached = getCachedData(sheetName);
 
@@ -120,6 +137,7 @@ const fetchSheetData = async (sheetName, forceRefresh = false) => {
 
     // 2. Fetch Network (Sync)
     try {
+        if (!options.silent) window.dispatchEvent(new Event('sbh-loading-start'));
         const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}&t=${Date.now()}`);
         const data = await response.json();
 
@@ -131,18 +149,24 @@ const fetchSheetData = async (sheetName, forceRefresh = false) => {
         setCachedData(sheetName, normalized);
         return normalized;
     } catch (error) {
-        console.error("API Read Error:", error);
+        // console.error("API Read Error:", error);
+        // Fallback for missing sheets
+        if (error.message === 'Sheet not found') return [];
+
         if (sheetName === 'master') {
             const stale = localStorage.getItem(CACHE_PREFIX + sheetName);
             if (stale) return normalizeRows(JSON.parse(stale).value);
             return normalizeRows(MOCK_USERS);
         }
         return [];
+    } finally {
+        if (!options.silent) window.dispatchEvent(new Event('sbh-loading-end'));
     }
 };
 
-const sendToSheet = async (action, payload) => {
+const sendToSheet = async (action, payload, silent = false) => {
     try {
+        if (!silent) window.dispatchEvent(new Event('sbh-loading-start'));
         const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({ action, payload })
@@ -165,15 +189,19 @@ const sendToSheet = async (action, payload) => {
         console.error("API Write Error:", error);
         alert(`API Connection Failed: ${error.message}. Please check your connection.`);
         throw error;
+    } finally {
+        if (!silent) window.dispatchEvent(new Event('sbh-loading-end'));
     }
 };
 
 export const sheetsService = {
-    getComplaints: (force = false) => fetchSheetData('data', force),
-    getUsers: (force = false) => fetchSheetData('master', force),
-    getRatings: (force = false) => fetchSheetData('ratings', force),
+    getComplaints: (force = false, silent = false) => fetchSheetData('data', force, { silent }),
+    getUsers: (force = false, silent = false) => fetchSheetData('master', force, { silent }),
+    getRatings: (force = false, silent = false) => fetchSheetData('ratings', force, { silent }),
+    getTransferLogs: (force = false, silent = false) => fetchSheetData('Case_Transfer_Log', force, { silent }),
+    getExtensionLogs: (force = false, silent = false) => fetchSheetData('Case_Extend_Log', force, { silent }),
 
-    createComplaint: async (complaint) => {
+    createComplaint: async (complaint, silent = true) => {
         const payload = {
             // ID: Generated on Server (GAS)
             Date: new Date().toISOString(),
@@ -182,10 +210,10 @@ export const sheetsService = {
             ReportedBy: complaint.reportedBy,
             Unit: complaint.unit // NEW
         };
-        return sendToSheet('createComplaint', payload);
+        return sendToSheet('createComplaint', payload, silent);
     },
 
-    updateComplaintStatus: async (id, status, resolvedBy, remark = '', targetDate = '', rating = '') => {
+    updateComplaintStatus: async (id, status, resolvedBy, remark = '', targetDate = '', rating = '', silent = true) => {
         const payload = {
             ID: id,
             Status: status,
@@ -194,10 +222,10 @@ export const sheetsService = {
             TargetDate: targetDate, // NEW (For Extensions)
             Rating: rating // NEW (For Feedback)
         };
-        return sendToSheet('updateComplaintStatus', payload);
+        return sendToSheet('updateComplaintStatus', payload, silent);
     },
 
-    registerUser: async (user) => {
+    registerUser: async (user, silent = true) => {
         const payload = {
             Username: user.Username || user.username,
             Password: user.Password || user.password,
@@ -206,27 +234,27 @@ export const sheetsService = {
             Role: user.Role || user.role || 'user',
             Status: user.Status || 'Pending' // Fix: Pass status so Admin can auto-approve
         };
-        return sendToSheet('registerUser', payload);
+        return sendToSheet('registerUser', payload, silent);
     },
 
-    updateUser: async (user) => {
-        return sendToSheet('updateUser', user);
+    updateUser: async (user, silent = true) => {
+        return sendToSheet('updateUser', user, silent);
     },
 
-    deleteUser: async (username) => {
-        return sendToSheet('deleteUser', { Username: username });
+    deleteUser: async (username, silent = false) => {
+        return sendToSheet('deleteUser', { Username: username }, silent);
     },
 
-    changePassword: async (username, oldPassword, newPassword) => {
+    changePassword: async (username, oldPassword, newPassword, silent = false) => {
         const payload = {
             Username: username,
             OldPassword: oldPassword,
             NewPassword: newPassword
         };
-        return sendToSheet('changePassword', payload);
+        return sendToSheet('changePassword', payload, silent);
     },
 
-    transferComplaint: async (id, newDept, newAssignee, reason, transferredBy) => {
+    transferComplaint: async (id, newDept, newAssignee, reason, transferredBy, silent = true) => {
         const payload = {
             ID: id,
             NewDepartment: newDept,
@@ -234,6 +262,6 @@ export const sheetsService = {
             Reason: reason,
             TransferredBy: transferredBy
         };
-        return sendToSheet('transferComplaint', payload);
+        return sendToSheet('transferComplaint', payload, silent);
     }
 };

@@ -38,43 +38,39 @@ const Navbar = () => {
     const [isPolling, setIsPolling] = useState(false);
     const notifRef = useRef(null);
 
-    // Fetch Notifications
+    // Notifications Polling
     useEffect(() => {
         if (!user) return;
         const fetchNotifs = async () => {
             try {
                 const data = await sheetsService.getComplaints(true);
-                const role = String(user.Role || '').toLowerCase();
-                const username = String(user.Username || '').toLowerCase();
-                const dept = String(user.Department || '').toLowerCase();
+                const role = String(user.Role || '').toUpperCase().trim();
+                const username = String(user.Username || '').toLowerCase().trim();
+                const dept = String(user.Department || '').toLowerCase().trim();
 
                 let alerts = [];
 
-                if (role.includes('admin')) {
-                    // SUPER ADMIN: Everything Open or Assigned to me
-                    const newTickets = data.filter(c =>
-                        String(c.Status).toLowerCase() === 'open' || String(c.ResolvedBy || '').toLowerCase() === username
-                    );
+                if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+                    // System Master Access: Show ALL "Open" tickets
+                    const newTickets = data.filter(c => String(c.Status).toLowerCase() === 'open');
                     alerts = newTickets.map(t => ({
                         id: t.ID,
                         type: 'alert',
-                        msg: `Ticket #${t.ID} is Open in ${t.Department}`,
+                        msg: `[MASTER] Ticket #${t.ID} in ${t.Department}`,
                         time: t.Date
                     }));
                 } else {
                     // STANDARD USER & DEPT STAFF
-                    // 1. "My Ticket" Updates (Reported By Me) - Show Status Changes (Solved/Closed)
                     const myReports = data.filter(c =>
                         String(c.ReportedBy || '').toLowerCase() === username &&
                         (String(c.Status) === 'Solved' || String(c.Status) === 'Closed')
                     ).map(t => ({
                         id: t.ID,
                         type: t.Status === 'Closed' || t.Status === 'Solved' ? 'success' : 'info',
-                        msg: `Your Ticket #${t.ID} is ${t.Status}`,
+                        msg: `Ticket #${t.ID} updated to ${t.Status}`,
                         time: t.ResolvedDate || t.Date
                     }));
 
-                    // 2. "My Department" Tickets (Assigned TO My Dept) - Show OPEN tickets (For Staff to work on)
                     let deptAlerts = [];
                     if (dept) {
                         deptAlerts = data.filter(c =>
@@ -83,14 +79,12 @@ const Navbar = () => {
                         ).map(t => ({
                             id: t.ID,
                             type: 'alert',
-                            msg: `New Ticket #${t.ID} for ${dept}`,
+                            msg: `New Dept Ticket #${t.ID}`,
                             time: t.Date
                         }));
                     }
-
                     alerts = [...myReports, ...deptAlerts];
                 }
-                // Sort by TIME desc (Latest first)
                 setNotifications(alerts.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5));
             } catch (e) {
                 console.error(e);
@@ -102,18 +96,8 @@ const Navbar = () => {
         const interval = setInterval(() => {
             setIsPolling(true);
             fetchNotifs();
-        }, 30000); // Poll every 30s
+        }, 30000);
         return () => clearInterval(interval);
-    }, [user]);
-
-    useEffect(() => {
-        if (!user) return;
-        const fetchNotifs = async () => {
-            try {
-                // ... logic
-            } catch (e) { console.error(e); }
-        };
-        // ...
     }, [user]);
 
     // Click Outside Handling
@@ -182,296 +166,311 @@ const Navbar = () => {
 
     return (
         <nav className="sticky top-0 z-[100] w-full px-6 py-3 bg-white border-b border-slate-200 shadow-sm transition-all duration-300">
-            <div className="max-w-7xl mx-auto flex justify-between md:justify-end items-center gap-4">
+            <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
 
-                {/* Mobile Menu Button - Left Aligned */}
-                <button
-                    onClick={() => setMobileOpen(true)}
-                    className="md:hidden p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all"
-                >
-                    <Menu size={24} />
-                </button>
-
-                {/* Session Timer Display - Fluent Pill */}
-                <div className={`
-                    flex items-center gap-3 px-4 py-1.5 rounded-full border transition-all duration-500 shadow-sm
-                    ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
-                        timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                            'bg-slate-50 text-slate-600 border-slate-200/60'}
-                `}>
-                    <div className={`w-2 h-2 rounded-full ${timerStatus === 'critical' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60 hidden sm:block">Session</p>
-                    <p className={`font-mono font-bold text-xs sm:text-sm ${timerStatus === 'critical' ? 'text-red-600' : 'text-slate-800'}`}>
-                        {timeLeft}
-                    </p>
+                {/* Brand Logo - Left Aligned */}
+                <div className="flex-1 items-center hidden md:flex">
+                    <img src="/sbh_wide.jpg" alt="SBH Logo" className="h-10 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
                 </div>
 
-                {/* Notification Bell */}
-                <div className="relative z-50" ref={notifRef}>
-                    <button
-                        onClick={() => setShowNotifications(!showNotifications)}
-                        className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all relative"
-                    >
-                        <Bell size={20} className={isPolling ? "animate-wiggle" : ""} />
-                        {isPolling && (
-                            <span className="absolute top-2.5 right-3 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                        )}
-                        {notifications.length > 0 && (
-                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
-                    </button>
+                <div className="flex items-center gap-4">
 
-                    <AnimatePresence>
-                        {showNotifications && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-4 overflow-hidden z-[200]"
-                            >
-                                <h4 className="font-black text-slate-800 mb-3 px-2 flex justify-between items-center">
-                                    Notifications <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full text-slate-500">{notifications.length}</span>
-                                </h4>
-                                <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-                                    {notifications.length === 0 ? (
-                                        <p className="text-center text-xs font-bold text-slate-400 py-4">No new notifications</p>
-                                    ) : (
-                                        notifications.map((n, i) => (
-                                            <div
-                                                key={i}
-                                                onClick={() => {
-                                                    setShowNotifications(false);
-                                                    navigate(`/my-complaints?ticketId=${n.id}`);
-                                                }}
-                                                className="p-3 bg-slate-50 rounded-xl hover:bg-emerald-50 transition-colors border border-slate-100 cursor-pointer group relative"
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-emerald-500' : 'bg-sky-500'}`}></div>
-                                                    <div>
-                                                        <p className="text-xs font-bold text-slate-700 group-hover:text-emerald-700 transition-colors leading-tight mb-1">{n.msg}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 font-mono flex items-center gap-1">
-                                                            {formatIST(n.time)}
-                                                        </p>
+                    <div className="flex items-center gap-3">
+                        {/* Brand Logo - Mobile */}
+                        <div className="md:hidden flex items-center">
+                            <img src="/sbh_wide.jpg" alt="Logo" className="h-6 w-auto object-contain mr-1" />
+                        </div>
+
+                        <button
+                            onClick={() => setMobileOpen(true)}
+                            className="md:hidden p-2 text-slate-500 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-all"
+                        >
+                            <Menu size={22} />
+                        </button>
+                    </div>
+
+                    <div className={`
+                    flex items-center gap-3 px-3.5 py-1.5 rounded-xl border transition-all duration-300 shadow-sm
+                    ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
+                            timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                'bg-orange-50 text-orange-600 border-orange-100'}
+                `}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${timerStatus === 'critical' ? 'bg-red-500' : 'bg-orange-500'} animate-pulse`}></div>
+                        <p className="text-small-info font-bold tracking-wide opacity-60 hidden sm:block">Session</p>
+                        <p className={`font-mono font-bold text-xs sm:text-[13px] ${timerStatus === 'critical' ? 'text-red-700' : 'text-orange-700'}`}>
+                            {timeLeft}
+                        </p>
+                    </div>
+
+                    {/* Notification Bell */}
+                    <div className="relative z-50" ref={notifRef}>
+                        <button
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-orange-700 hover:bg-orange-50 shadow-sm transition-all relative"
+                        >
+                            <Bell size={20} className={isPolling ? "animate-wiggle" : ""} />
+                            {isPolling && (
+                                <span className="absolute top-2.5 right-3 w-1.5 h-1.5 bg-orange-400 rounded-full animate-ping"></span>
+                            )}
+                            {notifications.length > 0 && (
+                                <span className="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                            )}
+                        </button>
+
+                        <AnimatePresence>
+                            {showNotifications && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-4 overflow-hidden z-[200]"
+                                >
+                                    <h4 className="font-black text-slate-800 mb-3 px-2 flex justify-between items-center">
+                                        Notifications <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full text-slate-500">{notifications.length}</span>
+                                    </h4>
+                                    <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                        {notifications.length === 0 ? (
+                                            <p className="text-center text-xs font-bold text-slate-400 py-4">No new notifications</p>
+                                        ) : (
+                                            notifications.map((n, i) => (
+                                                <div
+                                                    key={i}
+                                                    onClick={() => {
+                                                        setShowNotifications(false);
+                                                        navigate(`/my-complaints?ticketId=${n.id}`);
+                                                    }}
+                                                    className="p-3 bg-slate-50 rounded-xl hover:bg-orange-50 transition-colors border border-slate-100 cursor-pointer group relative"
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-orange-500' : 'bg-sky-500'}`}></div>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-slate-700 group-hover:text-orange-700 transition-colors leading-tight mb-1">{n.msg}</p>
+                                                            <p className="text-small-info font-bold text-slate-400 font-mono flex items-center gap-1">
+                                                                {formatIST(n.time)}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <div className="relative" ref={dropdownRef}>
-                    {/* User Profile Button */}
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 group"
-                    >
-                        <div className="flex flex-col items-end hidden sm:flex text-right">
-                            <span className="text-sm font-bold text-slate-800 mb-1 capitalize">
-                                {String(user.Username)}
-                            </span>
-                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide leading-none">
-                                {String(user.Username || '').toLowerCase() === 'admin' ? 'Super Admin' : user.Role}
-                            </span>
-                        </div>
-                        <div className="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-emerald-200/50 group-hover:rotate-6 transition-transform">
-                            <User size={20} strokeWidth={2.5} />
-                        </div>
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    <AnimatePresence>
-                        {isOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-3 overflow-hidden"
-                            >
-                                <div className="space-y-1">
-                                    <button
-                                        onClick={() => { setShowProfile(true); setIsOpen(false); }}
-                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition-all group/item"
-                                    >
-                                        <div className="bg-slate-100 group-hover/item:bg-emerald-100 p-2 rounded-xl transition-colors">
-                                            <Shield size={18} />
-                                        </div>
-                                        <span className="font-bold text-sm">View Profile</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
-                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 text-slate-600 hover:text-emerald-700 transition-all group/item"
-                                    >
-                                        <div className="bg-slate-100 group-hover/item:bg-emerald-100 p-2 rounded-xl transition-colors">
-                                            <Key size={18} />
-                                        </div>
-                                        <span className="font-bold text-sm">Change Password</span>
-                                    </button>
-
-                                    <div className="h-px bg-slate-100 my-2 mx-2"></div>
-
-                                    <button
-                                        onClick={logout}
-                                        className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition-all group/item"
-                                    >
-                                        <div className="bg-rose-50 group-hover/item:bg-rose-100 p-2 rounded-xl transition-colors">
-                                            <LogOut size={18} />
-                                        </div>
-                                        <span className="font-bold text-sm">Logout</span>
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
-
-            {/* Profile Modal */}
-            <AnimatePresence>
-                {showProfile && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden border border-emerald-50 shadow-2xl"
-                        >
-                            <button onClick={() => setShowProfile(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all border border-slate-100">
-                                <X size={20} />
-                            </button>
-
-                            <div className="w-24 h-24 bg-emerald-700 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-emerald-200">
-                                <User size={40} strokeWidth={2} />
-                            </div>
-
-                            <h3 className="text-2xl font-black text-slate-800 text-center mb-1 capitalize">{user.Username}</h3>
-                            <p className="text-emerald-600 font-bold text-[10px] text-center uppercase tracking-widest mb-8">System Profile</p>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                                    <Building2 className="text-slate-400" size={20} />
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter leading-none">Department</p>
-                                        <p className="text-slate-800 font-bold">{user.Department || 'N/A'}</p>
+                                            ))
+                                        )}
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                                    <Phone className="text-slate-400" size={20} />
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter leading-none">Mobile</p>
-                                        <p className="text-slate-800 font-bold">{user.Mobile || 'N/A'}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                                    <Shield className="text-slate-400" size={20} />
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter leading-none">System Role</p>
-                                        <p className="text-emerald-700 font-black uppercase text-xs tracking-widest">{String(user.Username || '').toLowerCase() === 'admin' ? 'Super Admin' : user.Role}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
-                )}
-            </AnimatePresence>
 
-            {/* Change Password Modal */}
-            <AnimatePresence>
-                {showPasswordModal && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowPasswordModal(false)}>
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden shadow-2xl"
+                    <div className="relative" ref={dropdownRef}>
+                        {/* User Profile Button */}
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-1.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-[0.98] group"
                         >
-                            {!passSuccess ? (
-                                <>
-                                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                        <Key size={28} />
+                            <div className="flex flex-col items-end hidden sm:flex text-right">
+                                <span className="text-table-data font-black text-slate-800 leading-tight">
+                                    {String(user.Username)}
+                                </span>
+                                <span className="text-[10px] font-black text-orange-600 tracking-[0.05em] leading-none mt-1 opacity-70">
+                                    {user.Role === 'SUPER_ADMIN' ? 'System Master' : user.Role}
+                                </span>
+                            </div>
+                            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105">
+                                <User size={20} strokeWidth={2.5} />
+                            </div>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        <AnimatePresence>
+                            {isOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-3 overflow-hidden"
+                                >
+                                    <div className="space-y-1">
+                                        <button
+                                            onClick={() => { setShowProfile(true); setIsOpen(false); }}
+                                            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-orange-50 text-slate-600 hover:text-orange-700 transition-all group/item"
+                                        >
+                                            <div className="bg-slate-100 group-hover/item:bg-orange-100 p-2 rounded-xl transition-colors">
+                                                <Shield size={18} />
+                                            </div>
+                                            <span className="font-bold text-sm">View Profile</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
+                                            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-orange-50 text-slate-600 hover:text-orange-700 transition-all group/item"
+                                        >
+                                            <div className="bg-slate-100 group-hover/item:bg-orange-100 p-2 rounded-xl transition-colors">
+                                                <Key size={18} />
+                                            </div>
+                                            <span className="font-bold text-sm">Change Password</span>
+                                        </button>
+
+                                        <div className="h-px bg-slate-100 my-2 mx-2"></div>
+
+                                        <button
+                                            onClick={logout}
+                                            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition-all group/item"
+                                        >
+                                            <div className="bg-rose-50 group-hover/item:bg-rose-100 p-2 rounded-xl transition-colors">
+                                                <LogOut size={18} />
+                                            </div>
+                                            <span className="font-bold text-sm">Logout</span>
+                                        </button>
                                     </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
 
-                                    <h3 className="text-2xl font-black text-slate-800 text-center mb-1 leading-tight">Pass Management</h3>
-                                    <p className="text-emerald-600 font-black text-[10px] text-center uppercase tracking-widest mb-8">Security Update</p>
+                {/* Profile Modal */}
+                <AnimatePresence>
+                    {showProfile && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden border border-emerald-50 shadow-2xl"
+                            >
+                                <button onClick={() => setShowProfile(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all border border-slate-100">
+                                    <X size={20} />
+                                </button>
 
-                                    <form onSubmit={handleChangePassword} className="space-y-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Current Password</label>
-                                            <div className="relative">
+                                <div className="w-24 h-24 bg-orange-700 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-200">
+                                    <User size={40} strokeWidth={2} />
+                                </div>
+
+                                <h3 className="text-page-title text-slate-900 text-center mb-1">{user.Username}</h3>
+                                <p className="text-orange-600 font-bold text-small-info text-center tracking-wide mb-8">Account Profile</p>
+
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                                        <Building2 className="text-slate-400" size={20} />
+                                        <div>
+                                            <p className="text-small-info font-bold text-slate-400 tracking-wide leading-none mb-1">Affiliation</p>
+                                            <p className="text-slate-600 font-bold text-forms">{user.Department || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                                        <Phone className="text-slate-400" size={20} />
+                                        <div>
+                                            <p className="text-label font-bold text-slate-400 tracking-tight leading-none mb-1">Mobile</p>
+                                            <p className="text-slate-800 font-bold">{user.Mobile || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                        <Shield className="text-slate-400" size={18} />
+                                        <div>
+                                            <p className="text-small-info font-bold text-slate-400 tracking-wide leading-none mb-1.5">System Privilege</p>
+                                            <p className="text-emerald-600 font-bold text-small-info tracking-wide">
+                                                {user.Role === 'SUPER_ADMIN' ? 'System Master' : user.Role}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                {/* Change Password Modal */}
+                <AnimatePresence>
+                    {showPasswordModal && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowPasswordModal(false)}>
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden shadow-2xl"
+                            >
+                                {!passSuccess ? (
+                                    <>
+                                        <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                            <Key size={28} />
+                                        </div>
+
+                                        <h3 className="text-2xl font-black text-slate-800 text-center mb-1 leading-tight">Pass Management</h3>
+                                        <p className="text-orange-600 font-black text-label text-center tracking-wide mb-8">Security Update</p>
+
+                                        <form onSubmit={handleChangePassword} className="space-y-4">
+                                            <div className="space-y-1">
+                                                <label className="text-label font-black text-slate-400 ml-1">Current Password</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showPass ? "text" : "password"}
+                                                        required
+                                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-bold transition-all"
+                                                        value={passForm.current}
+                                                        onChange={e => setPassForm({ ...passForm, current: e.target.value })}
+                                                    />
+                                                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-4 text-slate-400">
+                                                        {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-label font-black text-slate-400 ml-1">New Password</label>
                                                 <input
-                                                    type={showPass ? "text" : "password"}
+                                                    type="password"
                                                     required
-                                                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold transition-all"
-                                                    value={passForm.current}
-                                                    onChange={e => setPassForm({ ...passForm, current: e.target.value })}
+                                                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-bold"
+                                                    value={passForm.new}
+                                                    onChange={e => setPassForm({ ...passForm, new: e.target.value })}
                                                 />
-                                                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-4 text-slate-400">
-                                                    {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-label font-black text-slate-400 ml-1">Confirm New Password</label>
+                                                <input
+                                                    type="password"
+                                                    required
+                                                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-bold"
+                                                    value={passForm.confirm}
+                                                    onChange={e => setPassForm({ ...passForm, confirm: e.target.value })}
+                                                />
+                                            </div>
+
+                                            {passError && <p className="text-rose-500 text-xs font-bold text-center">{passError}</p>}
+
+                                            <div className="flex gap-3 pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setShowPasswordModal(false); setPassError(''); }}
+                                                    className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={isChanging}
+                                                    className="flex-2 px-8 py-4 bg-orange-700 text-white font-black rounded-xl shadow-lg shadow-orange-200 hover:bg-orange-800 transition-all active:scale-95 disabled:opacity-50 tracking-widest text-xs"
+                                                >
+                                                    {isChanging ? 'Updating...' : 'Update'}
                                                 </button>
                                             </div>
+                                        </form>
+                                    </>
+                                ) : (
+                                    <div className="py-10 text-center animate-in zoom-in duration-300">
+                                        <div className="w-20 h-20 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <Check size={40} strokeWidth={3} />
                                         </div>
-
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
-                                                value={passForm.new}
-                                                onChange={e => setPassForm({ ...passForm, new: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Confirm New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
-                                                value={passForm.confirm}
-                                                onChange={e => setPassForm({ ...passForm, confirm: e.target.value })}
-                                            />
-                                        </div>
-
-                                        {passError && <p className="text-rose-500 text-xs font-bold text-center">{passError}</p>}
-
-                                        <div className="flex gap-3 pt-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => { setShowPasswordModal(false); setPassError(''); }}
-                                                className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={isChanging}
-                                                className="flex-2 px-8 py-4 bg-emerald-700 text-white font-black rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-800 transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-xs"
-                                            >
-                                                {isChanging ? 'Updating...' : 'Update'}
-                                            </button>
-                                        </div>
-                                    </form>
-                                </>
-                            ) : (
-                                <div className="py-10 text-center animate-in zoom-in duration-300">
-                                    <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Check size={40} strokeWidth={3} />
+                                        <h3 className="text-2xl font-black text-slate-800 mb-2">Password Updated!</h3>
+                                        <p className="text-slate-500 font-medium">System security reinforced.<br />Logging out for safety...</p>
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-800 mb-2">Password Updated!</h3>
-                                    <p className="text-slate-500 font-medium">System security reinforced.<br />Logging out for safety...</p>
-                                </div>
-                            )}
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                )}
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+            </div>
         </nav >
     );
 };

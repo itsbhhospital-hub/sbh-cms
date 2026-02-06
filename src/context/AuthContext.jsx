@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const users = await sheetsService.getUsers();
+            const users = await sheetsService.getUsers(false, true);
 
             const foundUser = users.find(u =>
                 String(u.Username).toLowerCase() === String(username).toLowerCase() &&

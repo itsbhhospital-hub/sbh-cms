@@ -124,16 +124,25 @@ function response(status, message, data) {
 function readData(sheetName) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return response('error', 'Sheet not found');
+    if (!sheet) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
 
-    // MIGRATION: Ensure 'admin' exists if we are reading the master sheet
+    // MIGRATION: Ensure 'SUPER_ADMIN' exists if we are reading the master sheet
     if (sheetName === 'master') {
         ensureAdminExists(sheet);
     }
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
-    return ContentService.createTextOutput(JSON.stringify(data.slice(1).map(row => {
+    const map = getColMap(headers);
+    const strictNorm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    let filteredRows = data.slice(1);
+
+    // SOURCE-LEVEL STEALTH REMOVED
+    // We strictly filter in the UI (UserManagement.jsx) to allow authentication.
+    // If we filter here, the app cannot "see" the user to verify the password.
+
+    return ContentService.createTextOutput(JSON.stringify(filteredRows.map(row => {
         const obj = {};
         headers.forEach((h, i) => obj[h || ('Col' + i)] = row[i]);
         return obj;
@@ -141,8 +150,8 @@ function readData(sheetName) {
 }
 
 /**
- * Migration Helper: Ensures the legacy 'admin' user is present in the master sheet.
- * This establishes the Google Sheet as the single source of truth.
+ * Migration Helper: Ensures the primary administrator 'SUPER ADMIN' is present.
+ * Replaces legacy 'admin' and 'AM Sir' for hardening.
  */
 function ensureAdminExists(sheet) {
     const data = sheet.getDataRange().getValues();
@@ -151,17 +160,25 @@ function ensureAdminExists(sheet) {
     if (!map.Username) return;
 
     const strictNorm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const adminExists = data.some((row, i) => i > 0 && strictNorm(row[map.Username - 1]) === 'admin');
+    const adminExists = data.some((row, i) => i > 0 && strictNorm(row[map.Username - 1]) === 'amsir');
 
     if (!adminExists) {
         const nextRow = sheet.getLastRow() + 1;
-        if (map.Username) sheet.getRange(nextRow, map.Username).setValue('admin');
-        if (map.Password) sheet.getRange(nextRow, map.Password).setValue('admin123'); // Default initial password
-        if (map.Role) sheet.getRange(nextRow, map.Role).setValue('admin');
+        if (map.Username) sheet.getRange(nextRow, map.Username).setValue('AM Sir');
+        if (map.Password) sheet.getRange(nextRow, map.Password).setValue('Am@321');
+        if (map.Role) sheet.getRange(nextRow, map.Role).setValue('SUPER_ADMIN');
         if (map.Department) sheet.getRange(nextRow, map.Department).setValue('ADMIN');
         if (map.Status) sheet.getRange(nextRow, map.Status).setValue('Active');
         if (map.Mobile) sheet.getRange(nextRow, map.Mobile).setValue('0000000000');
         SpreadsheetApp.flush();
+    }
+
+    // CLEANUP: Delete legacy placeholders
+    for (let i = sheet.getLastRow(); i > 1; i--) {
+        const val = strictNorm(sheet.getRange(i, map.Username).getValue());
+        if (val === 'admin' || val === 'superadmin' || val === 'super_admin') {
+            sheet.deleteRow(i);
+        }
     }
 }
 
@@ -273,8 +290,22 @@ function updateComplaintStatus(payload) {
 
     // 1. EXTENSION
     if (payload.Status === 'Extend') {
+        const oldTarget = colMap.TargetDate ? String(data[rowIndex - 1][colMap.TargetDate - 1] || '') : 'None';
+        const diff = oldTarget ? Math.ceil((new Date(payload.TargetDate) - new Date(oldTarget)) / (1000 * 60 * 60 * 24)) : 0;
+
         actionLog = `[${timestamp}] Extended by ${payload.ResolvedBy}. Reason: ${payload.Remark}`;
         if (colMap.TargetDate) sheet.getRange(rowIndex, colMap.TargetDate).setValue(payload.TargetDate || '');
+
+        logCaseExtend({
+            complaint_id: payload.ID,
+            extended_by: payload.ResolvedBy,
+            old_target_date: oldTarget,
+            new_target_date: payload.TargetDate,
+            diff_days: diff,
+            extension_time: timestamp,
+            reason: payload.Remark
+        });
+
         sendExtensionNotification(payload.ID, data[rowIndex - 1][colMap.ReportedBy - 1], payload.ResolvedBy, payload.TargetDate, payload.Remark);
     }
     // 2. FORCE CLOSE
@@ -321,6 +352,7 @@ function updateComplaintStatus(payload) {
         if ((payload.Status === 'Closed' || payload.Status === 'Resolved') && payload.Status !== currentStatus) {
             const reporter = colMap.ReportedBy ? data[rowIndex - 1][colMap.ReportedBy - 1] : 'User';
             sendResolutionNotification(payload.ID, reporter, payload.Status, payload.ResolvedBy, payload.Remark);
+            updateUserMetrics(payload.ResolvedBy);
         }
         if (payload.Status === 'Open' && currentStatus === 'Closed') {
             const originalStaff = colMap.ResolvedBy ? data[rowIndex - 1][colMap.ResolvedBy - 1] : null;
@@ -353,7 +385,8 @@ function updateComplaintStatus(payload) {
 }
 
 function transferComplaint(payload) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('data');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('data');
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const colMap = getColMap(headers);
@@ -379,6 +412,17 @@ function transferComplaint(payload) {
         sheet.getRange(rowIndex, colMap.History).setValue(cur ? cur + '\n' + msg : msg);
     }
 
+    // Advanced Logging (Case_Transfer_Log)
+    logCaseTransfer({
+        complaint_id: payload.ID,
+        transferred_by: payload.TransferredBy,
+        from_department: oldDept,
+        to_department: payload.NewDepartment,
+        to_user: payload.NewAssignee || 'None',
+        transfer_time: timestamp,
+        reason: payload.Reason
+    });
+
     logToAuditHistory({ ID: payload.ID, Action: 'Transfer', By: payload.TransferredBy, Remark: payload.Reason, OldStatus: oldDept, NewStatus: payload.NewDepartment });
 
     // Template 3: Transfer
@@ -391,9 +435,21 @@ function updateUser(p) {
     const data = sheet.getDataRange().getValues();
     const map = getColMap(data[0]);
 
-    const target = String(p.OldUsername || p.Username).trim().toLowerCase();
+    const target = String(p.OldUsername || p.Username || '').trim().toLowerCase();
+    const strictNorm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const normTarget = strictNorm(target);
+    // BACKEND PROTECTION: Prevent modification of SUPER_ADMIN
+    if (normTarget === 'amsir' || normTarget === 'superadmin') {
+        return response('error', 'CRITICAL SECURE: The primary SUPER ADMIN account (AM Sir) cannot be modified via external API.');
+    }
+
     for (let i = 1; i < data.length; i++) {
         if (String(data[i][map.Username - 1]).trim().toLowerCase() === target) {
+            // Role protection
+            const currentRole = String(data[i][map.Role - 1] || '').toUpperCase();
+            if (currentRole === 'SUPER_ADMIN') return response('error', 'PROTECTED: Super Admin accounts are immutable.');
+
             if (p.Password && map.Password) sheet.getRange(i + 1, map.Password).setValue(p.Password);
             if (p.Role && map.Role) sheet.getRange(i + 1, map.Role).setValue(p.Role);
             if (p.Status && map.Status) sheet.getRange(i + 1, map.Status).setValue(p.Status);
@@ -451,9 +507,20 @@ function deleteUser(p) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('master');
     const data = sheet.getDataRange().getValues(); // Refresh
     const map = getColMap(data[0]);
-    const target = String(p.Username).trim().toLowerCase();
+    const target = String(p.Username || '').trim().toLowerCase();
+    const strictNorm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const normTarget = strictNorm(target);
+    // BACKEND PROTECTION
+    if (normTarget === 'amsir' || normTarget === 'superadmin') {
+        return response('error', 'CRITICAL SECURE: The primary SUPER ADMIN account (AM Sir) cannot be deleted.');
+    }
+
     for (let i = 1; i < data.length; i++) {
         if (String(data[i][map.Username - 1]).trim().toLowerCase() === target) {
+            const currentRole = String(data[i][map.Role - 1] || '').toUpperCase();
+            if (currentRole === 'SUPER_ADMIN') return response('error', 'PROTECTED: Super Admin accounts are immutable.');
+
             sheet.deleteRow(i + 1);
             return response('success', 'Deleted');
         }
@@ -502,19 +569,19 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
         const mobile = data[i][mIdx];
 
         if (rowU === reportName) userMobile = mobile;
-        if (rowD === targetDept || rowR === 'admin') staffMobiles.push(mobile);
+        if (rowD === targetDept || rowR === 'admin' || rowR === 'super_admin') staffMobiles.push(mobile);
     }
 
     // Template 1: User Confirmation
     if (userMobile) {
-        const msg = `Dear User,\n\nYour complaint has been successfully registered with the ${dept} Department.\n\n🔹 Complaint ID: ${id}\n\nWe assure you of a prompt resolution. Our team is looking into this priority.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `📌 *COMPLAINT REGISTERED*\n\nDear Staff,\nYour complaint has been logged successfully.\n\n🔹 *Ticket ID:* ${id}\n📍 *Department:* ${dept}\n👤 *Registered By:* ${reporter}\n📝 *Description:* ${desc}\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(userMobile, msg);
     }
 
-    // Template 2: Dept Alert (No "New Incident")
+    // Template 2: Dept Alert
     [...new Set(staffMobiles)].forEach(m => {
         if (m && m !== userMobile) {
-            const msg = `Alert: New Action Item\n\nA new complaint has been assigned to the ${dept} Department.\n\n� Ticket ID: ${id}\n🔸 Description: ${desc}\n\nPlease review and initiate necessary action immediately.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+            const msg = `🛠️ *NEW SERVICE TICKET*\n\nA new action item requires your attention.\n\n🔹 *Ticket ID:* ${id}\n📍 *Department:* ${dept}\n👤 *Registered By:* ${reporter}\n� *Description:* ${desc}\n\nPlease initiate resolution protocol.\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
             sendWhatsApp(m, msg);
             Utilities.sleep(800);
         }
@@ -523,9 +590,8 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
 
 function sendResolutionNotification(id, reportedBy, status, resolvedBy, remark) {
     const mob = getUserMobile(reportedBy);
-    // Template 4: Resolved
     if (mob) {
-        const msg = `Dear User,\n\nWe are pleased to inform you that your complaint #${id} has been resolved.\n\n✅ Resolution Status: ${status}\n💬 Remarks: ${remark}\n\nWe value your feedback and hope you are satisfied with our service.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `✅ *TICKET RESOLVED*\n\nYour complaint has been addressed.\n\n🔹 *Ticket ID:* ${id}\n� *Resolved By:* ${resolvedBy}\n💬 *Resolution:* ${remark}\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(mob, msg);
     }
 }
@@ -533,14 +599,14 @@ function sendResolutionNotification(id, reportedBy, status, resolvedBy, remark) 
 function sendExtensionNotification(id, reportedBy, by, date, reason) {
     const mob = getUserMobile(reportedBy);
     if (mob) {
-        const msg = `Update on Ticket #${id}\n\nYour ticket has been extended to ${date}.\n\n👤 By: ${by}\n📝 Reason: ${reason}\n\nWe appreciate your patience.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `⏳ *TIMELINE EXTENDED*\n\nCompletion target for your ticket has been updated.\n\n🔹 *Ticket ID:* ${id}\n👤 *Updated By:* ${by}\n📅 *New Target:* ${date}\n📝 *Reason:* ${reason}\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(mob, msg);
     }
 }
 
 function sendAccountApprovalNotification(user, mobile) {
     if (mobile) {
-        const msg = `Welcome, ${user}!\n\nYour account has been officially approved.\n\n✅ Status: Active\n\nYou may now login to the portal: https://sbh-cms.vercel.app/\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `🔓 *ACCOUNT ACTIVATED*\n\nWelcome, ${user}.\nYour access to the SBH CMS Portal is now active.\n\n✅ *Status:* AUTHORIZED\n🌐 *Portal:* https://sbh-cms.vercel.app/\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(mobile, msg);
     }
 }
@@ -548,8 +614,7 @@ function sendAccountApprovalNotification(user, mobile) {
 function sendReopenNotification(id, staff, by, remark) {
     const mob = getUserMobile(staff);
     if (mob) {
-        // Template 5: Re-Opened
-        const msg = `⚠️ Ticket Re-Opened\n\nComplaint #${id} has been flagged for re-evaluation by ${by}.\n\n⚠️ Action: Immediate Attention Required\n📝 Remarks: ${remark}\n\nPlease address the pending concerns on priority.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `⚠️ *TICKET RE-OPENED*\n\nPrevious resolution for ticket #${id} has been flagged for review.\n\n🔹 *Ticket ID:* ${id}\n👤 *Re-opened By:* ${by}\n� *Remarks:* ${remark}\n\nImmediate attention required.\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(mob, msg);
     }
 }
@@ -557,7 +622,7 @@ function sendReopenNotification(id, staff, by, remark) {
 function sendForceCloseNotification(id, reportedBy, reason) {
     const mob = getUserMobile(reportedBy);
     if (mob) {
-        const msg = `Dear User,\n\nYour complaint #${id} has been administratively closed by the Management.\n\n🔒 Action: Force Closed\n📝 Reason: ${reason || 'Administrative Action'}\n\nFor further assistance, please contact the administration office.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+        const msg = `🔒 *MANAGEMENT CLOSURE*\n\nYour complaint has been administratively closed.\n\n� *Ticket ID:* ${id}\n📝 *Reason:* ${reason || 'Administrative Action'}\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
         sendWhatsApp(mob, msg);
     }
 }
@@ -577,14 +642,14 @@ function sendTransferNotification(id, oldDept, newDept, by, reason) {
     for (let i = 1; i < data.length; i++) {
         const rowD = normalize(data[i][dIdx]);
         const rowR = normalize(data[i][rIdx]);
-        if (rowD === targetDept || rowR === 'admin') {
+        if (rowD === targetDept || rowR === 'admin' || rowR === 'super_admin') {
             staffMobiles.push(data[i][mIdx]);
         }
     }
 
     [...new Set(staffMobiles)].forEach(m => {
         if (m) {
-            const msg = `Ticket Transfer Notification\n\nComplaint #${id} has been transferred.\n\n📍 From: ${oldDept}\n📍 To: ${newDept}\n👤 By: ${by}\n📝 Reason: ${reason}\n\nPlease coordinate ensuring seamless resolution.\n\nSBH Group Of Hospitals\n*This is an automated message. Please do not reply.*`;
+            const msg = `🔁 *TICKET TRANSFERRED*\n\nA ticket has been routed to your unit.\n\n🔹 *Ticket ID:* ${id}\n📍 *From:* ${oldDept}\n📍 *To:* ${newDept}\n👤 *Transferred By:* ${by}\n📝 *Reason:* ${reason}\n\nSBH Group Of Hospitals\n_Automated System Notification_`;
             sendWhatsApp(m, msg);
             Utilities.sleep(800);
         }
@@ -624,6 +689,28 @@ function logRating(p) {
     sheet.appendRow([getISTTimestamp(), p.ID, p.Rating, p.Remark, p.Resolver, p.Reporter]);
 }
 
+function logCaseTransfer(p) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Case_Transfer_Log');
+    if (!sheet) {
+        sheet = ss.insertSheet('Case_Transfer_Log');
+        sheet.appendRow(['complaint_id', 'transferred_by', 'from_department', 'to_department', 'to_user', 'transfer_time', 'reason']);
+        sheet.setFrozenRows(1);
+    }
+    sheet.appendRow([p.complaint_id, p.transferred_by, p.from_department, p.to_department, p.to_user, p.transfer_time, p.reason]);
+}
+
+function logCaseExtend(p) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Case_Extend_Log');
+    if (!sheet) {
+        sheet = ss.insertSheet('Case_Extend_Log');
+        sheet.appendRow(['complaint_id', 'extended_by', 'old_target_date', 'new_target_date', 'diff_days', 'extension_time', 'reason']);
+        sheet.setFrozenRows(1);
+    }
+    sheet.appendRow([p.complaint_id, p.extended_by, p.old_target_date, p.new_target_date, p.diff_days, p.extension_time, p.reason]);
+}
+
 function isAlreadyRated(id) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ratings');
     if (!sheet) return false;
@@ -633,6 +720,58 @@ function isAlreadyRated(id) {
         if (String(data[i][1]).toLowerCase() === search) return true;
     }
     return false;
+}
+
+function updateUserMetrics(username) {
+    if (!username) return;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let rSheet = ss.getSheetByName('ratings');
+    if (!rSheet) return; // No ratings yet
+
+    const data = rSheet.getDataRange().getValues();
+    // Filter ratings for this user
+    let total = 0;
+    let count = 0;
+
+    // Schema: [Date, Ticket ID, Rating, Remark, Resolver, Reporter]
+    // Resolver is index 4
+    const targetUser = String(username).toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+        if (String(data[i][4]).toLowerCase() === targetUser) {
+            let r = parseFloat(data[i][2]);
+            if (!isNaN(r)) {
+                total += r;
+                count++;
+            }
+        }
+    }
+
+    if (count === 0) return;
+    const avg = (total / count).toFixed(2);
+
+    // Update performance sheet
+    let pSheet = ss.getSheetByName('user_performance');
+    if (!pSheet) {
+        pSheet = ss.insertSheet('user_performance');
+        pSheet.appendRow(['Username', 'Average Rating', 'Total Ratings', 'Last Updated']);
+    }
+
+    const pData = pSheet.getDataRange().getValues();
+    let found = false;
+    for (let i = 1; i < pData.length; i++) {
+        if (String(pData[i][0]).toLowerCase() === targetUser) {
+            pSheet.getRange(i + 1, 2).setValue(avg);
+            pSheet.getRange(i + 1, 3).setValue(count);
+            pSheet.getRange(i + 1, 4).setValue(getISTTimestamp());
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        pSheet.appendRow([username, avg, count, getISTTimestamp()]);
+    }
 }
 
 // --- ESCALATION ---

@@ -102,14 +102,25 @@ const WorkReport = () => {
         });
     }, [users, complaints, ratings]);
 
-    const filteredUsers = userMetrics.filter(u =>
-        String(u.Username || '').toLowerCase().includes(String(searchTerm).toLowerCase()) ||
-        String(u.Department || '').toLowerCase().includes(String(searchTerm).toLowerCase())
-    );
+    const filteredUsers = userMetrics.filter(u => {
+        const role = (user.Role || '').toUpperCase().trim();
+        const uRole = (u.Role || '').toUpperCase().trim();
+        const username = (u.Username || '').toLowerCase().trim();
+
+        // SUPER_ADMIN sees EVERYTHING
+        // Others see based on existing logic (currently all users are visible to admins)
+        if (role !== 'SUPER_ADMIN') {
+            if (uRole === 'SUPER_ADMIN' || username === 'superadmin' || username === 'amsir') return false;
+        }
+
+        const search = String(searchTerm).toLowerCase();
+        return username.includes(search) ||
+            String(u.Department || '').toLowerCase().includes(search);
+    });
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="w-10 h-10 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-slate-100 border-t-orange-600 rounded-full animate-spin"></div>
         </div>
     );
 
@@ -119,22 +130,22 @@ const WorkReport = () => {
                 // --- USER DETAIL VIEW ---
                 <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
                     {/* Header */}
-                    <div className="p-8 bg-emerald-950 text-white flex justify-between items-start">
+                    <div className="p-8 bg-orange-950 text-white flex justify-between items-start">
                         <div>
                             <button onClick={() => setSelectedUser(null)} className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm mb-6 transition-colors">
                                 <ArrowRight className="rotate-180" size={16} /> Back to List
                             </button>
-                            <h1 className="text-3xl font-black mb-2">{selectedUser.Username}</h1>
-                            <div className="flex flex-wrap gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                            <h1 className="text-page-title font-black mb-2">{selectedUser.Username}</h1>
+                            <div className="flex flex-wrap gap-4 text-small-info font-bold uppercase tracking-widest text-slate-400">
                                 <span className="flex items-center gap-2"><Building2 size={14} className="text-blue-400" /> {selectedUser.Department}</span>
                                 <span className="flex items-center gap-2"><Shield size={14} className="text-purple-400" /> {selectedUser.Role}</span>
-                                <span className="flex items-center gap-2"><Phone size={14} className="text-emerald-400" /> {selectedUser.Mobile}</span>
+                                <span className="flex items-center gap-2"><Phone size={14} className="text-orange-400" /> {selectedUser.Mobile}</span>
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="bg-emerald-900/50 p-4 rounded-2xl border border-white/10 shadow-inner">
-                                <p className="text-xs font-black text-emerald-400 uppercase mb-1 tracking-widest">Efficiency</p>
-                                <div className="text-4xl font-black text-amber-400 flex items-center justify-end gap-2">
+                            <div className="bg-orange-900/50 p-4 rounded-2xl border border-white/10 shadow-inner">
+                                <p className="text-label text-orange-400 uppercase mb-1 tracking-widest">Efficiency</p>
+                                <div className="text-card-value font-black text-amber-400 flex items-center justify-end gap-2">
                                     {selectedUser.stats.avgRating || '-'} <Star fill="currentColor" size={32} />
                                 </div>
                             </div>
@@ -144,31 +155,31 @@ const WorkReport = () => {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-8 -mt-8">
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase">Closed</p>
-                            <p className="text-3xl font-black text-emerald-600 mt-1">{selectedUser.stats.resolved}</p>
+                            <p className="text-label text-slate-400 uppercase">Closed</p>
+                            <p className="text-card-value font-black text-orange-600 mt-1">{selectedUser.stats.resolved}</p>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase">Reported</p>
-                            <p className="text-3xl font-black text-blue-600 mt-1">{selectedUser.stats.reported}</p>
+                            <p className="text-label text-slate-400 uppercase">Reported</p>
+                            <p className="text-card-value font-black text-blue-600 mt-1">{selectedUser.stats.reported}</p>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase">Pending</p>
-                            <p className="text-3xl font-black text-amber-500 mt-1">{selectedUser.stats.active}</p>
+                            <p className="text-label text-slate-400 uppercase">Pending</p>
+                            <p className="text-card-value font-black text-amber-500 mt-1">{selectedUser.stats.active}</p>
                         </div>
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase">Delayed</p>
-                            <p className="text-3xl font-black text-rose-500 mt-1">{selectedUser.stats.delayed}</p>
+                            <p className="text-label text-slate-400 uppercase">Delayed</p>
+                            <p className="text-card-value font-black text-rose-500 mt-1">{selectedUser.stats.delayed}</p>
                         </div>
                     </div>
 
                     {/* Detailed History Table */}
                     <div className="p-8 pt-0">
-                        <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <h3 className="font-bold text-section-title text-slate-800 mb-6 flex items-center gap-2">
                             <Clock size={24} className="text-slate-400" /> Detailed Activity Log
                         </h3>
                         <div className="overflow-x-auto rounded-xl border border-slate-200">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 text-slate-500 font-black uppercase text-xs">
+                            <table className="w-full text-left table-compact">
+                                <thead className="bg-[#f8fafc] text-table-header text-slate-500 font-bold uppercase tracking-widest text-[11px]">
                                     <tr>
                                         <th className="p-4">Ticket ID</th>
                                         <th className="p-4">Date</th>
@@ -191,13 +202,13 @@ const WorkReport = () => {
                                                         {new Date(c.Date).toLocaleDateString()}
                                                     </td>
                                                     <td className="p-4">
-                                                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${isResolver ? 'bg-emerald-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${isResolver ? 'bg-orange-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
                                                             {isResolver ? 'Resolver' : 'Reporter'}
                                                         </span>
                                                     </td>
                                                     <td className="p-4 font-medium text-slate-800 max-w-xs truncate">{c.Description}</td>
                                                     <td className="p-4">
-                                                        <span className={`font-bold ${c.Status === 'Closed' || c.Status === 'Solved' ? 'text-emerald-600' :
+                                                        <span className={`font-bold ${c.Status === 'Closed' || c.Status === 'Solved' ? 'text-orange-600' :
                                                             c.Status === 'Open' ? 'text-amber-600' : 'text-slate-400'
                                                             }`}>{c.Status}</span>
                                                     </td>
@@ -224,17 +235,17 @@ const WorkReport = () => {
             ) : (
                 // --- MAIN DASHBOARD VIEW ---
                 <>
-                    <div className="flex flex-col md:flex-row justify-between items-end gap-4 p-8 bg-emerald-950 rounded-3xl shadow-sm text-white relative overflow-hidden ring-1 ring-white/10">
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-4 p-8 bg-orange-950 rounded-3xl shadow-sm text-white relative overflow-hidden ring-1 ring-white/10">
                         <div className="relative z-10">
-                            <span className="bg-emerald-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-700/50 mb-3 inline-block">Staff Analytics Console</span>
-                            <h1 className="text-3xl font-black mb-2">Work Report & Analytics</h1>
-                            <p className="text-emerald-300/60 font-medium max-w-lg">Monitor staff performance, track resolution times, and analyze user efficiency.</p>
+                            <span className="bg-orange-800 px-3 py-1 rounded-full text-small-info font-black uppercase tracking-widest border border-orange-700/50 mb-3 inline-block">Staff Analytics Console</span>
+                            <h1 className="text-page-title font-black mb-2">Work Report & Analytics</h1>
+                            <p className="text-table-data text-orange-300/60 font-medium max-w-lg">Monitor staff performance, track resolution times, and analyze user efficiency.</p>
                         </div>
                         <div className="relative z-10 w-full md:w-auto">
                             <div className="relative">
-                                <Search className="absolute left-4 top-3.5 text-emerald-400" size={20} />
+                                <Search className="absolute left-4 top-3.5 text-orange-400" size={20} />
                                 <input
-                                    className="pl-12 pr-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 font-bold focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20 outline-none w-full md:w-64 transition-all"
+                                    className="pl-12 pr-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 font-bold focus:bg-white/10 focus:ring-4 focus:ring-orange-500/20 outline-none w-full md:w-64 transition-all"
                                     placeholder="Search User..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -250,10 +261,10 @@ const WorkReport = () => {
                             <div
                                 key={i}
                                 onClick={() => setSelectedUser(u)}
-                                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-emerald-300 hover:-translate-y-1 transition-all cursor-pointer group"
+                                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-orange-300 hover:-translate-y-1 transition-all cursor-pointer group"
                             >
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-700 group-hover:text-white transition-all shadow-inner group-hover:shadow-emerald-200">
+                                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-700 group-hover:text-white transition-all shadow-inner group-hover:shadow-orange-200">
                                         <Users size={24} />
                                     </div>
                                     <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
@@ -261,7 +272,7 @@ const WorkReport = () => {
                                         <span className="text-xs font-black text-amber-700">{u.stats.avgRating || '0.0'}</span>
                                     </div>
                                 </div>
-                                <h3 className="font-black text-lg text-slate-800 group-hover:text-emerald-700 transition-colors mb-1 tracking-tight">{u.Username}</h3>
+                                <h3 className="font-black text-lg text-slate-800 group-hover:text-orange-700 transition-colors mb-1 tracking-tight">{u.Username}</h3>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{u.Role} • {u.Department}</p>
 
                                 <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-4">

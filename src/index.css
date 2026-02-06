@@ -1,18 +1,161 @@
 @import "tailwindcss";
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  :root {
+    --primary-hospital-green: #f97316;
+    --bg-slate: #fdfaf9;
+    --text-slate: #1c1917;
+
+    /* Fluent Warm Green Corporate Palette */
+    --sidebar-bg: #ecfdf5;
+    /* Softest Fluent Green */
+    --sidebar-active: #f97316;
+    --sidebar-active-gradient: linear-gradient(135deg, #f97316, #e11d48);
+    --sidebar-hover: #e8f0e8;
+    --sidebar-text: #0f172a;
+    /* Slate 900 for maximum readability */
+    --sidebar-accent: #f97316;
+    --sidebar-offset: 0px;
+    /* Default for pages without sidebar */
+
+    /* Theme Accents */
+    --theme-primary: #f97316;
+    --theme-secondary: #e11d48;
+    --theme-bg-soft: #fff7ed;
+    --theme-border-soft: #fed7aa;
+
+    /* Typography Scale - EXACT MATCH v4.0 */
+    --size-page-title: 22px;
+    --size-section-title: 18px;
+    --size-card-title: 16px;
+    --size-stat-number: 26px;
+    --size-menu: 14px;
+    --size-table-header: 14px;
+    --size-table-content: 13px;
+    --size-forms: 14px;
+    --size-labels: 13px;
+    --size-buttons: 14px;
+    --size-popup-title: 16px;
+    --size-popup-text: 13px;
+    --size-footer: 12px;
+
+    /* Table Styling Pack */
+    --table-header-bg: #F1F5F9;
+    --table-row-hover: #F9FAFB;
+    --table-border: #E5E7EB;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
   body {
-    background-color: #f8fafc;
-    /* slate-50 */
-    color: #1e293b;
-    /* slate-800 */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    background-color: var(--bg-slate);
+    color: var(--text-slate);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Typography Utilities - EXACT WEIGHTS (Fluent v4.0 Spec) */
+  .text-page-title {
+    font-size: var(--size-page-title);
+    font-weight: 700;
+    /* Bold */
+    letter-spacing: -0.025em;
+  }
+
+  .text-section-title {
+    font-size: var(--size-section-title);
+    font-weight: 600;
+    /* Semibold */
+    letter-spacing: -0.0125em;
+  }
+
+  .text-card-title {
+    font-size: var(--size-card-title);
+    font-weight: 600;
+    /* Semibold */
+  }
+
+  .text-stat-number {
+    font-size: var(--size-stat-number);
+    font-weight: 700;
+    /* Bold */
+    line-height: 1;
+  }
+
+  .text-menu {
+    font-size: var(--size-menu);
+    font-weight: 400;
+    /* Regular */
+  }
+
+  .text-menu-active {
+    font-size: var(--size-menu);
+    font-weight: 600;
+    /* Semibold */
+  }
+
+  .text-table-header {
+    font-size: var(--size-table-header);
+    font-weight: 600;
+    /* Semibold */
+  }
+
+  .text-table-data {
+    font-size: var(--size-table-content);
+    font-weight: 400;
+    /* Regular */
+  }
+
+  .text-label {
+    font-size: var(--size-labels);
+    font-weight: 400;
+  }
+
+  .text-forms {
+    font-size: var(--size-forms);
+    font-weight: 400;
+  }
+
+  .text-button {
+    font-size: var(--size-buttons);
+    font-weight: 600;
+    /* Semibold */
+  }
+
+  .text-popup-title {
+    font-size: var(--size-popup-title);
+    font-weight: 600;
+  }
+
+  .text-popup-body {
+    font-size: var(--size-popup-text);
+    font-weight: 400;
+  }
+
+  .text-small-info {
+    font-size: var(--size-footer);
+    font-weight: 400;
+  }
+
+  /* Compact Table Utilities */
+  .table-compact th {
+    padding: 0.75rem 1rem;
+    background-color: var(--table-header-bg) !important;
+    border-bottom: 1px solid var(--table-border) !important;
+  }
+
+  .table-compact td {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--table-border) !important;
+  }
+
+  .table-compact tr:hover {
+    background-color: var(--table-row-hover) !important;
   }
 }
 
