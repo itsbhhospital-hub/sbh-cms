@@ -4,13 +4,17 @@ const Footer = () => {
     const layout = useLayout();
     const { mobileOpen = false, collapsed = false } = layout || {};
 
-    // Width Logic: 0px if no layout (Login/Signup), otherwise Sidebar width
-    const offset = layout ? (mobileOpen ? '0px' : (collapsed ? '5rem' : '18rem')) : '0px';
+    // On Mobile: Always 0px. On Desktop: Depends on Sidebar state.
+    // We use a CSS variable or simple conditional rendering.
+    // Since we can't easily detect "Mobile View" in JS without a listener, 
+    // we will rely on valid CSS: "md:left-[var(--footer-offset)]"
+
+    const desktopOffset = layout ? (collapsed ? '5rem' : '18rem') : '0px';
 
     return (
         <footer
-            style={{ left: offset, width: `calc(100% - ${offset})` }}
-            className="fixed bottom-0 z-[120] py-1.5 bg-gradient-to-r from-orange-600 to-rose-600 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-all duration-300"
+            style={{ '--footer-offset': desktopOffset }}
+            className="fixed bottom-0 z-[100] py-1.5 bg-gradient-to-r from-orange-600 to-rose-600 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 w-full left-0 md:left-[var(--footer-offset)] md:w-[calc(100%-var(--footer-offset))]"
         >
             <div className="max-w-7xl mx-auto px-6 text-center">
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[10px] font-bold tracking-wide text-white/90">
