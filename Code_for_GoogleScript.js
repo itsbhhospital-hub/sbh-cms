@@ -603,7 +603,10 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
         const mobile = data[i][mIdx];
 
         if (rowU === reportName) userMobile = mobile;
-        if (rowD === targetDept || rowR === 'admin' || rowR === 'super_admin') staffMobiles.push(mobile);
+
+        // LOGIC FIX: Admin receives notification ONLY for their own department. 
+        // Super Admin receives for all.
+        if (rowD === targetDept || rowR === 'super_admin' || rowR === 'super admin') staffMobiles.push(mobile);
     }
 
     // 1) Reporter Confirmation
@@ -760,7 +763,8 @@ function sendTransferNotification(id, oldDept, newDept, by, reason) {
     for (let i = 1; i < data.length; i++) {
         const rowD = normalize(data[i][dIdx]);
         const rowR = normalize(data[i][rIdx]);
-        if (rowD === targetDept || rowR === 'admin' || rowR === 'super_admin') {
+        // LOGIC FIX: Admin only gets notified if transfer is TO their department
+        if (rowD === targetDept || rowR === 'super_admin' || rowR === 'super admin') {
             staffMobiles.push(data[i][mIdx]);
         }
     }

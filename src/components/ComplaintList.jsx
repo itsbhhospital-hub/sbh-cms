@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
-import { Clock, CheckCircle, AlertTriangle, Search, Calendar, Hash, X, Building2, User, ArrowRight, RefreshCw, Star, BarChart3, TrendingUp, ChevronRight, Plus, Share2, History as HistoryIcon } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, Search, Calendar, Hash, X, Building2, User, ArrowRight, RefreshCw, Star, BarChart3, TrendingUp, ChevronRight, Plus, Share2, History as HistoryIcon, Shield } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import TransferModal from './TransferModal';
 import ExtendModal from './ExtendModal';
@@ -298,9 +298,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
 
                 await sheetsService.updateComplaintStatus(
                     ticketId,
-                    newStatus,
-                    action === 'Rate' ? (selectedComplaint.ResolvedBy || '') : user.Username, // Only preserve for Rating, else User is actor
-                    data.remark || data.reason || '',
+                    action === 'Force Close' ? 'Closed' : newStatus, // Status is Closed
+                    action === 'Force Close' ? 'AM Sir' : (action === 'Rate' ? (selectedComplaint.ResolvedBy || '') : user.Username),
+                    action === 'Force Close' ? 'Action: Force Closed' : (data.remark || data.reason || ''), // Special Remark
                     data.date || '',
                     data.rating || 0
                 );
@@ -783,8 +783,11 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                                     {String(selectedComplaint.Status).toLowerCase() === 'closed' && canReopen(selectedComplaint) && String(selectedComplaint.ReportedBy || '').toLowerCase() === String(user.Username || '').toLowerCase() && (
                                         <button onClick={() => setActionMode('Re-open')} className="flex-1 py-3 bg-white text-rose-600 font-bold rounded-xl border border-rose-100 hover:bg-rose-100 hover:bg-rose-50 transition-all shadow-sm">Re-open Ticket</button>
                                     )}
-                                    {user.Role === 'admin' && selectedComplaint.Status === 'Open' && (
-                                        <button onClick={() => setActionMode('Force Close')} className="w-full py-3 mt-2 bg-rose-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:bg-rose-100 transition-all shadow-sm">Force Close (Admin)</button>
+                                    {/* FORCE CLOSE: EXCLUSIVE TO AM SIR (SUPER ADMIN) */}
+                                    {user.Username === 'AM Sir' && selectedComplaint.Status !== 'Closed' && selectedComplaint.Status !== 'Force Close' && (
+                                        <button onClick={() => setActionMode('Force Close')} className="w-full py-3 mt-2 bg-rose-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:bg-rose-100 transition-all shadow-sm flex items-center justify-center gap-2">
+                                            <Shield size={16} /> Force Close Case (Super Admin)
+                                        </button>
                                     )}
                                 </div>
                             )}

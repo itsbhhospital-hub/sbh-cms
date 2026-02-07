@@ -131,31 +131,31 @@ const Dashboard = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay, duration: 0.3 }}
             onClick={() => handleCardClick(filterType)}
-            className={`flex flex-col justify-between p-6 rounded-2xl bg-white border cursor-pointer relative overflow-hidden group 
+            className={`flex flex-col justify-between p-4 md:p-6 rounded-2xl bg-white border cursor-pointer relative overflow-hidden group 
                 ${activeFilter === filterType && filterType !== 'Active Staff' ? 'ring-2 ring-offset-2 ring-orange-500 shadow-lg' : 'border-slate-100 shadow-[0_2px_15px_-3px_rgb(0,0,0,0.04)]'} 
                 hover:shadow-lg transition-all active:scale-[0.98]`}
         >
             <div className={`absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity ${colorClass}`}>
-                <Icon size={64} />
+                <Icon size={48} className="md:w-16 md:h-16" />
             </div>
 
             <div className="flex justify-between items-start relative z-10">
-                <div className={`p-2.5 rounded-xl ${bgClass} ${colorClass}`}>
-                    <Icon size={22} />
+                <div className={`p-2 md:p-2.5 rounded-xl ${bgClass} ${colorClass}`}>
+                    <Icon size={18} className="md:w-[22px] md:h-[22px]" />
                 </div>
                 {activeFilter === filterType && filterType !== 'Active Staff' && (
                     <div className="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-in fade-in">Active</div>
                 )}
             </div>
             <div className="relative z-10">
-                <h3 className="text-stat-number text-slate-900 leading-none mt-4">{value}</h3>
-                <p className="text-label font-bold text-slate-400 tracking-wide mt-1">{title}</p>
+                <h3 className="text-2xl md:text-3xl font-black text-slate-900 leading-none mt-3 md:mt-4">{value}</h3>
+                <p className="text-[10px] md:text-xs font-bold text-slate-400 tracking-wide mt-1 uppercase">{title}</p>
             </div>
         </motion.div>
     );
 
     return (
-        <div className="max-w-[100vw] overflow-x-hidden md:max-w-7xl mx-auto md:px-4 px-2 py-4 md:py-8 space-y-6 md:space-y-8 pb-32">
+        <div className="w-full max-w-full overflow-x-hidden md:px-0 space-y-6 md:space-y-8 pb-10">
             <ActiveUsersModal
                 isOpen={showActiveStaffModal}
                 onClose={() => setShowActiveStaffModal(false)}
@@ -217,39 +217,38 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Filter Status Readout */}
-            {activeFilter !== 'All' && (
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-500 animate-in fade-in slide-in-from-left-2">
-                    <Filter size={16} className="text-orange-500" />
-                    Filtering view by: <span className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{activeFilter}</span>
-                    <button onClick={() => setActiveFilter('All')} className="ml-2 text-xs text-slate-400 hover:text-slate-600 underline">Clear Filter</button>
-                </div>
-            )}
-
-            {/* Stats Grid - Role Based */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-                <StatCard icon={AlertCircle} title="Open" value={stats.open} bgClass="bg-amber-100" colorClass="text-amber-700" delay={0} filterType="Open" />
-
-                {/* Pending Only shown if non-zero or specific logic, but requested to show card */}
-                <StatCard icon={Timer} title="Pending" value={stats.pending} bgClass="bg-sky-100" colorClass="text-sky-700" delay={0.05} filterType="Pending" />
-
-                <StatCard icon={CheckCircle} title="Solved" value={stats.solved} bgClass="bg-emerald-100" colorClass="text-emerald-700" delay={0.1} filterType="Solved" />
-
-                <StatCard icon={Share2} title="Transferred" value={stats.transferred} bgClass="bg-purple-100" colorClass="text-purple-700" delay={0.15} filterType="Transferred" />
-
-                {isAdmin ? (
-                    // Admin View
-                    <StatCard icon={Users} title="Active Staff" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" delay={0.2} filterType="Active Staff" />
-                ) : (
-                    // User View - Extended & Delayed
-                    <>
-                        <StatCard icon={History} title="Extended" value={stats.extended} bgClass="bg-blue-100" colorClass="text-blue-700" delay={0.2} filterType="Extended" />
-                        <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" delay={0.25} filterType="Delayed" />
-                    </>
+            {/* Active Filter & Stats Grid */}
+            <div className="space-y-4">
+                {activeFilter !== 'All' && (
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-500 animate-in fade-in slide-in-from-left-2">
+                        <Filter size={16} className="text-orange-500" />
+                        Filtering view by: <span className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{activeFilter}</span>
+                        <button onClick={() => setActiveFilter('All')} className="ml-2 text-xs text-slate-400 hover:text-slate-600 underline">Clear Filter</button>
+                    </div>
                 )}
+
+                {/* Stats Grid - Responsive Update */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                    <StatCard icon={AlertCircle} title="Open" value={stats.open} bgClass="bg-amber-100" colorClass="text-amber-700" delay={0} filterType="Open" />
+
+                    <StatCard icon={Timer} title="Pending" value={stats.pending} bgClass="bg-sky-100" colorClass="text-sky-700" delay={0.05} filterType="Pending" />
+
+                    <StatCard icon={CheckCircle} title="Solved" value={stats.solved} bgClass="bg-emerald-100" colorClass="text-emerald-700" delay={0.1} filterType="Solved" />
+
+                    <StatCard icon={Share2} title="Transferred" value={stats.transferred} bgClass="bg-purple-100" colorClass="text-purple-700" delay={0.15} filterType="Transferred" />
+
+                    {isAdmin ? (
+                        <StatCard icon={Users} title="Active Staff" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" delay={0.2} filterType="Active Staff" />
+                    ) : (
+                        <>
+                            <StatCard icon={History} title="Extended" value={stats.extended} bgClass="bg-blue-100" colorClass="text-blue-700" delay={0.2} filterType="Extended" />
+                            <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" delay={0.25} filterType="Delayed" />
+                        </>
+                    )}
+                </div>
             </div>
 
-            {/* List Container - Passing Filter Prop */}
+            {/* List Container */}
             <div className="mt-4 md:mt-8">
                 <ComplaintList initialFilter={activeFilter} key={activeFilter} />
             </div>

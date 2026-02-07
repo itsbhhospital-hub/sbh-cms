@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell } from 'lucide-react';
+import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -14,6 +14,9 @@ const Navbar = () => {
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editProfileForm, setEditProfileForm] = useState({ Username: '' });
+    const [profileSuccess, setProfileSuccess] = useState('');
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -94,9 +97,11 @@ const Navbar = () => {
         };
         fetchNotifs();
         const interval = setInterval(() => {
-            setIsPolling(true);
-            fetchNotifs();
-        }, 30000);
+            if (!document.hidden) { // Only poll if tab is active
+                setIsPolling(true);
+                fetchNotifs().catch(err => console.warn("Polling skipped:", err.message));
+            }
+        }, 60000); // Increased to 60s to reduce load
         return () => clearInterval(interval);
     }, [user]);
 
@@ -162,12 +167,39 @@ const Navbar = () => {
         }
     };
 
+    const handleSaveProfile = async (e) => {
+        e.preventDefault();
+        if (!editProfileForm.Username) return;
+        setIsChanging(true);
+        try {
+            await sheetsService.updateUser({
+                Username: editProfileForm.Username,
+                OldUsername: user.Username, // Critical for backend to find row
+                Password: user.Password, // Preserve
+                Role: user.Role,
+                Status: user.Status,
+                Department: user.Department,
+                Mobile: user.Mobile
+            });
+            // Update Context & Local Storage
+            const updatedUser = { ...user, Username: editProfileForm.Username };
+            localStorage.setItem('sbh_user', JSON.stringify(updatedUser)); // Hacky update, ideally context re-login
+            alert("Username updated! Please re-login for full effect.");
+            logout();
+        } catch (error) {
+            console.error(error);
+            alert("Failed to update username.");
+        } finally {
+            setIsChanging(false);
+        }
+    };
+
     if (!user) return null;
 
     return (
         <nav className="sticky top-0 z-[100] w-full bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm transition-all duration-300">
             <div className="w-full">
-                <div className="px-4 py-2 md:px-6 md:py-3 max-w-7xl mx-auto flex justify-between items-center gap-4">
+                <div className="px-3 py-2 md:px-6 md:py-3 max-w-7xl mx-auto flex justify-between items-center gap-2 md:gap-4">
 
                     {/* Brand Logo - Left Aligned */}
                     <div className="flex-1 items-center hidden md:flex">
@@ -279,105 +311,133 @@ const Navbar = () => {
                                 </div>
                             </button>
 
-                            {/* Dropdown Menu */}
+                            {/* Dropdown Menu & Profile View */}
                             <AnimatePresence>
                                 {isOpen && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 p-3 overflow-hidden"
+                                        className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden z-[200]"
                                     >
-                                        <div className="space-y-1">
-                                            <button
-                                                onClick={() => { setShowProfile(true); setIsOpen(false); }}
-                                                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-orange-50 text-slate-600 hover:text-orange-700 transition-all group/item"
-                                            >
-                                                <div className="bg-slate-100 group-hover/item:bg-orange-100 p-2 rounded-xl transition-colors">
-                                                    <Shield size={18} />
-                                                </div>
-                                                <span className="font-bold text-sm">View Profile</span>
-                                            </button>
+                                        {!showProfile ? (
+                                            /* STANDARD MENU ACTIONS */
+                                            <div className="p-2 space-y-1">
+                                                <button
+                                                    onClick={() => setShowProfile(true)}
+                                                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all group/item"
+                                                >
+                                                    <div className="bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm p-2 rounded-lg transition-all">
+                                                        <Shield size={18} className="text-slate-500 group-hover/item:text-emerald-500" />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <span className="font-bold text-sm block">My Profile</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">View account details</span>
+                                                    </div>
+                                                </button>
 
-                                            <button
-                                                onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
-                                                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-orange-50 text-slate-600 hover:text-orange-700 transition-all group/item"
-                                            >
-                                                <div className="bg-slate-100 group-hover/item:bg-orange-100 p-2 rounded-xl transition-colors">
-                                                    <Key size={18} />
-                                                </div>
-                                                <span className="font-bold text-sm">Change Password</span>
-                                            </button>
+                                                <button
+                                                    onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
+                                                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all group/item"
+                                                >
+                                                    <div className="bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm p-2 rounded-lg transition-all">
+                                                        <Key size={18} className="text-slate-500 group-hover/item:text-orange-500" />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <span className="font-bold text-sm block">Security</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">Change password</span>
+                                                    </div>
+                                                </button>
 
-                                            <div className="h-px bg-slate-100 my-2 mx-2"></div>
+                                                <div className="h-px bg-slate-100 my-1 mx-2"></div>
 
-                                            <button
-                                                onClick={logout}
-                                                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition-all group/item"
-                                            >
-                                                <div className="bg-rose-50 group-hover/item:bg-rose-100 p-2 rounded-xl transition-colors">
-                                                    <LogOut size={18} />
+                                                <button
+                                                    onClick={logout}
+                                                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition-all group/item"
+                                                >
+                                                    <div className="bg-rose-50 group-hover/item:bg-white group-hover/item:shadow-sm p-2 rounded-lg transition-all">
+                                                        <LogOut size={18} className="text-rose-400 group-hover/item:text-rose-600" />
+                                                    </div>
+                                                    <span className="font-bold text-sm">Sign Out</span>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* COMPACT PROFILE VIEW */
+                                            <div className="bg-slate-50/50">
+                                                {/* Header with Back Button */}
+                                                <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-white">
+                                                    <button
+                                                        onClick={() => setShowProfile(false)}
+                                                        className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                                                    >
+                                                        <div className="p-1 rounded-md hover:bg-slate-100"><Menu size={14} className="rotate-180" /></div> Back
+                                                    </button>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Profile</span>
                                                 </div>
-                                                <span className="font-bold text-sm">Logout</span>
-                                            </button>
-                                        </div>
+
+                                                <div className="p-4 flex flex-col items-center">
+                                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-700 shadow-sm border border-slate-200 mb-3 relative group">
+                                                        <User size={28} strokeWidth={2} />
+                                                        {user.Role === 'SUPER_ADMIN' && <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full border-2 border-white"><Check size={8} /></div>}
+                                                    </div>
+
+                                                    {/* Editable Username */}
+                                                    <div className="text-center w-full mb-1">
+                                                        {isEditingProfile ? (
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <input
+                                                                    className="text-sm font-black text-slate-800 bg-white border-b-2 border-orange-500 text-center outline-none w-24 p-0.5"
+                                                                    value={editProfileForm.Username}
+                                                                    onChange={e => setEditProfileForm({ ...editProfileForm, Username: e.target.value })}
+                                                                    autoFocus
+                                                                />
+                                                                <button onClick={handleSaveProfile} className="p-1 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Check size={12} /></button>
+                                                                <button onClick={() => setIsEditingProfile(false)} className="p-1 text-slate-400 hover:text-slate-600"><X size={12} /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <h3 className="text-base font-black text-slate-800 flex items-center justify-center gap-1.5">
+                                                                {user.Username}
+                                                                {user.Username === 'AM Sir' && (
+                                                                    <button onClick={() => { setIsEditingProfile(true); setEditProfileForm({ Username: user.Username }); }} className="text-slate-300 hover:text-orange-500 transition-colors" title="Edit Username">
+                                                                        <Edit2 size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </h3>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mb-4 border border-emerald-100">
+                                                        {user.Role === 'SUPER_ADMIN' ? 'System Master' : user.Role}
+                                                    </p>
+
+                                                    <div className="w-full space-y-2">
+                                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3">
+                                                            <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400">
+                                                                <Building2 size={14} />
+                                                            </div>
+                                                            <div className="overflow-hidden">
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-0.5">Department</p>
+                                                                <p className="text-xs font-bold text-slate-700 truncate">{user.Department || 'N/A'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3">
+                                                            <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400">
+                                                                <Phone size={14} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-0.5">Mobile</p>
+                                                                <p className="text-xs font-bold text-slate-700">{user.Mobile || 'N/A'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
                     </div>
-
-                    {/* Profile Modal */}
-                    <AnimatePresence>
-                        {showProfile && (
-                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative overflow-hidden border border-emerald-50 shadow-2xl"
-                                >
-                                    <button onClick={() => setShowProfile(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all border border-slate-100">
-                                        <X size={20} />
-                                    </button>
-
-                                    <div className="w-24 h-24 bg-orange-700 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-200">
-                                        <User size={40} strokeWidth={2} />
-                                    </div>
-
-                                    <h3 className="text-page-title text-slate-900 text-center mb-1">{user.Username}</h3>
-                                    <p className="text-orange-600 font-bold text-small-info text-center tracking-wide mb-8">Account Profile</p>
-
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                                            <Building2 className="text-slate-400" size={20} />
-                                            <div>
-                                                <p className="text-small-info font-bold text-slate-400 tracking-wide leading-none mb-1">Affiliation</p>
-                                                <p className="text-slate-600 font-bold text-forms">{user.Department || 'N/A'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                                            <Phone className="text-slate-400" size={20} />
-                                            <div>
-                                                <p className="text-label font-bold text-slate-400 tracking-tight leading-none mb-1">Mobile</p>
-                                                <p className="text-slate-800 font-bold">{user.Mobile || 'N/A'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                                            <Shield className="text-slate-400" size={18} />
-                                            <div>
-                                                <p className="text-small-info font-bold text-slate-400 tracking-wide leading-none mb-1.5">System Privilege</p>
-                                                <p className="text-emerald-600 font-bold text-small-info tracking-wide">
-                                                    {user.Role === 'SUPER_ADMIN' ? 'System Master' : user.Role}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            </div>
-                        )}
-                    </AnimatePresence>
 
                     {/* Change Password Modal */}
                     <AnimatePresence>

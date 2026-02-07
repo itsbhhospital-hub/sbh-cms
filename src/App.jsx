@@ -35,9 +35,9 @@ const Layout = ({ children }) => {
       <div className="min-h-screen flex relative">
         <Sidebar />
         {/* Optimized Main Content: Removed overflow-x-hidden to prevent sticky conflict, removed 100vw to prevent scrollbar shift */}
-        <main className="flex-1 ml-0 transition-all flex flex-col min-h-screen">
+        <main className="flex-1 ml-0 transition-all flex flex-col min-h-screen w-full relative">
           <Navbar />
-          <div className="flex-grow p-4 md:p-10 pb-32 md:pb-24 w-full">
+          <div className="flex-grow p-4 md:p-8 w-full max-w-full overflow-x-hidden pb-20 md:pb-24">
             {children}
           </div>
           <Footer />

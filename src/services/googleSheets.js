@@ -107,12 +107,14 @@ const normalizeRows = (rows) => {
     });
 };
 
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 const fetchSheetData = async (sheetName, forceRefresh = false, options = {}) => {
     // 1. Check Cache
     const cached = getCachedData(sheetName);
 
     if (!forceRefresh && cached) {
-        // Fetch in background WITHOUT awaiting
+        // Background Refresh (Fire & Forget) - Retries not critical here
         fetch(`${API_URL}?action=read&sheet=${sheetName}`)
             .then(res => res.json())
             .then(data => {
@@ -121,37 +123,58 @@ const fetchSheetData = async (sheetName, forceRefresh = false, options = {}) => 
                     setCachedData(sheetName, normalized);
                 }
             })
-            .catch(err => console.error("Background Refresh error:", err));
+            .catch(err => console.warn("Background refresh skipped:", err.message));
 
         return cached;
     }
 
-    // 2. Fetch Network (Sync)
-    try {
-        if (!options.silent) window.dispatchEvent(new Event('sbh-loading-start'));
-        const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}&t=${Date.now()}`);
-        const data = await response.json();
+    // 2. Fetch Network (Sync with Retry)
+    let retries = 3;
+    let delay = 1000;
 
-        if (data.status === 'error') throw new Error(data.message);
+    if (!options.silent) window.dispatchEvent(new Event('sbh-loading-start'));
 
-        const normalized = normalizeRows(Array.isArray(data) ? data : []);
+    while (retries > 0) {
+        try {
+            const response = await fetch(`${API_URL}?action=read&sheet=${sheetName}&t=${Date.now()}`);
 
-        // 3. Update Cache
-        setCachedData(sheetName, normalized);
-        return normalized;
-    } catch (error) {
-        // console.error("API Read Error:", error);
-        // Fallback for missing sheets
-        if (error.message === 'Sheet not found') return [];
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
-        if (sheetName === 'master') {
-            const stale = localStorage.getItem(CACHE_PREFIX + sheetName);
-            if (stale) return normalizeRows(JSON.parse(stale).value);
-            return normalizeRows(MOCK_USERS);
+            const data = await response.json();
+
+            if (data.status === 'error') throw new Error(data.message);
+
+            const normalized = normalizeRows(Array.isArray(data) ? data : []);
+
+            // 3. Update Cache
+            setCachedData(sheetName, normalized);
+
+            if (!options.silent) window.dispatchEvent(new Event('sbh-loading-end'));
+            return normalized;
+
+        } catch (error) {
+            console.warn(`Attempt failed for ${sheetName}. Retries left: ${retries - 1}. Error: ${error.message}`);
+            retries--;
+            if (retries === 0) {
+                if (!options.silent) window.dispatchEvent(new Event('sbh-loading-end'));
+
+                // Fallback logic
+                if (error.message.includes('Sheet not found')) return [];
+
+                if (sheetName === 'master') {
+                    const stale = localStorage.getItem(CACHE_PREFIX + sheetName);
+                    if (stale) return normalizeRows(JSON.parse(stale).value);
+                    return normalizeRows(MOCK_USERS);
+                }
+
+                // Return cached data if available even if expired/stale, rather than crashing
+                if (cached) return cached;
+
+                return [];
+            }
+            await wait(delay);
+            delay *= 2; // Exponential backoff
         }
-        return [];
-    } finally {
-        if (!options.silent) window.dispatchEvent(new Event('sbh-loading-end'));
     }
 };
 

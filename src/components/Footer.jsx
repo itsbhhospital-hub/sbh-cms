@@ -12,10 +12,7 @@ const Footer = () => {
     const desktopOffset = layout ? (collapsed ? '5rem' : '260px') : '0px';
 
     return (
-        <footer
-            style={{ '--footer-offset': desktopOffset }}
-            className="fixed bottom-0 z-[100] py-2 md:py-1.5 bg-gradient-to-r from-orange-600 to-rose-600 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 w-full left-0 md:left-[var(--footer-offset)] md:w-[calc(100%-var(--footer-offset))]"
-        >
+        <footer className="fixed bottom-0 left-0 z-[100] w-full py-3 bg-gradient-to-r from-emerald-900 via-orange-600 to-rose-600 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-6 text-center">
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-[10px] font-bold tracking-wide text-white/90">
                     <a

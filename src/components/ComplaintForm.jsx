@@ -94,7 +94,7 @@ const ComplaintForm = ({ onComplaintCreated }) => {
                         <span className="text-label text-slate-400 font-bold tracking-widest">Step {step} of 2</span>
                     </div>
                     <h2 className="text-page-title text-slate-900 tracking-tight font-black">
-                        {step === 1 ? 'Deployment Location' : 'Issue Parameters'}
+                        {step === 1 ? 'Select Hospital Unit' : 'Issue Parameters'}
                     </h2>
                     <p className="text-small-info text-slate-500 font-bold mt-1 max-w-md">
                         {step === 1

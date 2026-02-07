@@ -54,11 +54,11 @@ const Sidebar = () => {
                 setMobileOpen(false);
             }}
             className={({ isActive }) => `
-                relative flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg transition-all duration-300 group
-                font-body font-bold tracking-wide mb-0.5 text-sm
+                relative flex items-center gap-3 px-3 py-2.5 mx-1 rounded-xl transition-all duration-300 group
+                font-body font-bold tracking-wide mb-1 text-sm
                 ${isActive
-                    ? 'bg-white text-[#65a30d] shadow-md shadow-black/5 scale-[1.01]'
-                    : 'text-[#1a2e05] hover:bg-white/10 hover:text-black'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-[1.02]'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }
             `}
         >
@@ -67,7 +67,7 @@ const Sidebar = () => {
                     <Icon
                         size={18}
                         strokeWidth={isActive ? 2.5 : 2}
-                        className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-[#65a30d]' : 'text-[#1a2e05] group-hover:text-black'}`}
+                        className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-400'}`}
                     />
 
                     {(!collapsed || mobileOpen || isHovered) && (
@@ -94,8 +94,11 @@ const Sidebar = () => {
             <aside
                 onMouseEnter={() => !mobileOpen && setIsHovered(true)}
                 onMouseLeave={() => !mobileOpen && setIsHovered(false)}
-                className={`fixed md:sticky top-0 left-0 z-[150] h-[100dvh] bg-[#84cc16] shadow-2xl transition-all duration-300 ease-in-out border-r border-white/20 flex flex-col justify-between
-                ${mobileOpen ? 'translate-x-0 w-[280px]' : collapsed && !isHovered ? 'w-[80px] -translate-x-0' : 'translate-x-0 w-[260px]'}
+                className={`fixed md:sticky top-0 left-0 z-[150] h-[100dvh] 
+                bg-gradient-to-b from-emerald-950/95 via-emerald-900/95 to-emerald-900/90 
+                backdrop-blur-xl border-r border-white/10 shadow-[4px_0_30px_rgba(0,0,0,0.1)] 
+                flex flex-col justify-between transition-all duration-300 ease-in-out
+                ${mobileOpen ? 'translate-x-0 w-[80%] max-w-[300px]' : collapsed && !isHovered ? 'w-[80px] -translate-x-0' : 'translate-x-0 w-[260px]'}
                 ${!mobileOpen && 'hidden md:flex flex-col'}`}
             >
                 {/* Header */}
@@ -105,7 +108,7 @@ const Sidebar = () => {
                             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         {(!collapsed || mobileOpen || isHovered) && (
-                            <span className="font-black text-xl text-white tracking-tight drop-shadow-sm">
+                            <span className="font-black text-xl text-white tracking-tight drop-shadow-md">
                                 SBH CMS
                             </span>
                         )}
@@ -113,8 +116,8 @@ const Sidebar = () => {
                 </div>
 
                 {/* Navigation Section */}
-                <nav className="px-2 py-4 overflow-y-auto custom-scrollbar">
-                    <div className="mb-2 px-4 text-[10px] font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
+                <nav className="px-2 py-4 overflow-y-auto custom-scrollbar flex-1">
+                    <div className="mb-2 px-4 text-[10px] font-black text-slate-500 uppercase tracking-wider leading-none opacity-80">
                         {(!collapsed || mobileOpen || isHovered) && 'Hospital Services'}
                     </div>
 
@@ -127,7 +130,7 @@ const Sidebar = () => {
 
                     {(user.Role === 'admin' || user.Role === 'SUPER_ADMIN') && (
                         <>
-                            <div className="mt-6 mb-2 px-4 text-[10px] font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
+                            <div className="mt-6 mb-2 px-4 text-[10px] font-black text-slate-500 uppercase tracking-wider leading-none opacity-80">
                                 {(!collapsed || mobileOpen || isHovered) && 'System Management'}
                             </div>
                             {adminMenuItems.map((item) => (
@@ -138,7 +141,7 @@ const Sidebar = () => {
                 </nav>
 
                 {/* Footer Section - Merged Style */}
-                <div className="flex-1 p-2 flex flex-col justify-end">
+                <div className="p-2 flex flex-col justify-end shrink-0">
                     {(!collapsed || mobileOpen || isHovered) ? (
                         <div className="flex flex-col gap-3">
                             <div className="bg-white/20 border border-white/10 p-3 rounded-2xl flex items-center justify-between shadow-sm">
@@ -155,7 +158,7 @@ const Sidebar = () => {
 
                             <button
                                 onClick={logout}
-                                className="w-full flex items-center justify-center gap-3 p-3.5 bg-white text-[#65a30d] font-bold rounded-2xl hover:bg-rose-600 hover:text-white transition-all shadow-lg active:scale-95 group"
+                                className="w-full flex items-center justify-center gap-3 p-3.5 bg-rose-500/10 text-rose-200 font-bold rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 hover:text-white transition-all shadow-lg active:scale-95 group backdrop-blur-sm"
                             >
                                 <LogOut size={18} className="group-hover:translate-x-1 transition-transform" />
                                 <span>Logout Session</span>

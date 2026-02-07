@@ -223,19 +223,30 @@ const UserManagement = () => {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            {u.Status !== 'Active' && (
-                                                <button
-                                                    onClick={() => handleApprove(u)}
-                                                    disabled={isApproving}
-                                                    title="Approve User"
-                                                    className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-100 shadow-sm"
-                                                >
-                                                    <Check size={16} strokeWidth={3} />
-                                                </button>
-                                            )}
-                                            <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-orange-600 transition-colors"><Edit2 size={16} /></button>
-                                            {u.Username !== user.Username && (
-                                                <button onClick={() => setDeleteConfirm(u)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                            {/* PROTECTION: Only AM Sir can edit AM Sir */}
+                                            {u.Username === 'AM Sir' ? (
+                                                user.Username === 'AM Sir' ? (
+                                                    <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-orange-600 transition-colors"><Edit2 size={16} /></button>
+                                                ) : (
+                                                    <span className="p-2 text-slate-300 cursor-not-allowed" title="Super Admin Protected"><Lock size={16} /></span>
+                                                )
+                                            ) : (
+                                                <>
+                                                    {u.Status !== 'Active' && (
+                                                        <button
+                                                            onClick={() => handleApprove(u)}
+                                                            disabled={isApproving}
+                                                            title="Approve User"
+                                                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-100 shadow-sm"
+                                                        >
+                                                            <Check size={16} strokeWidth={3} />
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleEditClick(u)} className="p-2 text-slate-400 hover:text-orange-600 transition-colors"><Edit2 size={16} /></button>
+                                                    {u.Username !== user.Username && (
+                                                        <button onClick={() => setDeleteConfirm(u)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </td>
