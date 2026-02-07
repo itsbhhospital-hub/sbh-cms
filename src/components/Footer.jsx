@@ -9,7 +9,7 @@ const Footer = () => {
     // Since we can't easily detect "Mobile View" in JS without a listener, 
     // we will rely on valid CSS: "md:left-[var(--footer-offset)]"
 
-    const desktopOffset = layout ? (collapsed ? '5rem' : '18rem') : '0px';
+    const desktopOffset = layout ? (collapsed ? '5rem' : '260px') : '0px';
 
     return (
         <footer

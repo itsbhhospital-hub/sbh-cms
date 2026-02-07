@@ -8,7 +8,7 @@ import {
     Clock, LogOut, ChevronLeft, ChevronRight, Menu,
     Users, BarChart3, ShieldCheck, Key, FileText, Share2, Hospital, X
 } from 'lucide-react';
-import logo from '../assets/logo.png';
+
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
@@ -54,18 +54,18 @@ const Sidebar = () => {
                 setMobileOpen(false);
             }}
             className={({ isActive }) => `
-                relative flex items-center gap-3 px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 group
-                font-body font-bold tracking-wide mb-1
+                relative flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg transition-all duration-300 group
+                font-body font-bold tracking-wide mb-0.5 text-sm
                 ${isActive
-                    ? 'bg-white text-[#65a30d] shadow-lg shadow-black/10 scale-[1.02]'
-                    : 'text-[#1a2e05] hover:bg-white/20 hover:text-black'
+                    ? 'bg-white text-[#65a30d] shadow-md shadow-black/5 scale-[1.01]'
+                    : 'text-[#1a2e05] hover:bg-white/10 hover:text-black'
                 }
             `}
         >
             {({ isActive }) => (
                 <>
                     <Icon
-                        size={22}
+                        size={18}
                         strokeWidth={isActive ? 2.5 : 2}
                         className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-[#65a30d]' : 'text-[#1a2e05] group-hover:text-black'}`}
                     />
@@ -99,22 +99,22 @@ const Sidebar = () => {
                 ${!mobileOpen && 'hidden md:flex flex-col'}`}
             >
                 {/* Header */}
-                <div className="h-20 flex items-center justify-center border-b border-black/10 mb-2 relative shrink-0">
+                <div className="h-16 flex items-center justify-center border-b border-white/10 mb-2 relative shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#65a30d] shadow-lg">
-                            <LayoutDashboard size={24} strokeWidth={2.5} />
+                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg p-1">
+                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         {(!collapsed || mobileOpen || isHovered) && (
-                            <span className="font-black text-2xl text-white tracking-tight drop-shadow-sm">
-                                CMS<span className="text-yellow-300">.</span>
+                            <span className="font-black text-xl text-white tracking-tight drop-shadow-sm">
+                                SBH CMS
                             </span>
                         )}
                     </div>
                 </div>
 
                 {/* Navigation Section */}
-                <nav className="flex-1 px-3 py-6 overflow-y-auto custom-scrollbar">
-                    <div className="mb-4 px-4 text-xs font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
+                <nav className="px-2 py-4 overflow-y-auto custom-scrollbar">
+                    <div className="mb-2 px-4 text-[10px] font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
                         {(!collapsed || mobileOpen || isHovered) && 'Hospital Services'}
                     </div>
 
@@ -127,7 +127,7 @@ const Sidebar = () => {
 
                     {(user.Role === 'admin' || user.Role === 'SUPER_ADMIN') && (
                         <>
-                            <div className="mt-8 mb-4 px-4 text-xs font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
+                            <div className="mt-6 mb-2 px-4 text-[10px] font-black text-[#1a2e05] uppercase tracking-wider leading-none opacity-80">
                                 {(!collapsed || mobileOpen || isHovered) && 'System Management'}
                             </div>
                             {adminMenuItems.map((item) => (
@@ -137,8 +137,8 @@ const Sidebar = () => {
                     )}
                 </nav>
 
-                {/* Footer Section */}
-                <div className="p-4 border-t border-black/10 bg-black/5 backdrop-blur-sm shrink-0">
+                {/* Footer Section - Merged Style */}
+                <div className="flex-1 p-2 flex flex-col justify-end">
                     {(!collapsed || mobileOpen || isHovered) ? (
                         <div className="flex flex-col gap-3">
                             <div className="bg-white/20 border border-white/10 p-3 rounded-2xl flex items-center justify-between shadow-sm">
