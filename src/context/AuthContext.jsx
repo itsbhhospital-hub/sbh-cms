@@ -21,7 +21,12 @@ export const AuthProvider = ({ children }) => {
                 localStorage.removeItem('sbh_login_time');
                 setUser(null);
             } else {
-                setUser(JSON.parse(storedUser));
+                try {
+                    setUser(JSON.parse(storedUser));
+                } catch (e) {
+                    console.error("Failed to parse stored user", e);
+                    setUser(null);
+                }
             }
         }
         setLoading(false);

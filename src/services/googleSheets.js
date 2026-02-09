@@ -161,6 +161,12 @@ const fetchSheetData = async (sheetName, forceRefresh = false, options = {}) => 
                 // Fallback logic
                 if (error.message.includes('Sheet not found')) return [];
 
+                // NEW: Handle additional optional sheets gracefully
+                if (['Complaint_Ratings', 'User_Performance_Ratings', 'Case_Transfer_Log', 'Case_Extend_Log'].includes(sheetName)) {
+                    console.warn(`Optional sheet '${sheetName}' load failed. Serving empty data.`);
+                    return [];
+                }
+
                 if (sheetName === 'master') {
                     const stale = localStorage.getItem(CACHE_PREFIX + sheetName);
                     if (stale) return normalizeRows(JSON.parse(stale).value);

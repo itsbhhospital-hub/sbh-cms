@@ -40,9 +40,9 @@ const Login = () => {
             {/* Main Content Area - Absolute Centering and Vertical Balance */}
             <main className="flex-1 flex items-center justify-center p-6 relative">
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.05),transparent_70%)]"></div>
-                    <div className="absolute -top-24 -left-24 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl"></div>
-                    <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl"></div>
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.08),transparent_70%)]"></div>
+                    <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+                    <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
                 </div>
 
                 <motion.div
@@ -84,7 +84,7 @@ const Login = () => {
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Staff ID</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Username</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors">
                                         <User size={20} />
@@ -94,7 +94,7 @@ const Login = () => {
                                         className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-slate-700 font-semibold placeholder:text-slate-300"
                                         value={formData.username}
                                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                        placeholder="Enter your ID"
+                                        placeholder="Enter your Username"
                                         required
                                     />
                                 </div>
@@ -126,7 +126,7 @@ const Login = () => {
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                 ) : (
                                     <>
-                                        <span className="font-bold tracking-wide">Login Securely</span>
+                                        <span className="font-bold tracking-wide">Sign in to your account</span>
                                         <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                     </>
                                 )}

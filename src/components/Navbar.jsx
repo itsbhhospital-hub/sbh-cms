@@ -336,20 +336,7 @@ const Navbar = () => {
                                                     </div>
                                                 </button>
 
-                                                <button
-                                                    onClick={() => { setShowPasswordModal(true); setIsOpen(false); }}
-                                                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all group/item"
-                                                >
-                                                    <div className="bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm p-2 rounded-lg transition-all">
-                                                        <Key size={18} className="text-slate-500 group-hover/item:text-orange-500" />
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <span className="font-bold text-sm block">Security</span>
-                                                        <span className="text-[10px] font-bold text-slate-400">Change password</span>
-                                                    </div>
-                                                </button>
 
-                                                <div className="h-px bg-slate-100 my-1 mx-2"></div>
 
                                                 <button
                                                     onClick={logout}
@@ -531,9 +518,9 @@ const Navbar = () => {
                             </div>
                         )}
                     </AnimatePresence>
-                </div>
-            </div>
-        </nav>
+                </div >
+            </div >
+        </nav >
     );
 };
 

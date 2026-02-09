@@ -44,13 +44,14 @@ const Sidebar = () => {
     const adminMenuItems = [
         { path: '/user-management', name: 'User Management', icon: Users },
         { path: '/work-report', name: 'User Work Report', icon: BarChart3 },
+        { path: '/change-password', name: 'Change Password', icon: Key },
     ];
 
     const NavItem = ({ to, icon: Icon, label }) => (
         <NavLink
             to={to}
             onClick={() => {
-                if (location.pathname !== to) showLoader();
+                // if (location.pathname !== to) showLoader(); // REMOVED: Instant Navigation
                 setMobileOpen(false);
             }}
             className={({ isActive }) => `

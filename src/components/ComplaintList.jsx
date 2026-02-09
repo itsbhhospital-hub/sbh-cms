@@ -133,12 +133,18 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState(initialFilter); // Initialize with prop
     const [searchTerm, setSearchTerm] = useState('');
+    const [visibleCount, setVisibleCount] = useState(20); // PAGINATION STATE
 
     // NEW: Fetch Ratings & Performance & Journey Logs
     const [ratingsLog, setRatingsLog] = useState([]);
     const [transferLogs, setTransferLogs] = useState([]);
     const [extensionLogs, setExtensionLogs] = useState([]);
     const [userPerformance, setUserPerformance] = useState(null);
+
+    // Reset pagination when filter/search changes
+    useEffect(() => {
+        setVisibleCount(20);
+    }, [filter, searchTerm, onlyMyComplaints, onlySolvedByMe]);
 
     useEffect(() => {
         const fetchExtras = async () => {
@@ -496,7 +502,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {filteredComplaints.map(complaint => (
+                                {filteredComplaints.slice(0, visibleCount).map(complaint => (
                                     <ComplaintRow
                                         key={complaint.ID}
                                         complaint={complaint}
@@ -508,7 +514,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                     </div>
 
                     <div className="md:hidden">
-                        {filteredComplaints.map(complaint => (
+                        {filteredComplaints.slice(0, visibleCount).map(complaint => (
                             <ComplaintCard
                                 key={complaint.ID}
                                 complaint={complaint}
@@ -516,6 +522,17 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                             />
                         ))}
                     </div>
+
+                    {visibleCount < filteredComplaints.length && (
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={() => setVisibleCount(prev => prev + 20)}
+                                className="px-6 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl shadow-sm hover:bg-slate-50 transition-all active:scale-95 text-xs tracking-wide uppercase"
+                            >
+                                Load More Tickets ({filteredComplaints.length - visibleCount} remaining)
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -631,11 +648,22 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                                         // 5. Ratings
                                         const rating = ratingsLog.find(r => String(r.ID) === String(selectedComplaint.ID));
                                         if (rating) {
+                                            const reporterName = (rating.Reporter && rating.Reporter !== 'undefined' && rating.Reporter.trim() !== '')
+                                                ? rating.Reporter
+                                                : (selectedComplaint.ReportedBy || 'Complaint Reporter');
+
+                                            // Ensure star icon is visible and formatting is professional
                                             events.push({
                                                 type: 'rated',
                                                 date: new Date(rating.Date),
                                                 title: 'Feedback Received',
-                                                subtitle: `${rating.Rating} Stars from ${rating.Reporter}`,
+                                                subtitle: (
+                                                    <span className="flex items-center gap-1.5 mt-0.5">
+                                                        <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />
+                                                        <strong className="text-slate-700">{rating.Rating} Star Rating</strong>
+                                                        <span className="text-slate-500 font-normal">submitted by {reporterName}</span>
+                                                    </span>
+                                                ),
                                                 icon: <Star size={10} />,
                                                 color: 'purple'
                                             });

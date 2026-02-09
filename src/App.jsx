@@ -17,9 +17,13 @@ import WorkReport from './pages/WorkReport';
 import SolvedByMe from './pages/SolvedByMe';
 import CaseTransfer from './pages/CaseTransfer';
 import ExtendedCases from './pages/ExtendedCases';
+import ChangePassword from './pages/ChangePassword';
 
 const ProtectedRoute = ({ children }) => {
   const auth = useAuth();
+  // Guard against null auth context (e.g. during initial hot reload or error)
+  if (!auth) return <div className="h-screen w-full flex items-center justify-center">Loading authentication...</div>;
+
   const { user, loading } = auth;
 
   if (loading) return <GlobalLoader />;
@@ -112,10 +116,17 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/change-password" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ChangePassword />
+                </Layout>
+              </ProtectedRoute>
+            } />
           </Routes>
         </AuthProvider>
-      </LoadingProvider>
-    </Router>
+      </LoadingProvider >
+    </Router >
   );
 }
 

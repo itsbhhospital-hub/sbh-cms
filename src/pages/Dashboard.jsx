@@ -238,7 +238,13 @@ const Dashboard = () => {
                     <StatCard icon={Share2} title="Transferred" value={stats.transferred} bgClass="bg-purple-100" colorClass="text-purple-700" delay={0.15} filterType="Transferred" />
 
                     {isAdmin ? (
-                        <StatCard icon={Users} title="Active Staff" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" delay={0.2} filterType="Active Staff" />
+                        <>
+                            {/* Admin sees Active Staff AND Delayed/Extended overview if needed, but per request: Super Admin needs Delayed */}
+                            <StatCard icon={Users} title="Active Staff" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" delay={0.2} filterType="Active Staff" />
+                            {isSuperAdmin && (
+                                <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-100" colorClass="text-rose-700" delay={0.25} filterType="Delayed" />
+                            )}
+                        </>
                     ) : (
                         <>
                             <StatCard icon={History} title="Extended" value={stats.extended} bgClass="bg-blue-100" colorClass="text-blue-700" delay={0.2} filterType="Extended" />
@@ -250,7 +256,7 @@ const Dashboard = () => {
 
             {/* List Container */}
             <div className="mt-4 md:mt-8">
-                <ComplaintList initialFilter={activeFilter} key={activeFilter} />
+                <ComplaintList initialFilter={activeFilter} />
             </div>
         </div>
     );
