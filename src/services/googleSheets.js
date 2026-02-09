@@ -100,6 +100,14 @@ const normalizeRows = (rows) => {
         normalized.Role = findValue(['Role', 'Access Level']);
         normalized.Mobile = findValue(['Mobile', 'Phone', 'Contact']);
 
+        // Notification & Log Specifics (NEW)
+        normalized.TransferredBy = findValue(['TransferredBy', 'Transferred By', 'Transfer By', 'By']);
+        normalized.NewDepartment = findValue(['NewDepartment', 'New Department', 'To Dept']);
+        normalized.NewAssignee = findValue(['NewAssignee', 'New Assignee', 'To User']);
+        normalized.Reason = findValue(['Reason', 'Transfer Reason', 'Extension Reason']);
+        normalized.ExtendedBy = findValue(['ExtendedBy', 'Extended By']);
+        normalized.TargetDate = findValue(['TargetDate', 'Target Date', 'New Date']);
+
         // Default fallbacks for crucial fields if missing
         if (!normalized.ID && normalized.Username) normalized.ID = normalized.Username; // Treat Username as ID for users
 

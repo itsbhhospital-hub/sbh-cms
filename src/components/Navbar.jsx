@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2 } from 'lucide-react';
+import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -24,9 +24,7 @@ const Navbar = () => {
     // safeGet is no longer needed due to data normalization
 
 
-    // Timer State
-    const [timeLeft, setTimeLeft] = useState('');
-    const [timerStatus, setTimerStatus] = useState('normal');
+    // Timer State Removed as per request
 
     // Password Change State
     const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
@@ -46,62 +44,141 @@ const Navbar = () => {
         if (!user) return;
         const fetchNotifs = async () => {
             try {
-                const data = await sheetsService.getComplaints(true);
+                // Fetch all data sources
+                const [complaintsData, transferData, extendData] = await Promise.all([
+                    sheetsService.getComplaints(true, true), // Force refresh, silent
+                    sheetsService.getTransferLogs(true, true),
+                    sheetsService.getExtensionLogs(true, true)
+                ]);
+
                 const role = String(user.Role || '').toUpperCase().trim();
                 const username = String(user.Username || '').toLowerCase().trim();
-                const dept = String(user.Department || '').toLowerCase().trim();
+                const userDept = String(user.Department || '').toLowerCase().trim();
 
-                let alerts = [];
+                let allEvents = [];
+
+                // Helper to look up ticket details for Logs
+                const getTicket = (id) => complaintsData.find(c => String(c.ID || '').trim() === String(id || '').trim());
+
+                // 1. Complaint Events (New, Solved)
+                complaintsData.forEach(t => {
+                    // New Complaint
+                    if (String(t.Status).toLowerCase() === 'open') {
+                        allEvents.push({
+                            id: t.ID,
+                            type: 'new',
+                            title: 'New Complaint Registered',
+                            by: t.ReportedBy,
+                            dept: t.Department,
+                            time: t.Date,
+                            icon: AlertTriangle,
+                            color: 'text-amber-600 bg-amber-50 border-amber-100',
+                            iconBg: 'bg-amber-100 text-amber-600',
+                            viewParams: `?ticketId=${t.ID}`
+                        });
+                    }
+                    // Solved Complaint
+                    if (['solved', 'closed'].includes(String(t.Status).toLowerCase())) {
+                        allEvents.push({
+                            id: t.ID,
+                            type: 'solved',
+                            title: 'Complaint Solved',
+                            by: t.ResolvedBy,
+                            dept: t.Department,
+                            time: t.ResolvedDate || t.LastUpdated || t.Date,
+                            icon: CheckCircle,
+                            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+                            iconBg: 'bg-emerald-100 text-emerald-600',
+                            viewParams: `?ticketId=${t.ID}`
+                        });
+                    }
+                });
+
+                // 2. Transfer Events
+                if (Array.isArray(transferData)) {
+                    transferData.forEach(l => {
+                        // Inherit Dept if missing (sometimes log only has NewDept)
+                        const ticket = getTicket(l.ID);
+                        const displayDept = l.NewDepartment || (ticket ? ticket.Department : 'N/A');
+
+                        allEvents.push({
+                            id: l.ID,
+                            type: 'transfer',
+                            title: 'Complaint Transferred',
+                            by: l.TransferredBy,
+                            dept: displayDept, // Showing Target Dept
+                            msg: `To: ${l.NewDepartment} | From: ${ticket ? ticket.Department : '?'}`, // Extra context
+                            time: l.Date || l.Timestamp,
+                            icon: ArrowRight,
+                            color: 'text-blue-600 bg-blue-50 border-blue-100',
+                            iconBg: 'bg-blue-100 text-blue-600',
+                            viewParams: `?ticketId=${l.ID}`
+                        });
+                    });
+                }
+
+                // 3. Extension Events
+                if (Array.isArray(extendData)) {
+                    extendData.forEach(l => {
+                        const ticket = getTicket(l.ID);
+                        allEvents.push({
+                            id: l.ID,
+                            type: 'extended',
+                            title: 'Deadline Extended',
+                            by: l.ExtendedBy,
+                            dept: ticket ? ticket.Department : 'N/A',
+                            time: l.Date || l.Timestamp,
+                            icon: Clock,
+                            color: 'text-purple-600 bg-purple-50 border-purple-100',
+                            iconBg: 'bg-purple-100 text-purple-600',
+                            viewParams: `?ticketId=${l.ID}`
+                        });
+                    });
+                }
+
+                // Filter based on Role & Permissions
+                let filteredEvents = [];
 
                 if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-                    // System Master Access: Show ALL "Open" tickets
-                    const newTickets = data.filter(c => String(c.Status).toLowerCase() === 'open');
-                    alerts = newTickets.map(t => ({
-                        id: t.ID,
-                        type: 'alert',
-                        msg: `[MASTER] Ticket #${t.ID} in ${t.Department}`,
-                        time: t.Date
-                    }));
+                    // Admin sees EVERYTHING
+                    filteredEvents = allEvents;
                 } else {
-                    // STANDARD USER & DEPT STAFF
-                    const myReports = data.filter(c =>
-                        String(c.ReportedBy || '').toLowerCase() === username &&
-                        (String(c.Status) === 'Solved' || String(c.Status) === 'Closed')
-                    ).map(t => ({
-                        id: t.ID,
-                        type: t.Status === 'Closed' || t.Status === 'Solved' ? 'success' : 'info',
-                        msg: `Ticket #${t.ID} updated to ${t.Status}`,
-                        time: t.ResolvedDate || t.Date
-                    }));
+                    // Standard / Dept Users
+                    filteredEvents = allEvents.filter(e => {
+                        // 1. My Department Actions
+                        const isMyDept = userDept && String(e.dept || '').toLowerCase() === userDept;
 
-                    let deptAlerts = [];
-                    if (dept) {
-                        deptAlerts = data.filter(c =>
-                            String(c.Department || '').toLowerCase() === dept &&
-                            String(c.Status) === 'Open'
-                        ).map(t => ({
-                            id: t.ID,
-                            type: 'alert',
-                            msg: `New Dept Ticket #${t.ID}`,
-                            time: t.Date
-                        }));
-                    }
-                    alerts = [...myReports, ...deptAlerts];
+                        // 2. Actions I performed or related to me
+                        const isMe = String(e.by || '').toLowerCase() === username;
+
+                        return isMyDept || isMe;
+                    });
                 }
-                setNotifications(alerts.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 5));
+
+                // Sort by Time Descending (Latest First)
+                filteredEvents.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                // Take top 20 to avoid overwhelm
+                setNotifications(filteredEvents.slice(0, 20));
+
             } catch (e) {
-                console.error(e);
+                console.error("Notif Fetch Error", e);
             } finally {
                 setIsPolling(false);
             }
         };
+
+        // Initial Fetch
         fetchNotifs();
+
+        // Poll every 60s
         const interval = setInterval(() => {
-            if (!document.hidden) { // Only poll if tab is active
+            if (!document.hidden) {
                 setIsPolling(true);
                 fetchNotifs().catch(err => console.warn("Polling skipped:", err.message));
             }
-        }, 60000); // Increased to 60s to reduce load
+        }, 60000);
+
         return () => clearInterval(interval);
     }, [user]);
 
@@ -109,37 +186,13 @@ const Navbar = () => {
     useClickOutside(dropdownRef, () => setIsOpen(false));
     useClickOutside(notifRef, () => setShowNotifications(false));
 
-    // Timer Logic
-    useEffect(() => {
-        if (!user) return;
-        const updateTimer = () => {
-            const loginTime = localStorage.getItem('sbh_login_time');
-            if (!loginTime) return;
-            const elapsed = Date.now() - parseInt(loginTime);
-            const remaining = 3600000 - elapsed; // 1 Hour
-
-            if (remaining <= 0) {
-                setTimeLeft("00:00");
-                // Optional: Force logout
-            } else {
-                const m = Math.floor(remaining / 60000);
-                const s = Math.floor((remaining % 60000) / 1000);
-                setTimeLeft(`${m}m ${s}s`);
-
-                if (remaining < 60000) setTimerStatus('critical');
-                else if (remaining < 300000) setTimerStatus('warning');
-                else setTimerStatus('normal');
-            }
-        };
-        updateTimer();
-        const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
-    }, [user]);
+    // Timer Logic Removed
 
     const handleChangePassword = async (e) => {
+        // ...
         e.preventDefault();
         setPassError('');
-
+        // ... rest of logic
         if (passForm.new.length < 4) {
             setPassError('New password must be at least 4 characters');
             return;
@@ -148,7 +201,6 @@ const Navbar = () => {
             setPassError('New passwords do not match');
             return;
         }
-
         setIsChanging(true);
         try {
             await sheetsService.changePassword(user.Username, passForm.current, passForm.new);
@@ -157,15 +209,55 @@ const Navbar = () => {
                 setShowPasswordModal(false);
                 setPassSuccess(false);
                 setPassForm({ current: '', new: '', confirm: '' });
-                logout(); // Logout after password change for security
+                logout();
             }, 2000);
         } catch (err) {
-            // Display backend error message (e.g., 'Current Password Incorrect')
             setPassError(err.message || 'Failed to update password. Try again.');
         } finally {
             setIsChanging(false);
         }
     };
+
+    // Re-render logic to fix notification rendering
+    const renderNotificationItem = (n, i) => (
+        <div
+            key={i}
+            onClick={() => {
+                setShowNotifications(false);
+                navigate(`/my-complaints${n.viewParams}`);
+            }}
+            className="p-3 bg-slate-50 rounded-xl hover:bg-orange-50 transition-colors border border-slate-100 cursor-pointer group relative flex gap-3"
+        >
+            {/* Icon Box */}
+            <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center shadow-sm border border-black/5 ${n.iconBg}`}>
+                <n.icon size={16} strokeWidth={2.5} />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start">
+                    <p className="text-xs font-black text-slate-800 leading-tight mb-0.5">{n.title}</p>
+                    <span className="text-[10px] font-mono font-bold text-slate-400 whitespace-nowrap ml-2 opacity-80">{formatIST(n.time).split(',')[1]}</span>
+                </div>
+
+                {/* Meta Details */}
+                <div className="space-y-0.5">
+                    <p className="text-[11px] font-bold text-slate-500 truncate">
+                        Ticket: <span className="font-mono text-slate-700">{n.id}</span>
+                        {n.dept && <span className="mx-1 opacity-50">•</span>}
+                        {n.dept}
+                    </p>
+
+                    {n.by && (
+                        <p className="text-[10px] font-bold text-slate-400 truncate">
+                            By: <span className="text-slate-600">{n.by}</span>
+                        </p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
 
     const handleSaveProfile = async (e) => {
         e.preventDefault();
@@ -222,18 +314,7 @@ const Navbar = () => {
                             </button>
                         </div>
 
-                        <div className={`
-                    flex items-center gap-3 px-3.5 py-1.5 rounded-xl border transition-all duration-300 shadow-sm
-                    ${timerStatus === 'critical' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
-                                timerStatus === 'warning' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                    'bg-orange-50 text-orange-600 border-orange-100'}
-                `}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${timerStatus === 'critical' ? 'bg-red-500' : 'bg-orange-500'} animate-pulse`}></div>
-                            <p className="text-small-info font-bold tracking-wide opacity-60 hidden sm:block">Session</p>
-                            <p className={`font-mono font-bold text-xs sm:text-[13px] ${timerStatus === 'critical' ? 'text-red-700' : 'text-orange-700'}`}>
-                                {timeLeft}
-                            </p>
-                        </div>
+                        {/* Session Timer Removed */}
 
                         {/* Notification Bell */}
                         <div className="relative z-50" ref={notifRef}>
@@ -261,30 +342,14 @@ const Navbar = () => {
                                         <h4 className="font-black text-slate-800 mb-3 px-2 flex justify-between items-center">
                                             Notifications <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full text-slate-500">{notifications.length}</span>
                                         </h4>
-                                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                        <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar px-1">
                                             {notifications.length === 0 ? (
-                                                <p className="text-center text-xs font-bold text-slate-400 py-4">No new notifications</p>
+                                                <div className="text-center py-6 opacity-50">
+                                                    <Bell size={32} className="mx-auto mb-2 text-slate-300" />
+                                                    <p className="text-xs font-bold text-slate-400">No new notifications</p>
+                                                </div>
                                             ) : (
-                                                notifications.map((n, i) => (
-                                                    <div
-                                                        key={i}
-                                                        onClick={() => {
-                                                            setShowNotifications(false);
-                                                            navigate(`/my-complaints?ticketId=${n.id}`);
-                                                        }}
-                                                        className="p-3 bg-slate-50 rounded-xl hover:bg-orange-50 transition-colors border border-slate-100 cursor-pointer group relative"
-                                                    >
-                                                        <div className="flex items-start gap-3">
-                                                            <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${n.type === 'alert' ? 'bg-amber-500' : n.type === 'success' ? 'bg-orange-500' : 'bg-sky-500'}`}></div>
-                                                            <div>
-                                                                <p className="text-xs font-bold text-slate-700 group-hover:text-orange-700 transition-colors leading-tight mb-1">{n.msg}</p>
-                                                                <p className="text-small-info font-bold text-slate-400 font-mono flex items-center gap-1">
-                                                                    {formatIST(n.time)}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
+                                                notifications.map((n, i) => renderNotificationItem(n, i))
                                             )}
                                         </div>
                                     </motion.div>
