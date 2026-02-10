@@ -577,7 +577,14 @@ function transferComplaint(payload) {
     if (colMap.ResolvedBy) sheet.getRange(rowIndex, colMap.ResolvedBy).setValue(payload.NewAssignee || '');
     if (colMap.Status) sheet.getRange(rowIndex, colMap.Status).setValue('Transferred');
 
-    const msg = `[${timestamp}] TRANSFERRED from ${oldDept} to ${payload.NewDepartment} by ${payload.TransferredBy}. Reason: ${payload.Reason}`;
+    // NEW FORMAT: "Transferred by [User] to [Department/User] on [Date] at [Time]"
+    const now = new Date();
+    const datePart = Utilities.formatDate(now, IST_TIMEZONE, 'dd MMM yyyy');
+    const timePart = Utilities.formatDate(now, IST_TIMEZONE, 'hh:mm a');
+
+    // Custom formatted message for Ticket Journey
+    const msg = `Transferred by ${payload.TransferredBy} to ${payload.NewDepartment} on ${datePart} at ${timePart}. Reason: ${payload.Reason}`;
+
     if (colMap.History) {
         const cur = sheet.getRange(rowIndex, colMap.History).getValue();
         sheet.getRange(rowIndex, colMap.History).setValue(cur ? cur + '\n' + msg : msg);
@@ -627,7 +634,13 @@ function updateUser(p) {
             if (p.Department && map.Department) sheet.getRange(i + 1, map.Department).setValue(p.Department);
             if (p.Mobile && map.Mobile) sheet.getRange(i + 1, map.Mobile).setValue(p.Mobile);
 
-            if (p.Status === 'Active' && map.Mobile) sendAccountApprovalNotification(p.Username, sheet.getRange(i + 1, map.Mobile).getValue());
+            if (p.Status === 'Active' && map.Mobile) {
+                // FIXED: Only send WhatsApp if status is explicitly changed to Active
+                const currentStatus = String(data[i][map.Status - 1] || '').trim();
+                if (currentStatus !== 'Active') {
+                    sendAccountApprovalNotification(p.Username, sheet.getRange(i + 1, map.Mobile).getValue());
+                }
+            }
             SpreadsheetApp.flush();
             return response('success', 'Updated');
         }
@@ -781,7 +794,7 @@ function checkPendingStatus() {
     for (let i = 1; i < data.length; i++) {
         const status = String(data[i][colMap.Status - 1] || '').trim().toLowerCase();
 
-        if (status !== 'open' && status !== 'pending' && status !== 'in-progress' && status !== 're-open') continue;
+        if (status !== 'open' && status !== 'pending' && status !== 'in-progress' && status !== 're-open' && status !== 'delayed') continue;
 
         const dateStr = data[i][colMap.Date - 1];
         if (!dateStr) continue;
@@ -793,17 +806,32 @@ function checkPendingStatus() {
         const id = data[i][colMap.ID - 1];
         const dept = data[i][colMap.Department - 1];
 
-        if (diffDays === 1) {
-            sendDeptReminder(id, dept, dateStr, "REMINDER");
-        }
-        else if (diffDays === 2) {
-            sendDeptReminder(id, dept, diffDays, "WARNING");
-        }
-        else if (diffDays === 3) {
-            if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", id, dept, diffDays, dateStr);
-        }
-        else if (diffDays >= 4) {
-            if (L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", id, dept, diffDays, dateStr);
+        if (diffDays >= 1) {
+            // 1. AUTO-DELAY: Mark as Delayed if not already
+            if (status !== 'delayed') {
+                if (colMap.Status) sheet.getRange(i + 1, colMap.Status).setValue('Delayed');
+                const historyCol = colMap.History;
+                if (historyCol) {
+                    const timestamp = getISTTimestamp();
+                    const msg = `[${timestamp}] AUTO-DELAY: System marked as Delayed (Overdue by ${diffDays} days).`;
+                    const currentHist = sheet.getRange(i + 1, historyCol).getValue();
+                    sheet.getRange(i + 1, historyCol).setValue(currentHist ? currentHist + '\n' + msg : msg);
+                }
+            }
+
+            // 2. ESCALATION & REMINDERS (Preserve existing logic flows)
+            if (diffDays === 1) {
+                sendDeptReminder(id, dept, dateStr, "REMINDER");
+            }
+            else if (diffDays === 2) {
+                sendDeptReminder(id, dept, diffDays, "WARNING");
+            }
+            else if (diffDays === 3) {
+                if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", id, dept, diffDays, dateStr);
+            }
+            else if (diffDays >= 4) {
+                if (L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", id, dept, diffDays, dateStr);
+            }
         }
     }
 }

@@ -157,7 +157,7 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                         <div className="relative group">
                             <div className="w-32 h-32 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white ring-1 ring-slate-200 relative">
                                 {formData.ProfilePhoto ? (
-                                    <img src={formData.ProfilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                                    <img src={formData.ProfilePhoto} alt="Profile" className="w-full h-full object-cover object-center" />
                                 ) : (
                                     <User size={48} className="text-slate-300" />
                                 )}

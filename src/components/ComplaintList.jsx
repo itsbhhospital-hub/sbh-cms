@@ -371,10 +371,10 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
 
             switch (filter) {
                 case 'Open':
-                    // Part 3 Fix: Show Transferred tickets in Active/Open for the target department
+                    // Part 3 Fix: Show Transferred & Delayed tickets in Active/Open for the target department
                     result = result.filter(c => {
                         const s = (c.Status || '').trim().toLowerCase();
-                        return s === 'open' || s === 'transferred';
+                        return s === 'open' || s === 'transferred' || s === 'delayed';
                     });
                     break;
                 case 'Pending':
@@ -397,9 +397,13 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, initi
                     // Note: If 'extended_flag' exists we could use that, but relying on status for now as primary or we'd need to fetch extension log map here.
                     break;
                 case 'Delayed':
+                case 'Delayed':
                     result = result.filter(c => {
                         const s = (c.Status || '').trim().toLowerCase();
-                        if (s === 'solved' || s === 'closed' || s === 'resolved') return false;
+                        if (s === 'delayed') return true;
+
+                        // Fallback: Check strictly overdue if not yet marked as solved
+                        if (['solved', 'closed', 'resolved'].includes(s)) return false;
                         if (!c.TargetDate) return false;
                         const target = new Date(c.TargetDate);
                         return target < now;

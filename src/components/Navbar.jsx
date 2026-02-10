@@ -195,44 +195,58 @@ const Navbar = () => {
         }
     };
 
-    const renderNotificationItem = (n, i, full = false) => (
-        <div
-            key={i}
-            onClick={() => {
-                setShowNotifications(false);
-                setShowAllNotifications(false);
-                const targetPath = `/my-complaints${n.viewParams}`;
-                if (location.pathname + location.search === targetPath) {
-                    navigate(targetPath, { replace: true });
-                } else {
-                    navigate(targetPath);
-                }
-            }}
-            className={`p-3 bg-slate-50 rounded-xl hover:bg-orange-50 transition-colors border border-slate-100 cursor-pointer group relative flex gap-3 ${full ? 'mb-2' : ''}`}
-        >
-            <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center shadow-sm border border-black/5 ${n.iconBg}`}>
-                <n.icon size={16} strokeWidth={2.5} />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                    <p className="text-xs font-black text-slate-800 leading-tight mb-0.5">{n.title}</p>
-                    <span className="text-[10px] font-mono font-bold text-slate-400 whitespace-nowrap ml-2 opacity-80">{formatIST(n.time).split(',')[1]}</span>
+    const renderNotificationItem = (n, i, full = false) => {
+        const notifDate = new Date(n.time);
+        const today = new Date();
+        const isToday = notifDate.toDateString() === today.toDateString();
+        const displayTime = isToday
+            ? new Date(n.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) // Time only
+            : formatIST(n.time); // Date + Time
+
+        // "Ticket SBH0004 transferred by Naman Mishra at 04:12 PM"
+        // Title is already "Complaint Transferred", "New Complaint", etc.
+        // We need to match the specific format requested: "Ticket [ID] [Action] by [User] at [Time]"
+        // But n.title is generic. We can keep n.title as header, but ensure detailed text matches.
+
+        return (
+            <div
+                key={i}
+                onClick={() => {
+                    setShowNotifications(false);
+                    setShowAllNotifications(false);
+                    const targetPath = `/my-complaints${n.viewParams}`;
+                    if (location.pathname + location.search === targetPath) {
+                        navigate(targetPath, { replace: true });
+                    } else {
+                        navigate(targetPath);
+                    }
+                }}
+                className={`p-3 bg-slate-50 rounded-xl hover:bg-orange-50 transition-colors border border-slate-100 cursor-pointer group relative flex gap-3 ${full ? 'mb-2' : ''}`}
+            >
+                <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center shadow-sm border border-black/5 ${n.iconBg}`}>
+                    <n.icon size={16} strokeWidth={2.5} />
                 </div>
-                <div className="space-y-0.5">
-                    <p className="text-[11px] font-bold text-slate-500 truncate">
-                        Ticket: <span className="font-mono text-slate-700">{n.id}</span>
-                        {n.dept && <span className="mx-1 opacity-50">•</span>}
-                        {n.dept}
-                    </p>
-                    {n.by && (
-                        <p className="text-[10px] font-bold text-slate-400 truncate">
-                            By: <span className="text-slate-600">{n.by}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                        <p className="text-xs font-black text-slate-800 leading-tight mb-0.5">{n.title}</p>
+                        <span className="text-[10px] font-mono font-bold text-slate-400 whitespace-nowrap ml-2 opacity-80">{displayTime}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                        <p className="text-[11px] font-bold text-slate-500 truncate">
+                            Ticket <span className="font-mono text-slate-700">{n.id}</span>
+                            {n.dept && <span className="mx-1 opacity-50">•</span>}
+                            {n.dept}
                         </p>
-                    )}
+                        {n.by && (
+                            <p className="text-[10px] font-bold text-slate-400 truncate">
+                                Action by: <span className="text-slate-600">{n.by}</span>
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     if (!user) return null;
 
@@ -333,9 +347,11 @@ const Navbar = () => {
                                     </div>
                                     <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 overflow-hidden border border-slate-200 shadow-sm group-hover:border-orange-200 transition-colors">
                                         {user.ProfilePhoto ? (
-                                            <img src={user.ProfilePhoto} alt="Profile" className="w-full h-full object-cover" loading="lazy" />
+                                            <img src={user.ProfilePhoto} alt="Profile" className="w-full h-full object-cover object-center" loading="lazy" />
                                         ) : (
-                                            <User size={20} strokeWidth={2.5} />
+                                            <div className="w-full h-full flex items-center justify-center bg-slate-200 font-bold text-slate-500">
+                                                {user.Username ? user.Username[0].toUpperCase() : <User size={20} strokeWidth={2.5} />}
+                                            </div>
                                         )}
                                     </div>
                                 </button>

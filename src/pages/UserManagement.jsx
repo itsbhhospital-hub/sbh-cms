@@ -192,9 +192,9 @@ const UserManagement = () => {
                                 <tr key={u.Username || idx} className="hover:bg-slate-50/80 transition-colors">
                                     <td className="px-6 py-4 cursor-pointer" onClick={() => handleEditClick(u)}>
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm overflow-hidden ${u.Role === 'admin' ? 'bg-orange-600' : 'bg-slate-400'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm overflow-hidden ${u.Role === 'admin' ? 'bg-orange-600' : 'bg-slate-400'}`}>
                                                 {u.ProfilePhoto ? (
-                                                    <img src={u.ProfilePhoto} alt="DP" className="w-full h-full object-cover" loading="lazy" />
+                                                    <img src={u.ProfilePhoto} alt="DP" className="w-full h-full object-cover object-center" loading="lazy" />
                                                 ) : (
                                                     u.Username ? u.Username[0].toUpperCase() : '?'
                                                 )}
