@@ -14,9 +14,9 @@ export const AuthProvider = ({ children }) => {
 
         if (storedUser) {
             const now = Date.now();
-            const oneHour = 60 * 60 * 1000;
+            const thirtyMins = 30 * 60 * 1000;
 
-            if (loginTime && (now - parseInt(loginTime) > oneHour)) {
+            if (loginTime && (now - parseInt(loginTime) > thirtyMins)) {
                 localStorage.removeItem('sbh_user');
                 localStorage.removeItem('sbh_login_time');
                 setUser(null);
@@ -42,8 +42,8 @@ export const AuthProvider = ({ children }) => {
         if (!user) return;
         const interval = setInterval(() => {
             const loginTime = localStorage.getItem('sbh_login_time');
-            if (loginTime && (Date.now() - parseInt(loginTime) > 60 * 60 * 1000)) {
-                logout(); // Logs out if active session exceeds 1 hour
+            if (loginTime && (Date.now() - parseInt(loginTime) > 30 * 60 * 1000)) {
+                logout(); // Logs out if active session exceeds 30 mins
             }
         }, 1000);
         return () => clearInterval(interval);

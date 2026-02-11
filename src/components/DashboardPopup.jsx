@@ -21,93 +21,94 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in scale-95 duration-200 max-h-[85vh] border border-slate-200">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in duration-200 max-h-[85vh] border border-[#dcdcdc]">
                 {/* Header */}
-                <div className="p-6 border-b border-slate-100 bg-white z-10 flex justify-between items-center sticky top-0">
+                <div className="p-6 border-b border-[#dcdcdc] bg-[#f8faf9] z-10 flex justify-between items-center sticky top-0">
                     <div>
-                        <h3 className="font-black text-slate-800 text-xl leading-none">{title} Cases</h3>
-                        <p className="text-xs font-bold text-slate-400 mt-1">{complaints.length} Records Found</p>
+                        <h3 className="font-black text-[#1f2d2a] text-xl leading-none uppercase tracking-tight">{title} Cases</h3>
+                        <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{complaints.length} Records In-System</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors border border-transparent hover:border-slate-100">
-                        <X size={24} className="text-slate-400" />
+                    <button onClick={onClose} className="p-2 hover:bg-[#cfead6] rounded-xl transition-all border border-transparent hover:border-[#2e7d32]/10 group">
+                        <X size={24} className="text-slate-400 group-hover:text-[#2e7d32]" />
                     </button>
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-slate-50/50">
+                <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
                     {complaints.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                            <p className="font-bold">No cases found in this category.</p>
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                            <Activity size={48} className="mb-4 opacity-20" />
+                            <p className="font-black uppercase text-xs tracking-widest">Zero entries found</p>
                         </div>
                     ) : (
-                        <>
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[600px]">
+                                <thead className="bg-[#f8faf9] sticky top-0 z-10 border-b border-[#dcdcdc]">
                                     <tr>
-                                        <th className="p-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">ID</th>
-                                        <th className="p-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">Complaint</th>
-                                        <th className="p-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">Dept</th>
-                                        <th className="p-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">Status</th>
-                                        <th className="p-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 text-right">Action</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-20">ID</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32]">Description</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-40 text-center">Department</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-center">Status</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-right">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
+                                <tbody className="divide-y divide-slate-100">
                                     {paginatedData.map((c) => (
-                                        <tr key={c.ID} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="p-4 py-3 font-mono text-xs font-bold text-slate-500">#{c.ID}</td>
-                                            <td className="p-4 py-3">
-                                                <p className="text-sm font-bold text-slate-700 line-clamp-1">{c.Description}</p>
+                                        <tr key={c.ID} className="hover:bg-[#f0f9f1] transition-colors group">
+                                            <td className="p-4 py-4 font-black text-xs text-slate-400">#{c.ID}</td>
+                                            <td className="p-4 py-4">
+                                                <p className="text-sm font-bold text-[#1f2d2a] line-clamp-1">{c.Description}</p>
                                             </td>
-                                            <td className="p-4 py-3">
-                                                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200 w-fit">
+                                            <td className="p-4 py-4 text-center">
+                                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#2e7d32] bg-[#cfead6]/30 px-2 py-1 rounded border border-[#2e7d32]/10 uppercase tracking-tight">
                                                     <Building2 size={12} /> {c.Department}
                                                 </span>
                                             </td>
-                                            <td className="p-4 py-3">
-                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${c.Status === 'Open' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                                                        c.Status === 'Solved' || c.Status === 'Closed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                            c.Status === 'Pending' ? 'bg-sky-50 text-sky-600 border-sky-100' :
-                                                                'bg-slate-50 text-slate-600 border-slate-100'
+                                            <td className="p-4 py-4 text-center">
+                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${c.Status === 'Open' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                    c.Status === 'Solved' || c.Status === 'Closed' ? 'bg-[#cfead6] text-[#2e7d32] border-[#2e7d32]/20' :
+                                                        c.Status === 'Pending' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                            'bg-slate-100 text-slate-600 border-slate-200'
                                                     }`}>
                                                     {c.Status}
                                                 </span>
                                             </td>
-                                            <td className="p-4 py-3 text-right">
+                                            <td className="p-4 py-4 text-right">
                                                 <button
                                                     onClick={() => onTrack(c)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm active:scale-95 group/btn"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dcdcdc] text-[#2e7d32] font-black text-[10px] rounded-lg hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32] transition-all uppercase tracking-widest active:scale-95"
                                                 >
-                                                    <Activity size={12} className="group-hover/btn:scale-110 transition-transform" /> Status
+                                                    <Activity size={12} /> Details
                                                 </button>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                        </>
+                        </div>
                     )}
                 </div>
 
                 {/* Pagination Footer */}
                 {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center z-10">
+                    <div className="p-4 px-6 border-t border-[#dcdcdc] bg-[#f8faf9] flex justify-between items-center z-10">
                         <button
                             disabled={currentPage === 1}
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="p-2 rounded-lg border border-[#dcdcdc] text-slate-400 hover:bg-white hover:text-[#2e7d32] disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                         >
-                            <ChevronLeft size={16} />
+                            <ChevronLeft size={20} />
                         </button>
-                        <span className="text-xs font-bold text-slate-500">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                             Page {currentPage} of {totalPages}
                         </span>
                         <button
                             disabled={currentPage === totalPages}
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="p-2 rounded-lg border border-[#dcdcdc] text-slate-400 hover:bg-white hover:text-[#2e7d32] disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                         >
-                            <ChevronRight size={16} />
+                            <ChevronRight size={20} />
                         </button>
                     </div>
                 )}

@@ -2,43 +2,37 @@
 
 @layer base {
   :root {
-    /* ENTERPRISE HOSPITAL THEME (Old PC Safe) - Dark Steel & Soft Orange */
-    --primary-hospital-blue: #2F3E46;
-    /* Dark Steel Grey */
-    --hospital-indigo: #354f52;
-    /* Deep Teal Grey */
-    --hospital-violet: #52796f;
-    /* Muted Green Grey */
+    /* MODERN HOSPITAL SOFT GREEN THEME (Performance Optimized) */
+    --hosp-green-bg: #cfead6;
+    --hosp-green-hover: #b8dfc2;
+    --hosp-green-active: #9fd3ae;
+    --hosp-text-dark: #1f2d2a;
+    --hosp-icon-green: #2e7d32;
 
-    --bg-slate: #f5f7fa;
-    /* Soft White-Grey */
-    --text-slate: #212529;
-    /* Dark Grey Text (High Contrast) */
+    --hosp-btn-primary: #2e7d32;
+    --hosp-btn-hover: #256628;
+    --hosp-btn-cancel: #e0e0e0;
 
-    /* REFINED MENU THEME (Solid Colors - No Heavy Gradients) */
-    --sidebar-bg: #2F3E46;
-    --sidebar-active: rgba(255, 255, 255, 0.1);
-    --sidebar-active-gradient: none;
-    /* Removed for performance */
-    --sidebar-hover: rgba(255, 255, 255, 0.05);
-    --sidebar-text: #FFFFFF;
-    --sidebar-accent: #E76F51;
-    /* Soft Hospital Orange */
-    --sidebar-offset: 0px;
+    --bg-main: #f8faf9;
+    --card-bg: #ffffff;
+    --card-border: #e6e6e6;
 
-    /* Theme Accents */
-    --theme-primary: #4338ca;
-    --theme-secondary: #3730a3;
-    --theme-bg-soft: #eef2ff;
-    --theme-border-soft: #c7d2fe;
+    /* Dashboard Card Accents */
+    --accent-open: #ffd59e;
+    --accent-pending: #cfe8ff;
+    --accent-solved: #d6f5e3;
+    --accent-transferred: #eadcff;
+    --accent-delayed: #ffe0e0;
 
-    /* Typography Scale - STRICT STANDARDIZATION */
+    /* REFINED TEXT COLOR */
+    --text-polish: #2f2f2f;
+
+    /* Typography Scale - KEEPING SIZES SAME */
     --size-page-title: 20px;
     --size-section-title: 15px;
     --size-card-title: 15px;
     --size-stat-number: 28px;
     --size-menu: 13.5px;
-    /* Clean & Professional */
     --size-table-header: 14px;
     --size-table-content: 14px;
     --size-forms: 14px;
@@ -48,148 +42,153 @@
     --size-popup-text: 14px;
     --size-footer: 12px;
 
-    /* Fonts - STRICT RULE: INTER PRIMARY */
+    /* FONTS - MODERN BUT SAFE */
     --font-primary: 'Inter', 'Roboto', 'Segoe UI', Arial, sans-serif;
-    --font-body: 'Inter', 'Roboto', 'Segoe UI', Arial, sans-serif;
-    --font-ui: 'Inter', 'Roboto', 'Segoe UI', Arial, sans-serif;
-    --font-data: 'Inter', 'Roboto', 'Segoe UI', Arial, sans-serif;
   }
 
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    transition: 0.15s ease;
+    /* Smooth but lightweight */
   }
 
   body {
-    background-color: var(--bg-slate);
-    color: var(--text-slate);
-    font-family: var(--font-body);
+    background-color: var(--bg-main);
+    color: var(--text-polish);
+    font-family: var(--font-primary);
     line-height: 1.5;
+    letter-spacing: 0.2px;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Typography Utilities - PROFESSIONAL SYSTEM */
+  /* Typography Utilities */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+    color: var(--hosp-text-dark);
+  }
+
   .text-page-title {
-    font-family: var(--font-primary);
     font-size: var(--size-page-title);
     font-weight: 600;
-    letter-spacing: -0.01em;
   }
 
   .text-section-title {
-    font-family: var(--font-primary);
     font-size: var(--size-section-title);
     font-weight: 600;
-    letter-spacing: -0.01em;
   }
 
   .text-card-title {
-    font-family: var(--font-primary);
     font-size: var(--size-card-title);
     font-weight: 600;
   }
 
   .text-stat-number {
-    font-family: var(--font-primary);
     font-size: var(--size-stat-number);
     font-weight: 700;
-    line-height: 1;
   }
 
   .text-menu {
-    font-family: var(--font-ui);
     font-size: var(--size-menu);
     font-weight: 400;
-    /* Normal */
   }
 
   .text-menu-active {
-    font-family: var(--font-ui);
     font-size: var(--size-menu);
     font-weight: 600;
-    /* Bold Hierarchy */
   }
 
-  .text-table-header {
-    font-family: var(--font-ui);
-    font-size: var(--size-table-header);
+  /* BUTTONS - REFINED */
+  .btn-hosp-primary {
+    background-color: var(--hosp-btn-primary);
+    color: white;
     font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+    border: none;
+    cursor: pointer;
   }
 
-  .text-table-data {
-    font-family: var(--font-data);
-    font-size: var(--size-table-content);
-    font-weight: 400;
+  .btn-hosp-primary:hover {
+    background-color: var(--hosp-btn-hover);
   }
 
-  .text-label {
-    font-family: var(--font-ui);
-    font-size: var(--size-labels);
-    font-weight: 400;
+  .btn-hosp-primary:active {
+    transform: scale(0.98);
   }
 
-  .text-forms {
-    font-family: var(--font-body);
-    font-size: var(--size-forms);
-    font-weight: 400;
-  }
-
-  .text-button {
-    font-family: var(--font-ui);
-    font-size: var(--size-buttons);
+  .btn-hosp-cancel {
+    background-color: var(--hosp-btn-cancel);
+    color: var(--text-polish);
     font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
   }
 
-  /* GLOBAL PREMIUM BUTTONS - BLUE THEME */
-  .btn-premium {
-    @apply bg-gradient-to-r from-[#4338ca] to-[#6366f1] text-white font-semibold rounded-xl shadow-lg border border-white/10 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2;
+  /* CARDS - POLISHED & FLAT */
+  .card-hosp {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .btn-premium:hover {
-    @apply from-[#4f46e5] to-[#818cf8] shadow-indigo-500/20 translate-y-[-1px];
+  .card-hosp:hover {
+    border-color: var(--hosp-green-active);
   }
 
-  .btn-premium-outline {
-    @apply bg-white border-2 border-[#4338ca] text-[#4338ca] font-semibold rounded-xl transition-all duration-300 active:scale-95 flex items-center justify-center gap-2;
+  /* POPUPS / MODALS - STABILIZED */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* No blur for performance */
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .btn-premium-outline:hover {
-    @apply bg-indigo-50 border-[#6366f1] text-[#6366f1];
+  .modal-content {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    /* Light shadow only */
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 10000;
   }
 
-  .text-popup-title {
-    font-family: var(--font-primary);
-    font-size: var(--size-popup-title);
-    font-weight: 700;
+  /* Remove heavy modern effects globally */
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-xl,
+  .backdrop-blur-lg {
+    backdrop-filter: none !important;
   }
 
-  .text-popup-body {
-    font-family: var(--font-body);
-    font-size: var(--size-popup-text);
-    font-weight: 400;
+  .shadow-2xl,
+  .shadow-xl {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
   }
 
-  .text-small-info {
-    font-family: var(--font-data);
-    font-size: var(--size-footer);
-    font-weight: 500;
-  }
-
-  /* Compact Table Utilities */
-  .table-compact th {
-    padding: 0.75rem 1rem;
-    background-color: #f8fafc !important;
-    border-bottom: 1px solid var(--table-border) !important;
-  }
-
-  .table-compact td {
-    padding: 0.625rem 1rem;
-    border-bottom: 1px solid var(--table-border) !important;
-  }
-
-  .table-compact tr:hover {
-    background-color: #f1f5f9 !important;
+  /* Scrolling utility for Work Report */
+  .scroll-container-auto {
+    height: auto;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto !important;
   }
 }
 
@@ -213,74 +212,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--hosp-green-active);
     border-radius: 10px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-
-  /* Animations */
-  .animate-in {
-    animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    opacity: 0;
-  }
-
-  .delay-100 {
-    animation-delay: 100ms;
-  }
-
-  .delay-200 {
-    animation-delay: 200ms;
-  }
-
-  .delay-300 {
-    animation-delay: 300ms;
-  }
-
-  @keyframes enter {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.98);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* Specific Override for slide-in-from-right */
-  .slide-in-from-right {
-    animation-name: slideInRight;
-  }
-
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .zoom-in-95 {
-    animation-name: zoomIn;
-  }
-
-  @keyframes zoomIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
   }
 }

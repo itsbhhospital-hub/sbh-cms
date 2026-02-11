@@ -136,7 +136,7 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
     if (!targetUser) return null;
 
     const isMe = currentUser.Username === targetUser.Username;
-    const isAdmin = currentUser.Role === 'admin' || currentUser.Role === 'SUPER_ADMIN';
+    const isAdmin = currentUser.Role?.toUpperCase() === 'ADMIN' || currentUser.Role?.toUpperCase() === 'SUPER_ADMIN';
     const canEdit = isAdmin || isMe;
 
     return (
@@ -183,7 +183,7 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                             {isEditing && (
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="absolute bottom-1 right-1 p-2 bg-orange-600 text-white rounded-full shadow-lg hover:bg-orange-700 transition-all z-10"
+                                    className="absolute bottom-1 right-1 p-2.5 bg-[#2e7d32] text-white rounded-xl shadow-none hover:bg-[#256628] transition-all z-10 border border-white/20"
                                     title="Change Photo"
                                 >
                                     <Camera size={18} />
@@ -192,11 +192,11 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                             <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg, image/png" onChange={handleFileChange} />
                         </div>
 
-                        <div className="mt-4 text-center">
-                            <h3 className="text-xl font-black text-slate-800">{formData.Username}</h3>
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase mt-2 ${formData.Status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                        <div className="mt-6 text-center">
+                            <h3 className="text-2xl font-black text-[#1f2d2a] uppercase tracking-tight">{formData.Username}</h3>
+                            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase mt-3 ${formData.Status === 'Active' ? 'bg-[#cfead6] text-[#2e7d32] border border-[#2e7d32]/10' : 'bg-amber-50 text-amber-600 border border-amber-100'
                                 }`}>
-                                {formData.Status === 'Active' ? <CheckCircle size={10} /> : <AlertTriangle size={10} />}
+                                {formData.Status === 'Active' ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
                                 {formData.Status}
                             </span>
                         </div>
@@ -215,12 +215,12 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                     )}
 
                     {/* Tabs */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto">
+                    <div className="flex bg-[#f8faf9] p-1.5 rounded-2xl border border-[#dcdcdc]">
                         {['performance', 'personal', 'system', 'security'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex-1 py-2 px-2 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                                className={`flex-1 py-2.5 px-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#2e7d32] text-white shadow-none' : 'text-slate-400 hover:text-slate-600'
                                     }`}
                             >
                                 {tab}
@@ -237,12 +237,12 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                                 ) : (
                                     <>
                                         {/* Impact Card */}
-                                        <div className="p-5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg text-white relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10"><Shield size={64} /></div>
-                                            <h4 className="text-xs font-bold text-indigo-100 uppercase tracking-widest mb-1">Your Impact</h4>
+                                        <div className="p-6 bg-[#1f2d2a] rounded-2xl shadow-none text-white relative overflow-hidden ring-1 ring-black">
+                                            <div className="absolute top-0 right-0 p-4 opacity-5 text-[#2e7d32]"><Shield size={84} /></div>
+                                            <h4 className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-3">Service Impact</h4>
                                             <div className="flex items-baseline gap-2">
-                                                <span className="text-4xl font-black">{performance?.solved || 0}</span>
-                                                <span className="text-sm font-semibold opacity-80">Tickets Solved</span>
+                                                <span className="text-4xl font-black text-white leading-none tracking-tight">{performance?.solved || 0}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-[#2e7d32]/80">Resolved Units</span>
                                             </div>
                                         </div>
 
@@ -392,25 +392,25 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
 
                 {/* Footer Actions */}
                 {canEdit && (
-                    <div className="p-6 border-t border-slate-100 bg-white md:bg-slate-50">
+                    <div className="p-6 border-t border-[#dcdcdc] bg-white">
                         {isEditing ? (
                             <div className="flex gap-3">
-                                <button onClick={() => setIsEditing(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors">
+                                <button onClick={() => setIsEditing(false)} className="flex-1 py-4 bg-slate-50 border border-[#dcdcdc] text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all">
                                     Cancel
                                 </button>
-                                <button onClick={handleSave} disabled={loading} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
-                                    {loading ? 'Saving...' : <><Save size={18} /> Save Changes</>}
+                                <button onClick={handleSave} disabled={loading} className="flex-1 py-4 bg-[#2e7d32] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-none hover:bg-[#256628] transition-all flex items-center justify-center gap-2 border border-transparent">
+                                    {loading ? 'Saving...' : <><Save size={18} /> Commit Changes</>}
                                 </button>
                             </div>
                         ) : (
                             <div className="flex gap-3">
                                 {isAdmin && !isMe && (
-                                    <button onClick={onDelete} className="p-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 border border-rose-100 transition-colors">
+                                    <button onClick={onDelete} className="p-4 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-100 border border-rose-100 transition-all">
                                         <Trash2 size={20} />
                                     </button>
                                 )}
-                                <button onClick={() => setIsEditing(true)} className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
-                                    <User size={18} /> Edit Profile
+                                <button onClick={() => setIsEditing(true)} className="flex-1 py-4 bg-[#1f2d2a] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-none hover:bg-black transition-all flex items-center justify-center gap-2">
+                                    <User size={18} /> Modify Registry
                                 </button>
                             </div>
                         )}
@@ -435,18 +435,18 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
 
 const InputField = ({ label, value, onChange, icon: Icon, type = "text", editable }) => (
     <div>
-        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block ml-1">{label}</label>
-        <div className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${editable ? 'bg-white border-orange-200 shadow-sm ring-2 ring-orange-500/10' : 'bg-slate-50 border-slate-200'
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">{label}</label>
+        <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${editable ? 'bg-white border-[#2e7d32] shadow-none' : 'bg-[#f8faf9] border-[#dcdcdc]'
             }`}>
-            <Icon size={18} className={editable ? 'text-orange-500' : 'text-slate-400'} />
+            <Icon size={18} className={editable ? 'text-[#2e7d32]' : 'text-slate-300'} />
             <input
                 type={type}
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 disabled={!editable}
-                className="bg-transparent outline-none w-full text-sm font-bold text-slate-700 disabled:text-slate-500"
+                className="bg-transparent outline-none w-full text-xs font-black uppercase tracking-tight text-[#1f2d2a] disabled:text-slate-400"
             />
-            {editable && <div className="text-[10px] font-bold text-orange-400 uppercase">Edit</div>}
+            {editable && <div className="text-[9px] font-black text-[#2e7d32] uppercase tracking-widest">Edit</div>}
         </div>
     </div>
 );

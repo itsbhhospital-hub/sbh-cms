@@ -20,7 +20,7 @@ export const AnalyticsProvider = ({ children }) => {
     const [flowStats, setFlowStats] = useState({ open: 0, solved: 0, delayed: 0, transferred: 0 });
     const [alerts, setAlerts] = useState([]);
 
-    const isAdmin = user?.Role === 'ADMIN' || user?.Role === 'SUPER_ADMIN';
+    const isAdmin = user?.Role?.toUpperCase() === 'ADMIN' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
 
     // -------------------------------------------------------------------------
     // 🔄 POLLING ENGINE

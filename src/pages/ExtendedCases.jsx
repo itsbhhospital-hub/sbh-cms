@@ -31,7 +31,7 @@ const ExtendedCases = () => {
         }
     };
 
-    const isAdmin = user?.Role === 'SUPER_ADMIN' || user?.Role === 'ADMIN';
+    const isAdmin = user?.Role?.toUpperCase() === 'SUPER_ADMIN' || user?.Role?.toUpperCase() === 'ADMIN';
 
     // Filter Logic
     const filteredLogs = logs.filter(log => {

@@ -1175,7 +1175,7 @@ function sendTransferNotification(id, oldDept, newDept, by, reason) {
     for (let i = 1; i < data.length; i++) {
         const rowD = normalize(data[i][dIdx]);
         const rowR = normalize(data[i][rIdx]);
-        if (rowD === targetDept || rowR === 'super_admin' || rowR === 'super admin') {
+        if (rowD === targetDept || rowR === 'superadmin' || rowR === 'superadmin') {
             staffMobiles.push(data[i][mIdx]);
         }
     }
@@ -1479,7 +1479,7 @@ function getComplaintsPaginated(page, limit, deptFilter, statusFilter, search, r
     const vUser = normalize(viewer);
     const vDept = normalize(viewerDept);
     const vRole = normalize(viewerRole);
-    const isAdmin = vRole === 'admin' || vRole === 'super_admin';
+    const isAdmin = vRole === 'admin' || vRole === 'superadmin';
 
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
@@ -1683,7 +1683,7 @@ function getDashboardStats(username, userDept, role) {
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const colMap = getColMap(headers);
-    const isAdmin = (role || '').toUpperCase() === 'ADMIN' || (role || '').toUpperCase() === 'SUPER_ADMIN';
+    const isAdmin = (role || '').toUpperCase() === 'ADMIN' || (role || '').toUpperCase() === 'SUPER_ADMIN' || (role || '').toUpperCase() === 'SUPERADMIN';
     const normalizedDept = normalize(userDept);
     const normalizedUser = normalize(username);
 

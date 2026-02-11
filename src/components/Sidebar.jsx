@@ -9,7 +9,7 @@ import {
     Users, BarChart3, ShieldCheck, Key, FileText, Share2, Hospital, X, Zap
 } from 'lucide-react';
 
-const SessionTimer = memo(({ collapsed, mobileOpen, isHovered }) => {
+const SessionTimer = memo(({ collapsed }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
     useEffect(() => {
@@ -17,7 +17,7 @@ const SessionTimer = memo(({ collapsed, mobileOpen, isHovered }) => {
             const loginTime = localStorage.getItem('sbh_login_time');
             if (!loginTime) return;
             const elapsed = Date.now() - parseInt(loginTime);
-            const remaining = (60 * 60 * 1000) - elapsed;
+            const remaining = (30 * 60 * 1000) - elapsed;
             if (remaining <= 0) {
                 setTimeLeft('00:00');
             } else {
@@ -31,32 +31,26 @@ const SessionTimer = memo(({ collapsed, mobileOpen, isHovered }) => {
         return () => clearInterval(interval);
     }, []);
 
-    if (collapsed && !mobileOpen && !isHovered) {
+    if (collapsed) {
         return (
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white border border-white/10 shadow-sm">
-                    <Clock size={20} />
-                </div>
-                {/* Logout button handled by parent */}
+            <div className="w-12 h-12 rounded-2xl bg-[#cfead6] flex items-center justify-center text-[#2e7d32] border border-[#dcdcdc] font-mono text-[10px] font-black">
+                {timeLeft.split(':')[0]}m
             </div>
         );
     }
 
     return (
-        <div className="bg-white/20 border border-white/10 p-3 rounded-2xl flex items-center justify-between shadow-sm">
+        <div className="bg-white/50 border border-[#2e7d32]/10 p-4 rounded-2xl flex items-center justify-between shadow-none">
             <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/30 flex items-center justify-center text-white shadow-sm">
-                    <Clock className="animate-pulse" size={16} />
-                </div>
+                <Clock size={16} className="text-[#2e7d32]" />
                 <div>
-                    <p className="text-[10px] font-bold text-indigo-100 tracking-wide leading-none mb-1 opacity-80 uppercase">Session Left</p>
-                    <p className="text-sm font-mono font-black text-white leading-none tracking-wider">{timeLeft || '--:--'}</p>
+                    <p className="text-[9px] font-black text-[#2e7d32] tracking-widest leading-none mb-1 opacity-60 uppercase">Session Secure</p>
+                    <p className="text-[11px] font-black text-[#1f2d2a] leading-none tracking-[0.2em] font-mono uppercase">{timeLeft || '30:00'}</p>
                 </div>
             </div>
         </div>
     );
 });
-
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
@@ -79,15 +73,14 @@ const Sidebar = () => {
         <NavLink
             to={to}
             onClick={() => {
-                // if (location.pathname !== to) showLoader(); // REMOVED: Instant Navigation
                 setMobileOpen(false);
             }}
             className={({ isActive }) => `
-                relative flex items-center gap-3 px-3 py-2.5 mx-1 rounded-xl transition-all duration-300 group
-                font-ui font-semibold tracking-wide mb-1 text-[13.5px]
+                relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-all 
+                font-black uppercase tracking-widest mb-1 text-[10px]
                 ${isActive
-                    ? 'bg-white/10 backdrop-blur-md text-white shadow-lg border border-white/20 scale-[1.02]'
-                    : 'text-white hover:bg-white/5 transition-all opacity-90 hover:opacity-100'
+                    ? 'bg-[#2e7d32] text-white shadow-none ring-1 ring-white/10'
+                    : 'text-[#1f2d2a] hover:bg-[#b8dfc2] transition-all opacity-80 hover:opacity-100'
                 }
             `}
         >
@@ -96,7 +89,7 @@ const Sidebar = () => {
                     <Icon
                         size={18}
                         strokeWidth={isActive ? 2.5 : 2}
-                        className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-white' : 'text-white group-hover:text-white'}`}
+                        className={`relative z-10 transition-colors ${isActive ? 'text-[#2e7d32]' : 'text-[#2e7d32] opacity-80'}`}
                     />
 
                     {(!collapsed || mobileOpen || isHovered) && (
@@ -104,7 +97,7 @@ const Sidebar = () => {
                     )}
 
                     {isActive && (
-                        <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white shadow-sm shadow-indigo-500/50" />
+                        <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#2e7d32] shadow-none" />
                     )}
                 </>
             )}
@@ -115,7 +108,7 @@ const Sidebar = () => {
         <>
             {mobileOpen && (
                 <div
-                    className="md:hidden fixed inset-0 z-[140] bg-slate-900/60 backdrop-blur-sm animate-in fade-in"
+                    className="md:hidden fixed inset-0 z-[140] bg-slate-900/40"
                     onClick={() => setMobileOpen(false)}
                 />
             )}
@@ -124,30 +117,29 @@ const Sidebar = () => {
                 onMouseEnter={() => !mobileOpen && setIsHovered(true)}
                 onMouseLeave={() => !mobileOpen && setIsHovered(false)}
                 className={`fixed md:sticky top-0 left-0 z-[150] h-[100dvh] 
-                bg-gradient-to-b from-[#1e3a8a] via-[#4338ca] to-[#6366f1]
-                backdrop-blur-xl border-r border-white/5 shadow-[4px_0_24px_rgba(0,0,0,0.2)] 
-                flex flex-col justify-between transition-all duration-300 ease-in-out
+                bg-[#cfead6] border-r border-[#dcdcdc] shadow-sm
+                flex flex-col justify-between transition-all duration-150 ease-in-out
                 ${mobileOpen ? 'translate-x-0 w-[80%] max-w-[300px]' : collapsed && !isHovered ? 'w-[80px] -translate-x-0' : 'translate-x-0 w-[260px]'}
                 ${!mobileOpen && 'hidden md:flex flex-col'}`}
             >
                 {/* Header */}
-                <div className="h-16 flex items-center justify-center border-b border-white/10 mb-2 relative shrink-0">
+                <div className="h-20 flex items-center justify-start px-6 border-b border-[#2e7d32]/10 mb-4 relative shrink-0 bg-white/30">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg p-1">
-                            <img src="/sbh_wide.jpg" alt="Logo" className="w-full h-full object-contain" />
+                        <div className="w-12 h-10 bg-white rounded-xl flex items-center justify-center shadow-none p-1.5 border border-[#dcdcdc]">
+                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         {(!collapsed || mobileOpen || isHovered) && (
-                            <span className="font-black text-xl text-white tracking-tight drop-shadow-md">
-                                SBH CMS
+                            <span className="font-black text-xl text-[#1f2d2a] tracking-tighter uppercase">
+                                SBH <span className="text-[#2e7d32]">CMS</span>
                             </span>
                         )}
                     </div>
                 </div>
 
                 {/* Navigation Section */}
-                <nav className="px-2 py-4 overflow-y-auto custom-scrollbar flex-1">
-                    <div className="mb-2 px-4 text-[11px] font-bold text-indigo-100 uppercase tracking-wider leading-none opacity-90">
-                        {(!collapsed || mobileOpen || isHovered) && 'Hospital Services'}
+                <nav className="px-2 py-2 overflow-y-auto custom-scrollbar flex-1">
+                    <div className="mb-4 px-4 text-[9px] font-black text-[#2e7d32] uppercase tracking-[0.2em] leading-none opacity-60">
+                        {(!collapsed || mobileOpen || isHovered) && 'Standard Services'}
                     </div>
 
                     <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
@@ -157,13 +149,13 @@ const Sidebar = () => {
                     <NavItem to="/extended-cases" icon={Clock} label="Extended Cases" />
                     <NavItem to="/solved-by-me" icon={CheckCircle} label="Solved By Me" />
 
-                    {(user.Username === 'AM Sir' || user.Role === 'SUPER_ADMIN') && (
+                    {(user.Username === 'AM Sir' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
                         <NavItem to="/ai-command-center" icon={Zap} label="AI Command Center" />
                     )}
 
-                    {(user.Role === 'admin' || user.Role === 'SUPER_ADMIN') && (
+                    {(user.Role?.toLowerCase() === 'admin' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
                         <>
-                            <div className="mt-6 mb-2 px-4 text-[11px] font-bold text-indigo-100 uppercase tracking-wider leading-none opacity-90">
+                            <div className="mt-6 mb-2 px-4 text-[11px] font-bold text-[#2e7d32] uppercase tracking-wider leading-none opacity-80">
                                 {(!collapsed || mobileOpen || isHovered) && 'System Management'}
                             </div>
                             {adminMenuItems.map((item) => (
@@ -173,31 +165,31 @@ const Sidebar = () => {
                     )}
                 </nav>
 
-                {/* Footer Section - Merged Style */}
-                <div className="p-2 flex flex-col justify-end shrink-0">
+                {/* Footer Section */}
+                <div className="p-3 flex flex-col justify-end shrink-0 border-t border-[#2e7d32]/10 bg-white/20">
                     {(!collapsed || mobileOpen || isHovered) ? (
                         <div className="flex flex-col gap-3">
-                            <SessionTimer collapsed={collapsed} mobileOpen={mobileOpen} isHovered={isHovered} />
+                            <SessionTimer />
 
                             <button
                                 onClick={logout}
-                                className="w-full flex items-center justify-center gap-3 p-3.5 bg-rose-500/10 text-rose-200 font-bold rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 hover:text-white transition-all shadow-lg active:scale-95 group backdrop-blur-sm"
+                                className="w-full flex items-center justify-center gap-3 p-4 bg-white text-rose-600 font-black text-[10px] uppercase tracking-widest rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all active:scale-95 group"
                             >
-                                <LogOut size={18} className="group-hover:translate-x-1 transition-transform" />
-                                <span>Logout Session</span>
+                                <LogOut size={18} />
+                                <span>Sign Out</span>
                             </button>
                         </div>
                     ) : (
-                        <>
-                            <SessionTimer collapsed={collapsed} mobileOpen={mobileOpen} isHovered={isHovered} />
+                        <div className="flex flex-col items-center gap-3">
+                            <SessionTimer collapsed />
                             <button
                                 onClick={logout}
-                                className="p-3.5 bg-white text-[#65a30d] rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-lg active:scale-90"
+                                className="p-4 bg-white text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all active:scale-90"
                                 title="Logout"
                             >
                                 <LogOut size={20} strokeWidth={2.5} />
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             </aside>

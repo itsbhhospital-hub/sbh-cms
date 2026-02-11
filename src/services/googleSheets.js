@@ -320,8 +320,8 @@ export const sheetsService = {
 
     getComplaintsPaginated: (page, limit, department, status, search, reporter, resolver, viewer, viewerRole, viewerDept, force = false, silent = true) => {
         // ADMIN VISIBILITY FIX: If Admin/Super Admin or 'AM Sir', ignore department filter to see ALL
-        const isSuper = viewerRole === 'SUPER_ADMIN' || (viewer && viewer.toLowerCase() === 'am sir');
-        const effectiveDept = (viewerRole === 'ADMIN' || isSuper) ? '' : (department || viewerDept);
+        const isSuper = viewerRole?.toUpperCase() === 'SUPER_ADMIN' || (viewer && viewer.toLowerCase() === 'am sir');
+        const effectiveDept = (viewerRole?.toUpperCase() === 'ADMIN' || isSuper) ? '' : (department || viewerDept);
 
         return fetchPaginatedData('getComplaintsPaginated', {
             page, limit,
@@ -332,8 +332,8 @@ export const sheetsService = {
     },
 
     getDashboardStats: (username, department, role, force = false, silent = true) => {
-        const isSuper = role === 'SUPER_ADMIN' || (username && username.toLowerCase() === 'am sir');
-        const effectiveDept = (role === 'ADMIN' || isSuper) ? '' : department;
+        const isSuper = role?.toUpperCase() === 'SUPER_ADMIN' || (username && username.toLowerCase() === 'am sir');
+        const effectiveDept = (role?.toUpperCase() === 'ADMIN' || isSuper) ? '' : department;
         return fetchPaginatedData('getDashboardStats', { username, department: effectiveDept, role }, force, silent);
     },
 

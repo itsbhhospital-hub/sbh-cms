@@ -20,8 +20,8 @@ export const IntelligenceProvider = ({ children }) => {
     });
 
     const [selfHealingLogs, setSelfHealingLogs] = useState([]);
-    const isAdmin = user?.Role === 'ADMIN' || user?.Role === 'SUPER_ADMIN';
-    const isDirector = user?.Username === 'AM Sir' || user?.Role === 'SUPER_ADMIN';
+    const isAdmin = user?.Role?.toUpperCase() === 'ADMIN' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
+    const isDirector = user?.Username === 'AM Sir' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
 
     // -------------------------------------------------------------------------
     // 🧠 AI ENGINE (Pulse every 30s)

@@ -27,32 +27,32 @@ const PerformanceWidget = ({ user, userStats }) => {
 
     return (
         <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
-            <div className="bg-white p-6 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_15px_-3px_rgb(0,0,0,0.04)]">
-                <p className="text-label font-black text-slate-400 mb-4">Your Impact</p>
+            <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
+                <p className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest">Your Impact</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-card-value text-slate-900 leading-none">{stats.myResolvedCount}</h3>
-                    <div className="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-lg text-small-info font-bold border border-orange-100">Solved</div>
+                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{stats.myResolvedCount}</h3>
+                    <div className="bg-[#cfead6] text-[#2e7d32] px-2.5 py-1 rounded-lg text-[10px] font-black border border-[#2e7d32]/10 uppercase tracking-widest">Solved</div>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_15px_-3px_rgb(0,0,0,0.04)]">
-                <p className="text-label font-black text-slate-400 mb-4">Avg Speed</p>
+            <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
+                <p className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest">Avg Speed</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-card-value text-slate-900 leading-none">{userStats?.avgSpeedHours || '-'}<span className="text-sm font-normal text-slate-400 ml-1">hrs</span></h3>
-                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 text-slate-400"><Clock size={16} strokeWidth={2.5} /></div>
+                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{userStats?.avgSpeedHours || '-'}<span className="text-sm font-black text-slate-400 ml-1 uppercase">hrs</span></h3>
+                    <div className="p-2 bg-[#f8faf9] rounded-lg border border-[#dcdcdc] text-slate-400"><Clock size={16} strokeWidth={2.5} /></div>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_15px_-3px_rgb(0,0,0,0.04)]">
-                <p className="text-label font-black uppercase tracking-widest text-slate-400 mb-4">Quality Score</p>
+            <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quality Score</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-card-value text-slate-900 leading-none flex items-center gap-1">
-                        {stats.avgRating} <Star size={20} className="text-amber-400 fill-amber-400" />
+                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none flex items-center gap-2 tracking-tight">
+                        {stats.avgRating} <Star size={24} className="text-amber-400 fill-amber-400" />
                     </h3>
                 </div>
             </div>
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart3 size={64} /></div>
-                <p className="text-label font-black uppercase tracking-widest text-orange-400/80 mb-4">Efficiency Rank</p>
-                <h3 className="text-card-value text-white relative z-10 leading-none">{stats.efficiency}</h3>
+            <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-none text-white flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5 text-[#2e7d32]"><BarChart3 size={64} /></div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#2e7d32]/80 mb-4">Efficiency Rank</p>
+                <h3 className="text-3xl font-black text-white relative z-10 leading-none tracking-tight">{stats.efficiency}</h3>
             </div>
         </div>
     );
@@ -66,40 +66,39 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
             case 'Open': return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20';
             case 'Solved':
             case 'Closed':
-            case 'Resolved': return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20';
-            case 'Transferred': return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20';
+            case 'Resolved': return 'bg-[#cfead6] text-[#2e7d32] ring-1 ring-inset ring-[#2e7d32]/20';
+            case 'Transferred': return 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20';
             case 'Force Close': return 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20';
-            default: return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10';
+            default: return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200';
         }
     };
 
     return (
         <tr
             onClick={() => onClick(complaint)}
-            className="group border-b border-slate-50 hover:bg-emerald-50/10 transition-colors cursor-pointer"
+            className="group border-b border-slate-50 hover:bg-[#f0f9f1] transition-colors cursor-pointer"
         >
-            <td className="p-4 py-3">
+            <td className="p-4 py-4">
                 <div className="flex flex-col gap-1">
-                    <span className="font-mono text-small-info font-bold text-slate-400" translate="no">#{complaint.ID}</span>
+                    <span className="font-mono text-[10px] font-black text-slate-300" translate="no">#{complaint.ID}</span>
                     {aiDecision?.priority && (
-                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-tighter w-fit ${aiDecision.priority.color}`}>
+                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-tighter w-fit shadow-none ${aiDecision.priority.color}`}>
                             {aiDecision.priority.label}
                         </span>
                     )}
                 </div>
             </td>
-            <td className="p-4 py-3">
+            <td className="p-4 py-4">
                 <div className="flex flex-col">
-                    <span className="text-table-data font-bold text-slate-800 line-clamp-1 group-hover:text-emerald-700 transition-colors tracking-tight flex items-center gap-2">
+                    <span className="text-xs font-black text-[#1f2d2a] line-clamp-1 group-hover:text-[#2e7d32] transition-colors tracking-tight flex items-center gap-2 uppercase">
                         {complaint.Description}
                         {aiDecision?.delayRisk && (
-                            <span className="text-[10px] text-rose-500 font-black animate-pulse flex items-center gap-0.5">
+                            <span className="text-[9px] text-rose-500 font-black animate-pulse flex items-center gap-0.5">
                                 <Zap size={10} fill="currentColor" /> AI Risk
                             </span>
                         )}
                     </span>
-                    <span className="text-[10px] text-slate-400 md:hidden font-bold">
-                        {/* Mobile: Date + Time (Deduped) */}
+                    <span className="text-[10px] text-slate-400 md:hidden font-black uppercase tracking-widest mt-1">
                         {(() => {
                             const d = (complaint.Date || '').replace(/'/g, '').split(' ')[0];
                             const t = (complaint.Time || '').replace(/'/g, '');
@@ -108,58 +107,58 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
                     </span>
                 </div>
             </td>
-            <td className="p-4 py-3 hidden md:table-cell">
+            <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">To</span>
-                        <span className="text-small-info font-bold text-slate-600 bg-slate-100/50 px-2 py-0.5 rounded border border-slate-100/50 tracking-tight">
+                        <span className="text-[9px] font-black uppercase text-slate-300 tracking-widest mb-0.5">Assigned To</span>
+                        <span className="text-[10px] font-black text-[#2e7d32] bg-[#cfead6] px-2 py-0.5 rounded-lg border border-[#2e7d32]/10 tracking-widest uppercase truncate w-fit">
                             {complaint.LatestTransfer.NewDepartment || complaint.Department}
                         </span>
                     </div>
                 ) : (
-                    <span className="text-small-info font-bold text-slate-500 bg-slate-100/50 px-2 py-0.5 rounded border border-slate-100/50 tracking-tight">
+                    <span className="text-[10px] font-black text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-[#dcdcdc] tracking-widest uppercase truncate w-fit">
                         {complaint.Department}
                     </span>
                 )}
             </td>
-            <td className="p-4 py-3 hidden md:table-cell">
+            <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">By</span>
-                        <span className="text-table-data font-bold text-slate-700">{complaint.LatestTransfer.TransferredBy || 'Unknown'}</span>
+                        <span className="text-[9px] font-black uppercase text-slate-300 tracking-widest mb-0.5">Released By</span>
+                        <span className="text-[11px] font-black text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.LatestTransfer.TransferredBy || 'Unknown'}</span>
                     </div>
                 ) : (
-                    <span className="text-table-data font-bold text-slate-700">{complaint.Unit}</span>
+                    <span className="text-[11px] font-black text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.Unit}</span>
                 )}
             </td>
-            <td className="p-4 py-3 hidden md:table-cell">
+            <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
-                    <>
-                        <span className="text-small-info font-bold text-slate-400 tracking-tight block">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase">
                             {(complaint.LatestTransfer.TransferDate || '').replace(/'/g, '').split(' ')[0]}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-300 tracking-tight">
+                        <span className="text-[9px] font-mono text-slate-300 tracking-tight">
                             {(complaint.LatestTransfer.TransferDate || '').includes(' ') ? (complaint.LatestTransfer.TransferDate || '').split(' ').slice(1).join(' ').replace(/'/g, '') : ''}
                         </span>
-                    </>
+                    </div>
                 ) : (
-                    <>
-                        <span className="text-small-info font-bold text-slate-400 tracking-tight block">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase">
                             {(complaint.Date || '').replace(/'/g, '').split(' ')[0]}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-300 tracking-tight">
+                        <span className="text-[9px] font-mono text-slate-300 tracking-tight">
                             {(complaint.Time || '').replace(/'/g, '')}
                         </span>
-                    </>
+                    </div>
                 )}
             </td>
-            <td className="p-4 py-3 text-right">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-table-header font-black tracking-widest ${getStatusStyle(complaint.Status)}`}>
+            <td className="p-4 py-4 text-right">
+                <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border border-transparent ${getStatusStyle(complaint.Status)}`}>
                     {complaint.Status}
                 </span>
             </td>
-            <td className="p-4 py-3 text-right w-10">
-                <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+            <td className="p-4 py-4 text-right w-10">
+                <ChevronRight size={14} className="text-slate-200 group-hover:text-[#2e7d32] transition-colors" />
             </td>
         </tr>
     );
@@ -167,27 +166,27 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
 
 // --- ENTERPRISE CARD COMPONENT (Mobile) ---
 const ComplaintCard = memo(({ complaint, onClick, aiDecision }) => (
-    <div onClick={() => onClick(complaint)} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all mb-3 relative overflow-hidden group">
-        <div className={`absolute top-0 left-0 w-1 h-full ${complaint.Status === 'Open' ? 'bg-amber-500' : complaint.Status === 'Solved' || complaint.Status === 'Closed' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-        <div className="flex justify-between items-start mb-2 pl-2">
-            <div className="flex flex-col gap-1">
-                <span translate="no" className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border tracking-widest w-fit ${complaint.Status === 'Open' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+    <div onClick={() => onClick(complaint)} className="bg-white p-5 rounded-2xl border border-[#dcdcdc] shadow-none active:scale-[0.98] transition-all mb-4 relative overflow-hidden group">
+        <div className={`absolute top-0 left-0 w-1.5 h-full ${complaint.Status === 'Open' ? 'bg-amber-500' : complaint.Status === 'Solved' || complaint.Status === 'Closed' ? 'bg-[#2e7d32]' : 'bg-slate-300'}`} />
+        <div className="flex justify-between items-start mb-3 pl-2">
+            <div className="flex flex-col gap-1.5">
+                <span translate="no" className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border border-transparent tracking-widest w-fit ${complaint.Status === 'Open' ? 'bg-amber-50 text-amber-700' : 'bg-[#cfead6] text-[#2e7d32]'}`}>
                     {complaint.Status}
                 </span>
                 {aiDecision?.priority && (
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest w-fit ${aiDecision.priority.color}`}>
-                        AI: {aiDecision.priority.label}
+                    <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-widest w-fit ${aiDecision.priority.color}`}>
+                        {aiDecision.priority.label}
                     </span>
                 )}
             </div>
-            <span translate="no" className="text-[10px] font-mono text-slate-400 font-bold">#{complaint.ID}</span>
+            <span translate="no" className="text-[10px] font-bold text-slate-300 tracking-widest">#{complaint.ID}</span>
         </div>
-        <h4 className="font-bold text-slate-800 text-sm mb-2 line-clamp-2 pl-2 font-body flex items-center gap-2">
+        <h4 className="font-black text-[#1f2d2a] text-sm mb-3 line-clamp-2 pl-2 tracking-tight uppercase flex items-center gap-2 group-hover:text-[#2e7d32] transition-colors">
             {complaint.Description}
             {aiDecision?.delayRisk && <Zap size={12} className="text-rose-500 fill-rose-500 animate-pulse" />}
         </h4>
-        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide pl-2">
-            <Building2 size={12} className="text-emerald-500" /> {complaint.Department}
+        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+            <Building2 size={12} className="text-[#2e7d32]" /> {complaint.Department}
         </div>
     </div>
 ));
@@ -495,27 +494,27 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
         <div className="max-w-7xl mx-auto px-4 pb-32">
             <PerformanceWidget user={user} userStats={userPerformance} />
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm mb-6 sticky top-4 z-20 overflow-hidden">
-                <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-xl">
+            <div className="bg-white rounded-2xl border border-[#dcdcdc] shadow-none mb-6 sticky top-4 z-20 overflow-hidden">
+                <div className="p-4 border-b border-[#f0f0f0] flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-xl">
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Database</h2>
-                        <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-xs font-bold">{totalRecords} Records</span>
+                        <h2 className="text-xl font-black text-[#1f2d2a] tracking-tight uppercase">Database</h2>
+                        <span className="bg-[#f8faf9] text-slate-400 px-2 py-0.5 rounded-lg text-[10px] font-black border border-[#dcdcdc] tracking-widest uppercase">{totalRecords} Records</span>
                     </div>
 
                     <div className="flex items-center gap-2 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-64 group">
-                            <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={16} />
+                        <div className="relative flex-1 md:w-72 group">
+                            <Search className="absolute left-3 top-2.5 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors" size={16} />
                             <input
                                 type="text"
                                 placeholder="Search by ID, Dept, or Name..."
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-50 focus:border-orange-500 transition-all placeholder:text-slate-400"
+                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-[#dcdcdc] rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-[#2e7d32] transition-all placeholder:text-slate-300 text-[#1f2d2a] shadow-none"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <button
                             onClick={() => loadComplaints(true)}
-                            className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 transition-all active:scale-95 shadow-sm"
+                            className="p-2.5 bg-white border border-[#dcdcdc] rounded-xl hover:bg-[#cfead6] text-slate-400 hover:text-[#2e7d32] transition-all active:scale-95 shadow-none"
                             title="Update Data"
                         >
                             <RefreshCw size={18} />
@@ -523,14 +522,14 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                     </div>
                 </div>
 
-                <div className="flex gap-1 p-2 bg-slate-50/50 overflow-x-auto no-scrollbar">
+                <div className="flex gap-1.5 p-2.5 bg-[#f8faf9] overflow-x-auto no-scrollbar border-b border-transparent">
                     {['All', 'Open', 'Pending', 'Solved', 'Transferred', 'Delayed'].map(f => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filter === f
-                                ? 'bg-white text-slate-900 shadow-sm border border-slate-200 ring-1 ring-black/5'
-                                : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
+                            className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${filter === f
+                                ? 'bg-[#2e7d32] text-white border-transparent shadow-none'
+                                : 'bg-white text-slate-400 border-[#dcdcdc] hover:border-[#cfead6] hover:text-[#2e7d32]'
                                 }`}
                         >
                             {f}
@@ -555,17 +554,17 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="hidden md:block bg-white rounded-2xl border border-[#dcdcdc] shadow-none overflow-hidden">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100">
-                                    <th className="p-4 py-3 text-table-header text-slate-400 w-24 uppercase tracking-widest font-bold">ID</th>
-                                    <th className="p-4 py-3 text-table-header text-slate-400 uppercase tracking-widest font-bold">Description</th>
-                                    <th className="p-4 py-3 text-table-header text-slate-400 w-32 uppercase tracking-widest font-bold">Dept</th>
-                                    <th className="p-4 py-3 text-table-header text-slate-400 w-32 uppercase tracking-widest font-bold">Unit</th>
-                                    <th className="p-4 py-3 text-table-header text-slate-400 w-32 uppercase tracking-widest font-bold">Date</th>
-                                    <th className="p-4 py-3 text-table-header text-slate-400 text-right w-24 uppercase tracking-widest font-bold">Status</th>
-                                    <th className="p-4 py-3 w-10"></th>
+                                <tr className="bg-[#f8faf9] border-b border-[#f0f0f0]">
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ref ID</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Description</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Assigned Dept</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Facility</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Timestamp</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Provision</th>
+                                    <th className="p-4 py-4 w-10"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
@@ -593,22 +592,22 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6">
-                            <span className="text-xs font-bold text-slate-400">
-                                Page {page} of {totalPages}
+                        <div className="mt-8 flex items-center justify-between border-t border-[#f0f0f0] pt-8">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Manifest {page} of {totalPages}
                             </span>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="px-4 py-2 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                                    className="px-6 py-2.5 text-[10px] font-black rounded-xl border border-[#dcdcdc] text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#f8faf9] transition-all uppercase tracking-widest"
                                 >
-                                    Previous
+                                    Prev
                                 </button>
                                 <button
                                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                     disabled={page === totalPages}
-                                    className="px-4 py-2 text-xs font-bold rounded-lg bg-slate-900 text-white disabled:opacity-50 disabled:bg-slate-700 hover:bg-slate-800 transition-colors"
+                                    className="px-6 py-2.5 text-[10px] font-black rounded-xl bg-[#1f2d2a] text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black transition-all uppercase tracking-widest"
                                 >
                                     Next
                                 </button>
@@ -619,71 +618,73 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
             )}
 
             {detailModalOpen && selectedComplaint && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-none animate-in fade-in duration-150">
-                    <div ref={modalRef} className="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 relative border border-slate-200 max-h-[85vh]">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50 sticky top-0 z-10 backdrop-blur-none">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40">
+                    <div ref={modalRef} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 relative border border-[#dcdcdc] max-h-[90vh]">
+                        <div className="absolute top-0 inset-x-0 h-2 bg-[#2e7d32]"></div>
+
+                        <div className="p-8 pb-6 border-b border-[#f0f0f0] flex justify-between items-start bg-[#f8faf9] sticky top-0 z-10">
                             <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="bg-slate-900 text-white text-small-info font-black px-2 py-1 rounded">#{selectedComplaint.ID}</span>
-                                    <span className={`text-small-info font-black px-2 py-1 rounded border ${String(selectedComplaint.Status).toLowerCase() === 'open' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="bg-[#1f2d2a] text-white text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest">#{selectedComplaint.ID}</span>
+                                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg border border-transparent uppercase tracking-widest ${String(selectedComplaint.Status).toLowerCase() === 'open' ? 'bg-amber-50 text-amber-700' : 'bg-[#cfead6] text-[#2e7d32]'}`}>
                                         {String(selectedComplaint.Status).toUpperCase()}
                                     </span>
                                 </div>
-                                <h2 className="text-popup-title font-bold text-slate-800 leading-tight">{selectedComplaint.Description}</h2>
+                                <h2 className="text-xl font-black text-[#1f2d2a] leading-tight uppercase tracking-tight">{selectedComplaint.Description}</h2>
                             </div>
-                            <button onClick={() => setDetailModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 active:scale-95 group">
-                                <X size={20} className="text-slate-400 group-hover:text-rose-500 transition-colors" />
+                            <button onClick={() => setDetailModalOpen(false)} className="p-2.5 hover:bg-[#cfead6] rounded-xl transition-all border border-transparent hover:border-[#2e7d32]/10 group">
+                                <X size={20} className="text-slate-400 group-hover:text-[#2e7d32]" />
                             </button>
                         </div>
 
-                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-8 flex-1">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex items-center gap-2 text-slate-400 mb-1">
-                                        <Building2 size={14} />
-                                        <span className="text-label font-bold uppercase tracking-widest text-[#64748b]">Department</span>
+                        <div className="p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1 bg-white">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="bg-[#f8faf9] p-5 rounded-2xl border border-[#dcdcdc]">
+                                    <div className="flex items-center gap-2 text-slate-400 mb-2">
+                                        <Building2 size={14} className="text-[#2e7d32]" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Control Department</span>
                                     </div>
-                                    <p className="font-bold text-slate-700 text-forms">{selectedComplaint.Department}</p>
+                                    <p className="font-black text-[#1f2d2a] text-xs uppercase">{selectedComplaint.Department}</p>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex items-center gap-2 text-slate-400 mb-1">
-                                        <Building2 size={14} />
-                                        <span className="text-label font-bold uppercase tracking-widest text-[#64748b]">Unit</span>
+                                <div className="bg-[#f8faf9] p-5 rounded-2xl border border-[#dcdcdc]">
+                                    <div className="flex items-center gap-2 text-slate-400 mb-2">
+                                        <Building2 size={14} className="text-[#2e7d32]" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Medical Unit</span>
                                     </div>
-                                    <p className="font-bold text-slate-700 text-forms">{selectedComplaint.Unit}</p>
+                                    <p className="font-black text-[#1f2d2a] text-xs uppercase">{selectedComplaint.Unit}</p>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex items-center gap-2 text-slate-400 mb-1">
-                                        <Calendar size={14} />
-                                        <span className="text-label font-bold uppercase tracking-widest text-[#64748b]">Date Reported</span>
+                                <div className="bg-[#f8faf9] p-5 rounded-2xl border border-[#dcdcdc]">
+                                    <div className="flex items-center gap-2 text-slate-400 mb-2">
+                                        <Calendar size={14} className="text-[#2e7d32]" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Reporting Log</span>
                                     </div>
-                                    <p className="font-bold text-slate-700 text-forms">
+                                    <p className="font-black text-[#1f2d2a] text-xs uppercase">
                                         {(selectedComplaint.Date || '').replace(/'/g, '').split(' ')[0]}
-                                        <span className="text-slate-400 text-xs ml-2">
+                                        <span className="text-slate-400 ml-2">
                                             {(selectedComplaint.Time || '').replace(/'/g, '')}
                                         </span>
                                     </p>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex items-center gap-2 text-slate-400 mb-1">
-                                        <User size={14} />
-                                        <span className="text-label font-bold uppercase tracking-widest text-[#64748b]">Reporter</span>
+                                <div className="bg-[#f8faf9] p-5 rounded-2xl border border-[#dcdcdc]">
+                                    <div className="flex items-center gap-2 text-slate-400 mb-2">
+                                        <User size={14} className="text-[#2e7d32]" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Assignee / Reporter</span>
                                     </div>
-                                    <p className="font-bold text-slate-700 text-forms">{selectedComplaint.ReportedBy}</p>
+                                    <p className="font-black text-[#1f2d2a] text-xs uppercase">{selectedComplaint.ReportedBy}</p>
                                 </div>
                             </div>
 
-                            <div className="mt-8">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                    <HistoryIcon size={14} className="text-orange-500" /> Ticket Journey
+                            <div className="mt-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+                                    <HistoryIcon size={14} className="text-[#2e7d32]" /> System Journey Logs
                                 </h4>
-                                <div className="space-y-0 pl-4 border-l-2 border-slate-100 ml-2 relative">
+                                <div className="space-y-0 pl-4 border-l-2 border-[#f0f0f0] ml-2 relative">
                                     {(() => {
                                         const events = [{
                                             type: 'created',
                                             date: new Date(selectedComplaint.Date),
-                                            title: 'Complaint Registered',
-                                            subtitle: `Reported by ${selectedComplaint.ReportedBy}`,
+                                            title: 'Entry Created',
+                                            subtitle: `Registered via ${selectedComplaint.ReportedBy}`,
                                             icon: <Plus size={10} />,
                                             color: 'green'
                                         }];
@@ -692,8 +693,8 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             events.push({
                                                 type: 'assigned',
                                                 date: new Date(selectedComplaint.Date),
-                                                title: 'Assigned',
-                                                subtitle: `To ${selectedComplaint.Department} Dept`,
+                                                title: 'Dept Provisioned',
+                                                subtitle: `To ${selectedComplaint.Department} Authority`,
                                                 icon: <ShieldCheck size={10} />,
                                                 color: 'blue'
                                             });
@@ -704,7 +705,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             events.push({
                                                 type: 'transfer',
                                                 date: new Date(t.TransferDate || t.Date),
-                                                title: 'Department Transferred',
+                                                title: 'Target Redistribution',
                                                 subtitle: `From ${t.FromDepartment || t.from_department} to ${t.NewDepartment || t.to_department}`,
                                                 icon: <Share2 size={10} />,
                                                 color: 'sky'
@@ -716,8 +717,8 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             events.push({
                                                 type: 'extension',
                                                 date: new Date(e.ExtensionDate || e.Date),
-                                                title: 'Deadline Extended',
-                                                subtitle: `Target: ${e.NewTargetDate} (Reason: ${e.Reason})`,
+                                                title: 'Timeline Authorized',
+                                                subtitle: `Target: ${e.NewTargetDate} (Ref: ${e.Reason})`,
                                                 icon: <Clock size={10} />,
                                                 color: 'amber'
                                             });
@@ -727,10 +728,10 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             events.push({
                                                 type: 'resolved',
                                                 date: new Date(selectedComplaint.ResolvedDate),
-                                                title: 'Complaint Solved',
-                                                subtitle: `Solved by ${selectedComplaint.ResolvedBy}`,
+                                                title: 'Case Resolution',
+                                                subtitle: `Authenticated by ${selectedComplaint.ResolvedBy}`,
                                                 icon: <CheckCircle size={10} />,
-                                                color: 'orange'
+                                                color: 'green'
                                             });
                                         }
 
@@ -743,12 +744,12 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             events.push({
                                                 type: 'rated',
                                                 date: new Date(rating.Date),
-                                                title: 'Feedback Received',
+                                                title: 'Intelligence Feedback',
                                                 subtitle: (
-                                                    <span className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="flex items-center gap-1.5 mt-1">
                                                         <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />
-                                                        <strong className="text-slate-700">{rating.Rating} Star</strong>
-                                                        <span className="text-slate-500 font-normal">by {reporterName}</span>
+                                                        <strong className="text-[#1f2d2a] font-black">{rating.Rating} Index</strong>
+                                                        <span className="text-slate-400 font-bold uppercase text-[9px]">by {reporterName}</span>
                                                     </span>
                                                 ),
                                                 icon: <Star size={10} />,
@@ -759,31 +760,29 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         events.sort((a, b) => a.date - b.date);
 
                                         return events.map((ev, i) => (
-                                            <div key={i} className="relative pl-8 py-3 group">
-                                                <div className={`absolute -left-[21px] top-4 w-4 h-4 rounded-full bg-white border-2 z-10 flex items-center justify-center transition-all group-hover:scale-125
-                                                    ${ev.color === 'green' ? 'border-emerald-500 text-emerald-500 shadow-emerald-100' :
-                                                        ev.color === 'blue' ? 'border-blue-500 text-blue-500 shadow-blue-100' :
-                                                            ev.color === 'sky' ? 'border-sky-500 text-sky-500 shadow-sky-100' :
-                                                                ev.color === 'amber' ? 'border-amber-500 text-amber-500 shadow-amber-100' :
-                                                                    ev.color === 'orange' ? 'border-orange-500 text-orange-500 shadow-orange-100' :
-                                                                        ev.color === 'purple' ? 'border-purple-500 text-purple-500 shadow-purple-100' : 'border-slate-300'}`}>
+                                            <div key={i} className="relative pl-8 py-4 group">
+                                                <div className={`absolute -left-[21px] top-5 w-4 h-4 rounded-full bg-white border-2 z-10 flex items-center justify-center transition-all group-hover:scale-125
+                                                    ${ev.color === 'green' ? 'border-[#2e7d32] text-[#2e7d32]' :
+                                                        ev.color === 'blue' ? 'border-blue-500 text-blue-500' :
+                                                            ev.color === 'sky' ? 'border-sky-500 text-sky-500' :
+                                                                ev.color === 'amber' ? 'border-amber-500 text-amber-500' :
+                                                                    ev.color === 'purple' ? 'border-purple-500 text-purple-500' : 'border-slate-300'}`}>
                                                     {ev.icon}
                                                 </div>
 
-                                                <div className={`p-3 rounded-xl border transition-all hover:shadow-md ${ev.color === 'green' ? 'bg-emerald-50/50 border-emerald-100' :
+                                                <div className={`p-5 rounded-2xl border transition-all ${ev.color === 'green' ? 'bg-[#f0f9f1]/50 border-[#cfead6]' :
                                                     ev.color === 'blue' ? 'bg-blue-50/50 border-blue-100' :
                                                         ev.color === 'sky' ? 'bg-sky-50/50 border-sky-100' :
                                                             ev.color === 'amber' ? 'bg-amber-50/50 border-amber-100' :
-                                                                ev.color === 'orange' ? 'bg-orange-50/50 border-orange-100' :
-                                                                    ev.color === 'purple' ? 'bg-purple-50/50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                                ev.color === 'purple' ? 'bg-purple-50/50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
                                                     <div className="flex justify-between items-start">
-                                                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-wide">{ev.title}</h5>
-                                                        <span className="text-[10px] font-bold text-slate-400 bg-white/50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap ml-2">
+                                                        <h5 className="text-[10px] font-black text-[#1f2d2a] uppercase tracking-widest">{ev.title}</h5>
+                                                        <span className="text-[9px] font-black text-slate-400 bg-white/50 px-2 py-0.5 rounded-lg border border-[#f0f0f0] whitespace-nowrap ml-2 uppercase tracking-tighter">
                                                             {ev.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
-                                                    <div className="text-xs font-medium text-slate-600 mt-1">{ev.subtitle}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-1">{ev.date.toLocaleDateString()}</div>
+                                                    <div className="text-[11px] font-bold text-slate-500 mt-1 uppercase tracking-tight">{ev.subtitle}</div>
+                                                    <div className="text-[9px] font-black text-slate-300 mt-2 tracking-widest uppercase">{ev.date.toLocaleDateString()}</div>
                                                 </div>
                                             </div>
                                         ));
@@ -792,44 +791,47 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                             </div>
 
                             {selectedComplaint.ResolvedBy && (
-                                <div className="bg-orange-50/50 border border-orange-100 p-5 rounded-2xl">
-                                    <h4 className="text-xs font-black text-orange-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <CheckCircle size={14} /> Resolution Details
+                                <div className="bg-[#f0f9f1]/50 border border-[#cfead6] p-6 rounded-2xl relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-4 opacity-5 text-[#2e7d32]">
+                                        <ShieldCheck size={80} />
+                                    </div>
+                                    <h4 className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-6 flex items-center gap-2 relative z-10">
+                                        <CheckCircle size={14} /> Official Resolution Mandate
                                     </h4>
 
-                                    <div className="grid grid-cols-2 gap-y-4 gap-x-8 mb-4">
+                                    <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-6 relative z-10">
                                         <div>
-                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-wide mb-0.5">Closed By</p>
-                                            <p className="font-bold text-slate-800 text-sm">{selectedComplaint.ResolvedBy}</p>
+                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Authenticated By</p>
+                                            <p className="font-black text-[#1f2d2a] text-xs uppercase tracking-tight">{selectedComplaint.ResolvedBy}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-wide mb-0.5">Closed Date</p>
-                                            <p className="font-bold text-slate-800 text-sm">{selectedComplaint.ResolvedDate ? new Date(selectedComplaint.ResolvedDate).toLocaleDateString() : 'N/A'}</p>
+                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Authorization Date</p>
+                                            <p className="font-black text-[#1f2d2a] text-xs uppercase tracking-tight">{selectedComplaint.ResolvedDate ? new Date(selectedComplaint.ResolvedDate).toLocaleDateString() : 'N/A'}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-wide mb-0.5">Rating Given</p>
-                                            <div className="flex items-center gap-0.5">
+                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Performance Index</p>
+                                            <div className="flex items-center gap-1.5">
                                                 {(() => {
                                                     const rLog = ratingsLog.find(r => String(r.ID) === String(selectedComplaint.ID));
                                                     const ratingVal = rLog ? Number(rLog.Rating) : Number(selectedComplaint.Rating);
 
                                                     return ratingVal > 0 ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="flex bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
-                                                                <span className="font-black text-amber-600 text-sm">{ratingVal}/5</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex bg-[#cfead6] px-2.5 py-1 rounded-lg border border-[#2e7d32]/10 shadow-none">
+                                                                <span className="font-black text-[#2e7d32] text-[10px] uppercase tracking-widest">{ratingVal}/5 INDEX</span>
                                                             </div>
-                                                            <div className="flex">
+                                                            <div className="flex gap-0.5">
                                                                 {[1, 2, 3, 4, 5].map(star => (
                                                                     <Star
                                                                         key={star}
-                                                                        size={14}
-                                                                        className={star <= ratingVal ? "text-amber-400 fill-amber-400" : "text-amber-200"}
+                                                                        size={12}
+                                                                        className={star <= ratingVal ? "text-amber-400 fill-amber-400" : "text-slate-100"}
                                                                     />
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs font-bold text-slate-400">Not Rated</span>
+                                                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Awaiting Verification</span>
                                                     );
                                                 })()}
                                             </div>
@@ -837,15 +839,15 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                     </div>
 
                                     {selectedComplaint.Remark && (
-                                        <div className="pt-3 border-t border-orange-100/50">
-                                            <p className="text-xs text-orange-700/80 font-medium italic">"{selectedComplaint.Remark}"</p>
+                                        <div className="pt-5 border-t border-[#cfead6] relative z-10">
+                                            <p className="text-[11px] text-[#1f2d2a] font-bold italic leading-relaxed uppercase tracking-tight opacity-70">"{selectedComplaint.Remark}"</p>
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
 
-                        <div className="p-4 border-t border-slate-100 bg-slate-50 sticky bottom-0 z-10 glass-safe-bottom">
+                        <div className="p-6 border-t border-[#f0f0f0] bg-[#f8faf9] sticky bottom-0 z-10">
                             {actionMode && (
                                 <>
                                     <TransferModal
@@ -879,23 +881,23 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                             )}
 
                             {!actionMode && (
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-3">
                                     {(String(selectedComplaint.Status).toLowerCase() === 'open' || String(selectedComplaint.Status).toLowerCase() === 'transferred') &&
                                         (user.Role === 'admin' || String(user.Department || '').toLowerCase() === String(selectedComplaint.Department || '').toLowerCase()) && (
                                             <>
-                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-3 bg-orange-700 text-white font-bold rounded-xl shadow-sm hover:bg-orange-800 hover:-translate-y-0.5 transition-all">Mark as Resolved</button>
-                                                <button onClick={() => setActionMode('Extend')} className="flex-1 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all">Extend</button>
-                                                <button onClick={() => setActionMode('Transfer')} className="w-full py-3 mt-2 bg-orange-50 text-orange-700 font-bold rounded-xl border border-orange-100 hover:bg-orange-100 transition-all shadow-sm">Transfer to Another Dept</button>
+                                                <button onClick={() => setActionMode('Resolve')} className="flex-1 py-4 bg-[#2e7d32] text-white font-black rounded-2xl shadow-none hover:bg-[#256628] active:scale-[0.98] transition-all uppercase text-[10px] tracking-widest">Mark as Resolved</button>
+                                                <button onClick={() => setActionMode('Extend')} className="flex-1 py-4 bg-white text-[#1f2d2a] font-black rounded-2xl border border-[#dcdcdc] hover:bg-[#f8faf9] active:scale-[0.98] transition-all uppercase text-[10px] tracking-widest">Extend</button>
+                                                <button onClick={() => setActionMode('Transfer')} className="w-full py-4 bg-[#1f2d2a] text-[#2e7d32] font-black rounded-2xl border border-[#2e7d32]/10 hover:bg-black active:scale-[0.98] transition-all shadow-none uppercase text-[10px] tracking-widest">Transfer to Another Dept</button>
                                             </>
                                         )}
                                     {String(selectedComplaint.Status).toLowerCase() === 'closed' && !selectedComplaint.Rating && !hasImmutableRating(selectedComplaint.ID) && String(selectedComplaint.ReportedBy || '').toLowerCase() === String(user.Username || '').toLowerCase() && (
-                                        <button onClick={() => setActionMode('Rate')} className="flex-1 py-4 bg-orange-800 text-white font-black rounded-xl hover:bg-orange-900 transition-all shadow-md active:scale-95 uppercase tracking-widest text-xs">Rate This Service</button>
+                                        <button onClick={() => setActionMode('Rate')} className="flex-1 py-4 bg-[#2e7d32] text-white font-black rounded-2xl hover:bg-[#256628] transition-all shadow-none active:scale-[0.98] uppercase tracking-widest text-[10px]">Rate This Service</button>
                                     )}
                                     {String(selectedComplaint.Status).toLowerCase() === 'closed' && canReopen(selectedComplaint) && String(selectedComplaint.ReportedBy || '').toLowerCase() === String(user.Username || '').toLowerCase() && (
-                                        <button onClick={() => setActionMode('Re-open')} className="flex-1 py-3 bg-white text-rose-600 font-bold rounded-xl border border-rose-100 hover:bg-rose-100 hover:bg-rose-50 transition-all shadow-sm">Re-open Ticket</button>
+                                        <button onClick={() => setActionMode('Re-open')} className="flex-1 py-4 bg-white text-rose-600 font-black rounded-2xl border border-rose-100 hover:bg-rose-50 active:scale-[0.98] transition-all shadow-none uppercase text-[10px] tracking-widest">Re-open Ticket</button>
                                     )}
                                     {user.Username === 'AM Sir' && selectedComplaint.Status !== 'Closed' && selectedComplaint.Status !== 'Force Close' && (
-                                        <button onClick={() => setActionMode('Force Close')} className="w-full py-3 mt-2 bg-rose-50 text-rose-600 font-black rounded-xl border border-rose-200 hover:bg-rose-100 transition-all shadow-sm flex items-center justify-center gap-2">
+                                        <button onClick={() => setActionMode('Force Close')} className="w-full py-4 bg-rose-50 text-rose-600 font-black rounded-2xl border border-rose-100 hover:bg-rose-100 active:scale-[0.98] transition-all shadow-none flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest">
                                             <Shield size={16} /> Force Close Case (Super Admin)
                                         </button>
                                     )}
@@ -907,14 +909,15 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                 document.body
             )}
 
-            <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/80 ${showSuccess ? 'block' : 'hidden'}`}>
-                <div className="bg-white p-10 rounded-2xl flex flex-col items-center animate-in zoom-in duration-300 shadow-2xl">
-                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-6">
-                        <CheckCircle className="text-orange-500" size={40} />
+            <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/40 ${showSuccess ? 'block' : 'hidden'}`}>
+                <div className="bg-white p-12 rounded-3xl flex flex-col items-center animate-in zoom-in-95 duration-200 shadow-2xl border border-[#dcdcdc] max-w-sm w-full text-center relative overflow-hidden">
+                    <div className="absolute top-0 inset-x-0 h-2 bg-[#2e7d32]"></div>
+                    <div className="w-20 h-20 bg-[#cfead6] text-[#2e7d32] rounded-full flex items-center justify-center mb-8 border border-[#2e7d32]/10">
+                        <CheckCircle size={40} />
                     </div>
-                    <h3 className="font-black text-2xl mb-2 text-slate-900 tracking-tight">System Updated</h3>
-                    <p className="text-slate-500 text-sm font-medium mb-8 text-center px-4 leading-relaxed">{successMessage}</p>
-                    <button onClick={() => setShowSuccess(false)} className="w-full py-4 bg-orange-700 text-white font-black rounded-xl hover:bg-orange-800 transition-all active:scale-95 tracking-widest text-xs">Continue</button>
+                    <h3 className="font-black text-xl mb-3 text-[#1f2d2a] tracking-tight uppercase">System Updated</h3>
+                    <p className="text-slate-500 text-xs font-medium mb-10 text-center leading-relaxed">{successMessage}</p>
+                    <button onClick={() => setShowSuccess(false)} className="w-full py-4.5 bg-[#1f2d2a] hover:bg-black text-white font-black rounded-2xl active:scale-[0.98] transition-all tracking-widest uppercase text-[10px]">Continue</button>
                 </div>
             </div>
         </div>

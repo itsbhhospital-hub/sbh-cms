@@ -27,36 +27,36 @@ const AICommandCenter = () => {
             {/* Header */}
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        <Zap size={32} className="text-rose-500 fill-rose-500" /> AI Command Center
+                    <h1 className="text-3xl font-black text-[#1f2d2a] tracking-tight flex items-center gap-3 uppercase">
+                        <Zap size={32} className="text-[#2e7d32] fill-[#2e7d32]" /> Intelligence Center
                     </h1>
-                    <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-xs">Director's Strategic Intelligence Dashboard</p>
+                    <p className="text-slate-400 font-black mt-1 uppercase tracking-widest text-[10px]">Strategic Artificial Intelligence Monitoring</p>
                 </div>
-                <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-[10px] font-bold text-slate-400">
+                <div className="bg-white px-4 py-2 rounded-xl border border-[#dcdcdc] shadow-none text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Last Intelligence Pulse: {lastAiPulse?.toLocaleTimeString()}
                 </div>
             </div>
 
             {/* Top Row: Stress Index & Crisis Alert */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className={`col-span-1 lg:col-span-2 p-8 rounded-[2rem] border-2 shadow-xl flex flex-col justify-center items-center relative overflow-hidden ${stressColor}`}>
+                <div className={`col-span-1 lg:col-span-2 p-10 rounded-[2.5rem] border-2 shadow-none flex flex-col justify-center items-center relative overflow-hidden ${stressColor}`}>
                     <div className="absolute top-0 right-0 p-8 opacity-10"><TrendingUp size={120} /></div>
-                    <h2 className="text-label font-black uppercase tracking-[0.2em] mb-4">Hospital Stress Index</h2>
-                    <div className="text-8xl font-black tabular-nums tracking-tighter mb-2">{stressIndex}%</div>
-                    <div className="px-6 py-2 rounded-full border-2 font-black uppercase text-sm tracking-widest bg-white/50 backdrop-blur-md">
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] mb-4 opacity-60">Hospital Operational Load</h2>
+                    <div className="text-9xl font-black tabular-nums tracking-tighter mb-2 leading-none">{stressIndex}%</div>
+                    <div className="px-8 py-2.5 rounded-2xl border-2 font-black uppercase text-xs tracking-[0.2em] bg-white/40 backdrop-blur-md">
                         Status: {crisisRisk}
                     </div>
                 </div>
 
-                <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl text-white flex flex-col">
-                    <h3 className="text-xs font-black text-orange-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <Activity size={16} /> AI Focus Actions
+                <div className="bg-[#1f2d2a] p-8 rounded-[2.5rem] border border-black shadow-none text-white flex flex-col">
+                    <h3 className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-8 flex items-center gap-2">
+                        <Activity size={16} /> AI Focus Protocols
                     </h3>
                     <div className="space-y-4 flex-grow">
                         {dailyActions.map((action, i) => (
-                            <div key={i} className="flex gap-3 items-start p-3 bg-white/5 rounded-xl border border-white/10">
-                                <span className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 text-xs font-black">{i + 1}</span>
-                                <p className="text-sm font-semibold text-slate-200 leading-relaxed">{action}</p>
+                            <div key={i} className="flex gap-4 items-start p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all">
+                                <span className="w-6 h-6 rounded-lg bg-[#2e7d32]/20 text-[#2e7d32] flex items-center justify-center shrink-0 text-[10px] font-black">{i + 1}</span>
+                                <p className="text-[11px] font-black uppercase tracking-tight text-slate-300 leading-relaxed group-hover:text-white transition-colors">{action}</p>
                             </div>
                         ))}
                     </div>
@@ -101,24 +101,25 @@ const AICommandCenter = () => {
                     )}
                 </div>
 
-                <div className="bg-emerald-900 p-8 rounded-[2rem] border border-emerald-800 shadow-2xl text-white">
-                    <h3 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <div className="bg-[#2e7d32] p-10 rounded-[2.5rem] border border-[#256628] shadow-none text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 text-white"><BarChart3 size={120} /></div>
+                    <h3 className="text-[10px] font-black text-[#cfead6] uppercase tracking-widest mb-10 flex items-center gap-2 relative z-10">
                         <BarChart3 size={18} /> Operational Efficiency
                     </h3>
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-8 relative z-10">
                         <div className="flex justify-between items-end">
                             <div>
-                                <p className="text-3xl font-black">{flowStats?.solved || 0}</p>
-                                <p className="text-[10px] font-black uppercase text-emerald-400/60 tracking-wider">Total Resolutions</p>
+                                <p className="text-5xl font-black tracking-tight leading-none">{flowStats?.solved || 0}</p>
+                                <p className="text-[10px] font-black uppercase text-[#cfead6]/60 tracking-[0.2em] mt-2">Total Resolutions</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-3xl font-black">{flowStats?.efficiency || 0}%</p>
-                                <p className="text-[10px] font-black uppercase text-emerald-400/60 tracking-wider">System Efficiency</p>
+                                <p className="text-5xl font-black tracking-tight leading-none">{flowStats?.efficiency || 0}%</p>
+                                <p className="text-[10px] font-black uppercase text-[#cfead6]/60 tracking-[0.2em] mt-2">System Performance</p>
                             </div>
                         </div>
-                        <div className="w-full h-3 bg-emerald-950 rounded-full overflow-hidden border border-emerald-700/50 shadow-inner">
+                        <div className="w-full h-4 bg-black/20 rounded-full overflow-hidden border border-white/10 shadow-inner">
                             <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000"
+                                className="h-full bg-white transition-all duration-1000 origin-left"
                                 style={{ width: `${flowStats?.efficiency || 0}%` }}
                             />
                         </div>

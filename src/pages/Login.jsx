@@ -36,79 +36,70 @@ const Login = () => {
     };
 
     return (
-        <div className="h-screen w-full flex flex-col bg-gradient-to-br from-[#1e3a8a] via-[#4338ca] to-[#6366f1]">
-            {/* Main Content Area - Absolute Centering and Vertical Balance */}
+        <div className="h-screen w-full flex flex-col bg-[#f0f9f1]">
             <main className="flex-1 flex items-center justify-center p-6 relative">
                 <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05),transparent_70%)]"></div>
-                    <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
-                    <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(46,125,50,0.03),transparent_70%)]"></div>
                 </div>
 
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    className="w-full max-w-[480px] bg-white rounded-[2.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] overflow-hidden relative z-10 border border-white/20"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full max-w-[460px] bg-white rounded-3xl shadow-xl overflow-hidden relative z-10 border border-[#dcdcdc]"
                 >
-                    {/* Header Decoration */}
-                    <div className="h-2 w-full bg-gradient-to-r from-[#1e3a8a] to-[#6366f1]"></div>
+                    <div className="h-2 w-full bg-[#2e7d32]"></div>
 
-                    {/* Premium Header Layout */}
                     <div className="p-10 pb-2 flex flex-col items-center">
                         <div className="flex items-center gap-5 mb-8 w-full justify-center">
-                            <div className="w-20 h-14 bg-white rounded-xl flex items-center justify-center border-2 border-indigo-50 shadow-sm shrink-0">
-                                <img src="/sbh_wide.jpg" alt="Logo" className="w-[90%] h-[90%] object-contain" />
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-[#dcdcdc] shadow-none shrink-0 overflow-hidden">
+                                <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                             </div>
-                            <div className="text-left font-ui">
-                                <h2 className="text-3xl font-black text-[#0f172a] tracking-tight leading-none mb-1">SBH CMS</h2>
-                                <p className="text-xs font-bold text-[#1e3a8a] tracking-widest uppercase opacity-80">Hospital Operations Portal</p>
+                            <div className="text-left">
+                                <h2 className="text-2xl font-black text-[#1f2d2a] tracking-tight leading-none mb-1">HOSPITAL CMS</h2>
+                                <p className="text-[10px] font-black text-[#2e7d32] tracking-widest uppercase opacity-80">Secure Personnel Portal</p>
                             </div>
                         </div>
 
                         <div className="w-full h-px bg-slate-100 mb-6"></div>
-                        <p className="text-slate-400 text-xs font-bold tracking-[0.1em] uppercase">Secure System Access</p>
+                        <p className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Identity Verification</p>
                     </div>
 
                     <div className="p-10 pt-4">
                         {error && (
-                            <motion.div
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-red-50 border border-red-100 text-red-600 p-4 mb-6 rounded-xl text-xs font-bold flex items-center gap-3"
-                            >
-                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                            <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 mb-6 rounded-xl text-xs font-bold flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                                 {error}
-                            </motion.div>
+                            </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Username</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#4f46e5] transition-colors">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors">
                                         <User size={20} />
                                     </div>
                                     <input
                                         type="text"
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#4f46e5] focus:ring-4 focus:ring-[#4f46e5]/10 transition-all text-slate-700 font-semibold placeholder:text-slate-300"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold placeholder:text-slate-300 shadow-none"
                                         value={formData.username}
                                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                        placeholder="Enter your Username"
+                                        placeholder="Enter Username"
                                         required
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Password</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#4f46e5] transition-colors">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors">
                                         <Lock size={20} />
                                     </div>
                                     <input
                                         type="password"
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#4f46e5] focus:ring-4 focus:ring-[#4f46e5]/10 transition-all text-slate-700 font-semibold placeholder:text-slate-300"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold placeholder:text-slate-300 shadow-none"
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         placeholder="••••••••"
@@ -120,13 +111,13 @@ const Login = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-4.5 bg-gradient-to-r from-[#4338ca] to-[#6366f1] hover:from-[#4f46e5] hover:to-[#818cf8] text-white rounded-2xl shadow-xl shadow-indigo-900/20 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 mt-6 disabled:opacity-70 disabled:cursor-not-allowed group"
+                                className="w-full py-4.5 bg-[#2e7d32] hover:bg-[#256628] text-white rounded-2xl shadow-none transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 mt-6 disabled:opacity-70 disabled:cursor-not-allowed group font-black uppercase text-xs tracking-widest"
                             >
                                 {isLoading ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                 ) : (
                                     <>
-                                        <span className="font-bold tracking-wide text-[16px]">Securely Sign In</span>
+                                        <span>Secure Login</span>
                                         <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                     </>
                                 )}
@@ -134,49 +125,43 @@ const Login = () => {
                         </form>
 
                         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-                            <p className="text-slate-400 text-xs font-semibold">
-                                Need an account?{' '}
-                                <Link to="/signup" className="text-[#4f46e5] font-bold hover:text-[#4338ca] transition-colors ml-1">
-                                    Register Here
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                                Don't have access?{' '}
+                                <Link to="/signup" className="text-[#2e7d32] font-black hover:underline ml-1">
+                                    Register Account
                                 </Link>
                             </p>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Terminated Popup */}
                 {showTerminated && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="bg-white rounded-[2rem] p-10 max-w-sm w-full text-center shadow-2xl relative overflow-hidden border border-slate-100"
-                        >
-                            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
+                        <div className="bg-white rounded-3xl p-10 max-w-sm w-full text-center shadow-2xl relative border border-[#dcdcdc]">
+                            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-100">
                                 <Lock className="text-rose-500" size={32} />
                             </div>
 
-                            <h3 className="text-page-title text-slate-900 mb-2">Access Denied</h3>
-                            <p className="text-rose-600 font-bold text-small-info tracking-widest mb-4">Account Terminated</p>
+                            <h3 className="text-xl font-black text-[#1f2d2a] mb-2 uppercase tracking-tight">Access Restricted</h3>
+                            <p className="text-rose-600 font-bold text-[10px] tracking-widest mb-4 uppercase">Status: Terminated</p>
 
-                            <p className="text-table-data text-slate-500 mb-8 font-medium leading-relaxed">
-                                Your network access has been suspended by the Primary Administrator.
-                                Please contact IT Support for authorization renewal.
+                            <p className="text-sm text-slate-500 mb-8 font-medium leading-relaxed">
+                                Personnel access has been suspended by the Hospital Administrator.
                             </p>
 
                             <button
                                 onClick={() => setShowTerminated(false)}
-                                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-black transition-all active:scale-[0.98] tracking-widest text-xs"
+                                className="w-full bg-[#1f2d2a] text-white font-black py-4 rounded-2xl hover:bg-black transition-all active:scale-[0.98] tracking-widest text-xs uppercase"
                             >
                                 Acknowledge
                             </button>
-                        </motion.div>
+                        </div>
                     </div>
                 )}
             </main>
 
             <Footer />
-        </div>
+        </div >
     );
 };
 
