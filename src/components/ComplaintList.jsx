@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo, useRef, memo } from 'react';
+import { formatIST } from '../utils/dateUtils';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
-import { Clock, CheckCircle, AlertTriangle, Search, Calendar, Hash, X, Building2, User, ArrowRight, RefreshCw, Star, BarChart3, TrendingUp, ChevronRight, Plus, Share2, History as HistoryIcon, Shield, ShieldCheck, Zap } from 'lucide-react';
+import { Clock, CheckCircle, AlertTriangle, Search, Calendar, Hash, X, Building2, User, ArrowRight, RefreshCw, Star, BarChart3, TrendingUp, ChevronRight, Plus, Share2, History as HistoryIcon, Shield, ShieldCheck, Zap, Lock as LockIcon } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { useIntelligence } from '../context/IntelligenceContext';
 import TransferModal from './TransferModal';
 import ExtendModal from './ExtendModal';
 import ResolveModal from './ResolveModal';
 import RateModal from './RateModal';
+import BoosterModal from './BoosterModal';
 
 const PerformanceWidget = ({ user, userStats }) => {
     // Use official stats from backend if available, else fallback to 0
@@ -193,6 +195,7 @@ const ComplaintCard = memo(({ complaint, onClick, aiDecision }) => (
 
 const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, customReporter = null, customResolver = null, initialFilter = 'All', autoOpenTicket = null, onAutoOpenComplete = () => { } }) => {
     const { user } = useAuth();
+    const isAdmin = user?.Role?.toUpperCase() === 'ADMIN' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
     const { getAiCaseDecision } = useIntelligence();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -286,9 +289,23 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
     // Handle "Track" from Dashboard Popup
     useEffect(() => {
         if (autoOpenTicket) {
-            setSelectedComplaint(autoOpenTicket);
-            setDetailModalOpen(true);
-            onAutoOpenComplete();
+            if (typeof autoOpenTicket === 'string') {
+                // Fetch full data for the ID
+                sheetsService.getComplaintById(autoOpenTicket, true, true)
+                    .then(res => {
+                        if (res) setSelectedComplaint(res);
+                        setDetailModalOpen(true);
+                        onAutoOpenComplete();
+                    })
+                    .catch(err => {
+                        console.error("Auto-open fetch failed", err);
+                        onAutoOpenComplete();
+                    });
+            } else {
+                setSelectedComplaint(autoOpenTicket);
+                setDetailModalOpen(true);
+                onAutoOpenComplete();
+            }
         }
     }, [autoOpenTicket]);
 
@@ -409,6 +426,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                     user.Username
                 );
                 setSuccessMessage(`Ticket #${ticketId} successfully transferred to ${data.dept}.`);
+            } else if (action === 'Booster') {
+                await sheetsService.sendBoosterNotice(ticketId, user.Username, data.reason);
+                setSuccessMessage("Priority Booster Notice Sent Successfully!");
             } else {
                 let newStatus = selectedComplaint.Status;
                 if (action === 'Resolve' || action === 'Close' || action === 'Rate' || action === 'Force Close') {
@@ -558,12 +578,12 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#f8faf9] border-b border-[#f0f0f0]">
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ref ID</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Description</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Assigned Dept</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Facility</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Timestamp</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Provision</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ticket Reference</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Complaint Description</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Dept Assigned</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Medical Unit</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Registered On</th>
+                                    <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Service Unit</th>
                                     <th className="p-4 py-4 w-10"></th>
                                 </tr>
                             </thead>
@@ -682,9 +702,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                     {(() => {
                                         const events = [{
                                             type: 'created',
-                                            date: new Date(selectedComplaint.Date),
-                                            title: 'Entry Created',
-                                            subtitle: `Registered via ${selectedComplaint.ReportedBy}`,
+                                            date: new Date(String(selectedComplaint.Date).replace(/'/g, '')),
+                                            title: 'Complaint Registered',
+                                            subtitle: `Initiated by ${selectedComplaint.ReportedBy}`,
                                             icon: <Plus size={10} />,
                                             color: 'green'
                                         }];
@@ -692,10 +712,10 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         if (selectedComplaint.Department) {
                                             events.push({
                                                 type: 'assigned',
-                                                date: new Date(selectedComplaint.Date),
-                                                title: 'Dept Provisioned',
-                                                subtitle: `To ${selectedComplaint.Department} Authority`,
-                                                icon: <ShieldCheck size={10} />,
+                                                date: new Date(String(selectedComplaint.Date).replace(/'/g, '')),
+                                                title: 'Department Assigned',
+                                                subtitle: `Routed to ${selectedComplaint.Department} Management`,
+                                                icon: <Building2 size={10} />,
                                                 color: 'blue'
                                             });
                                         }
@@ -704,10 +724,10 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         transfers.forEach(t => {
                                             events.push({
                                                 type: 'transfer',
-                                                date: new Date(t.TransferDate || t.Date),
-                                                title: 'Target Redistribution',
-                                                subtitle: `From ${t.FromDepartment || t.from_department} to ${t.NewDepartment || t.to_department}`,
-                                                icon: <Share2 size={10} />,
+                                                date: new Date(String(t.TransferDate || t.Date).replace(/'/g, '')),
+                                                title: 'Complaint Transferred',
+                                                subtitle: `Relocated from ${t.FromDepartment} to ${t.NewDepartment}`,
+                                                icon: <ArrowRight size={10} />,
                                                 color: 'sky'
                                             });
                                         });
@@ -716,40 +736,64 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         extensions.forEach(e => {
                                             events.push({
                                                 type: 'extension',
-                                                date: new Date(e.ExtensionDate || e.Date),
+                                                date: new Date(String(e.ExtensionDate || e.Date || e.Timestamp).replace(/'/g, '')),
                                                 title: 'Timeline Authorized',
-                                                subtitle: `Target: ${e.NewTargetDate} (Ref: ${e.Reason})`,
+                                                subtitle: `Extended to ${e.NewTargetDate} (${e.Reason})`,
                                                 icon: <Clock size={10} />,
                                                 color: 'amber'
                                             });
                                         });
 
+                                        // Virtual Delay Entry (ISSUE 6)
+                                        const now = new Date();
+                                        const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                        const regTime = new Date(String(selectedComplaint.Date).replace(/'/g, ''));
+                                        const regAtMidnight = new Date(regTime.getFullYear(), regTime.getMonth(), regTime.getDate());
+
+                                        if (selectedComplaint.Status !== 'Closed' && regAtMidnight < todayAtMidnight) {
+                                            events.push({
+                                                type: 'delay',
+                                                date: new Date(regAtMidnight.getTime() + (24 * 60 * 60 * 1000)), // Show at 12:00 AM next day
+                                                title: 'Case Delayed',
+                                                subtitle: 'Not resolved on same day',
+                                                icon: <AlertTriangle size={10} />,
+                                                color: 'rose'
+                                            });
+                                        }
+
                                         if (selectedComplaint.ResolvedDate) {
                                             events.push({
                                                 type: 'resolved',
-                                                date: new Date(selectedComplaint.ResolvedDate),
-                                                title: 'Case Resolution',
-                                                subtitle: `Authenticated by ${selectedComplaint.ResolvedBy}`,
+                                                date: new Date(String(selectedComplaint.ResolvedDate).replace(/'/g, '')),
+                                                title: 'Complaint Resolved',
+                                                subtitle: `Finalized by ${selectedComplaint.ResolvedBy}`,
                                                 icon: <CheckCircle size={10} />,
+                                                color: 'green'
+                                            });
+                                        }
+
+                                        if (String(selectedComplaint.Status).toLowerCase() === 'closed') {
+                                            events.push({
+                                                type: 'closed',
+                                                date: new Date(String(selectedComplaint.LastUpdated || selectedComplaint.ResolvedDate).replace(/'/g, '')),
+                                                title: 'Ticket Closed',
+                                                subtitle: `Case workflow completed`,
+                                                icon: <LockIcon size={10} />,
                                                 color: 'green'
                                             });
                                         }
 
                                         const rating = ratingsLog.find(r => String(r.ID) === String(selectedComplaint.ID));
                                         if (rating) {
-                                            const reporterName = (rating.Reporter && rating.Reporter !== 'undefined' && rating.Reporter.trim() !== '')
-                                                ? rating.Reporter
-                                                : (selectedComplaint.ReportedBy || 'Reporter');
-
                                             events.push({
                                                 type: 'rated',
-                                                date: new Date(rating.Date),
-                                                title: 'Intelligence Feedback',
+                                                date: new Date(String(rating.Date).replace(/'/g, '')),
+                                                title: 'Quality Assessment',
                                                 subtitle: (
                                                     <span className="flex items-center gap-1.5 mt-1">
                                                         <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />
-                                                        <strong className="text-[#1f2d2a] font-black">{rating.Rating} Index</strong>
-                                                        <span className="text-slate-400 font-bold uppercase text-[9px]">by {reporterName}</span>
+                                                        <strong className="text-[#1f2d2a] font-black">{rating.Rating} Rating</strong>
+                                                        <span className="text-slate-400 font-bold uppercase text-[9px]">Submitted by Unit</span>
                                                     </span>
                                                 ),
                                                 icon: <Star size={10} />,
@@ -766,7 +810,8 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                                         ev.color === 'blue' ? 'border-blue-500 text-blue-500' :
                                                             ev.color === 'sky' ? 'border-sky-500 text-sky-500' :
                                                                 ev.color === 'amber' ? 'border-amber-500 text-amber-500' :
-                                                                    ev.color === 'purple' ? 'border-purple-500 text-purple-500' : 'border-slate-300'}`}>
+                                                                    ev.color === 'purple' ? 'border-purple-500 text-purple-500' :
+                                                                        ev.color === 'rose' ? 'border-rose-500 text-rose-500' : 'border-slate-300'}`}>
                                                     {ev.icon}
                                                 </div>
 
@@ -774,15 +819,16 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                                     ev.color === 'blue' ? 'bg-blue-50/50 border-blue-100' :
                                                         ev.color === 'sky' ? 'bg-sky-50/50 border-sky-100' :
                                                             ev.color === 'amber' ? 'bg-amber-50/50 border-amber-100' :
-                                                                ev.color === 'purple' ? 'bg-purple-50/50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                                ev.color === 'purple' ? 'bg-purple-50/50 border-purple-100' :
+                                                                    ev.color === 'rose' ? 'bg-rose-50/50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
                                                     <div className="flex justify-between items-start">
                                                         <h5 className="text-[10px] font-black text-[#1f2d2a] uppercase tracking-widest">{ev.title}</h5>
                                                         <span className="text-[9px] font-black text-slate-400 bg-white/50 px-2 py-0.5 rounded-lg border border-[#f0f0f0] whitespace-nowrap ml-2 uppercase tracking-tighter">
-                                                            {ev.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            {formatIST(ev.date).split('•')[1]}
                                                         </span>
                                                     </div>
                                                     <div className="text-[11px] font-bold text-slate-500 mt-1 uppercase tracking-tight">{ev.subtitle}</div>
-                                                    <div className="text-[9px] font-black text-slate-300 mt-2 tracking-widest uppercase">{ev.date.toLocaleDateString()}</div>
+                                                    <div className="text-[9px] font-black text-slate-300 mt-2 tracking-widest uppercase">{formatIST(ev.date).split('•')[0]}</div>
                                                 </div>
                                             </div>
                                         ));
@@ -805,11 +851,11 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             <p className="font-black text-[#1f2d2a] text-xs uppercase tracking-tight">{selectedComplaint.ResolvedBy}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Authorization Date</p>
-                                            <p className="font-black text-[#1f2d2a] text-xs uppercase tracking-tight">{selectedComplaint.ResolvedDate ? new Date(selectedComplaint.ResolvedDate).toLocaleDateString() : 'N/A'}</p>
+                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Approval Date</p>
+                                            <p className="font-black text-[#1f2d2a] text-xs uppercase tracking-tight">{selectedComplaint.ResolvedDate ? formatIST(selectedComplaint.ResolvedDate) : 'N/A'}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Performance Index</p>
+                                            <p className="text-[9px] text-[#2e7d32] uppercase font-black tracking-widest mb-1">Performance Rating</p>
                                             <div className="flex items-center gap-1.5">
                                                 {(() => {
                                                     const rLog = ratingsLog.find(r => String(r.ID) === String(selectedComplaint.ID));
@@ -818,7 +864,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                                     return ratingVal > 0 ? (
                                                         <div className="flex items-center gap-3">
                                                             <div className="flex bg-[#cfead6] px-2.5 py-1 rounded-lg border border-[#2e7d32]/10 shadow-none">
-                                                                <span className="font-black text-[#2e7d32] text-[10px] uppercase tracking-widest">{ratingVal}/5 INDEX</span>
+                                                                <span className="font-black text-[#2e7d32] text-[10px] uppercase tracking-widest">{ratingVal}/5 RATING</span>
                                                             </div>
                                                             <div className="flex gap-0.5">
                                                                 {[1, 2, 3, 4, 5].map(star => (
@@ -877,11 +923,28 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         onConfirm={(rating) => handleModalConfirm('Rate', { rating })}
                                         isSubmitting={isSubmitting}
                                     />
+                                    <BoosterModal
+                                        isOpen={actionMode === 'Booster'}
+                                        onClose={() => setActionMode(null)}
+                                        onConfirm={(reason) => handleModalConfirm('Booster', { reason })}
+                                        isSubmitting={isSubmitting}
+                                        ticket={selectedComplaint}
+                                    />
                                 </>
                             )}
 
                             {!actionMode && (
                                 <div className="flex flex-wrap gap-3">
+                                    {/* BOOSTER SYSTEM BUTTON */}
+                                    {isAdmin && !['closed', 'resolved', 'force close'].includes(selectedComplaint.Status?.toLowerCase()) && (
+                                        <button
+                                            onClick={() => setActionMode('Booster')}
+                                            className="w-full py-4 bg-amber-50 text-amber-600 font-black rounded-2xl border border-amber-100 hover:bg-amber-100 active:scale-[0.98] transition-all shadow-none flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest mb-1"
+                                        >
+                                            <Share2 size={16} /> Send Priority Action Notice (Booster)
+                                        </button>
+                                    )}
+
                                     {(String(selectedComplaint.Status).toLowerCase() === 'open' || String(selectedComplaint.Status).toLowerCase() === 'transferred') &&
                                         (user.Role === 'admin' || String(user.Department || '').toLowerCase() === String(selectedComplaint.Department || '').toLowerCase()) && (
                                             <>

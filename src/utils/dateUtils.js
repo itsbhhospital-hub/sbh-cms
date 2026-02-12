@@ -12,27 +12,25 @@ export const formatIST = (dateInput) => {
     if (!dateInput) return 'N/A';
 
     try {
-        const cleanDate = typeof dateInput === 'string' ? dateInput.replace(/'/g, '') : dateInput;
-        const date = new Date(cleanDate);
-        if (isNaN(date.getTime())) return 'Invalid Date';
+        const date = parseCustomDate(dateInput);
+        if (!date || isNaN(date.getTime())) return 'N/A';
 
-        // Strict Format: "10 Feb 2026, 04:15 PM"
-        const d = new Intl.DateTimeFormat('en-IN', {
-            timeZone: 'Asia/Kolkata',
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+        // Display format: DD MMM YYYY • hh:mm A
+        const day = date.getDate().toString().padStart(2, '0');
+        const monthShort = date.toLocaleString('en-IN', { month: 'short', timeZone: 'Asia/Kolkata' }).toUpperCase();
+        const year = date.getFullYear();
 
-        // Formatter usually returns "DD MMM YYYY, hh:mm am"
-        // We replace the comma with the requested bullet " • "
-        return d.format(date).replace(',', ' •');
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const hStr = hours.toString().padStart(2, '0');
+
+        return `${day} ${monthShort} ${year} • ${hStr}:${minutes} ${ampm}`;
     } catch (e) {
         console.error("Date formatting error:", e);
-        return 'Error';
+        return 'N/A';
     }
 };
 
@@ -81,16 +79,33 @@ export const formatTimeIST = (dateInput) => {
  */
 export const parseCustomDate = (dateStr) => {
     if (!dateStr) return null;
-    const clean = String(dateStr).replace(/'/g, '').trim();
+    if (dateStr instanceof Date) return dateStr;
+    const clean = String(dateStr).replace(/'/g, '').replace('at', '').trim();
 
-    // Check for DD-MM-YYYY
-    const dmyRegex = /^(\d{1,2})-(\d{1,2})-(\d{4})(.*)/;
+    // Check for DD-MM-YYYY or DD-MM-YYYY HH:mm:ss
+    const dmyRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(.*)/;
     const match = clean.match(dmyRegex);
 
     if (match) {
         const [_, d, m, y, rest] = match;
-        // Reformat to YYYY-MM-DD for standard parsing
-        return new Date(`${y}-${m}-${d}${rest}`);
+        const day = parseInt(d, 10);
+        const month = parseInt(m, 10) - 1;
+        const year = parseInt(y, 10);
+
+        let hours = 0, minutes = 0, seconds = 0;
+        if (rest && rest.trim()) {
+            const timeMatch = rest.trim().match(/(\d{1,2}):(\d{1,2}):?(\d{1,2})?\s*(AM|PM)?/i);
+            if (timeMatch) {
+                hours = parseInt(timeMatch[1], 10);
+                minutes = parseInt(timeMatch[2], 10);
+                seconds = parseInt(timeMatch[3] || "0", 10);
+                const ampm = timeMatch[4] ? timeMatch[4].toUpperCase() : null;
+                if (ampm === 'PM' && hours < 12) hours += 12;
+                if (ampm === 'AM' && hours === 12) hours = 0;
+            }
+        }
+        const dObj = new Date(year, month, day, hours, minutes, seconds);
+        if (!isNaN(dObj.getTime())) return dObj;
     }
 
     const d = new Date(clean);

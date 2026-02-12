@@ -98,13 +98,13 @@ const normalizeRows = (rows) => {
         normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID']);
         normalized.Date = findValue(['Date', 'Timestamp', 'Created Date']);
         normalized.Time = findValue(['Time', 'Registered Time', 'Created Time']);
-        normalized.Department = findValue(['Department', 'Dept']);
+        normalized.Department = String(findValue(['Department', 'Dept']) || '').trim();
         normalized.Description = findValue(['Description', 'Desc', 'Complaint']);
-        const rawStatus = findValue(['Status']);
+        const rawStatus = String(findValue(['Status']) || '').trim();
         normalized.Status = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : ''; // Normalize: Open, Solved, etc.
-        normalized.ReportedBy = findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name']);
+        normalized.ReportedBy = findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name']);
         // Complaint_Ratings specific
-        normalized.ResolvedBy = findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)']);
+        normalized.ResolvedBy = findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name']);
         normalized.Remark = findValue(['Remark', 'Comments', 'Feedback']);
         normalized.Unit = findValue(['Unit', 'Section', 'Ward']); // NEW: Unit Mapping
         normalized.ResolvedDate = findValue(['Resolved Date', 'Closed Date', 'Closure Date', 'ResolvedDate']); // NEW: Closed Date Mapping
@@ -127,14 +127,19 @@ const normalizeRows = (rows) => {
 
         // Notification & Log Specifics (NEW)
         // Notification & Log Specifics (NEW)
-        normalized.TransferredBy = findValue(['TransferredBy', 'Transferred By', 'Transfer By', 'By', 'transferred_by']);
-        normalized.NewDepartment = findValue(['NewDepartment', 'New Department', 'To Dept', 'to_department']);
+        normalized.TransferredBy = findValue(['TransferredBy', 'Transferred By', 'Transfer By', 'By', 'transferred_by', 'Admin']); // Fallback Admin for boosters
+        normalized.NewDepartment = findValue(['NewDepartment', 'New Department', 'To Dept', 'to_department', 'Department']); // Fallback Dept for boosters
         normalized.FromDepartment = findValue(['FromDepartment', 'From Department', 'From Dept', 'from_department']);
-        normalized.ComplaintID = findValue(['ComplaintID', 'TicketID', 'complaint_id', 'ID']);
-        normalized.TransferDate = findValue(['TransferDate', 'Transfer Time', 'transfer_time']);
+        normalized.ComplaintID = findValue(['ComplaintID', 'TicketID', 'complaint_id', 'ID', 'Ticket']);
+        normalized.TransferDate = findValue(['TransferDate', 'Transfer Time', 'transfer_time', 'Timestamp']);
         normalized.Reason = findValue(['Reason', 'Transfer Reason', 'Extension Reason', 'reason']);
         normalized.ExtendedBy = findValue(['ExtendedBy', 'Extended By', 'extended_by']);
         normalized.TargetDate = findValue(['TargetDate', 'Target Date', 'New Date', 'new_target_date']);
+
+        // Ensure Booster specifics are mapped to common keys
+        if (!normalized.Admin) normalized.Admin = findValue(['Admin', 'Issued By', 'By']);
+        if (!normalized.Reason) normalized.Reason = findValue(['Reason', 'Comment', 'Remark']);
+        if (!normalized.TicketID) normalized.TicketID = normalized.ComplaintID;
 
         // Default fallbacks for crucial fields if missing
         if (!normalized.ID && normalized.Username) normalized.ID = normalized.Username; // Treat Username as ID for users
@@ -233,6 +238,7 @@ const sendToSheet = async (action, payload, silent = true) => {
         if (!silent) window.dispatchEvent(new Event('sbh-loading-start'));
         const response = await fetch(API_URL, {
             method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action, payload })
         });
 
@@ -315,30 +321,53 @@ export const sheetsService = {
     getComplaints: (force = false, silent = false) => fetchSheetData('data', force, { silent }),
     getUsers: (force = false, silent = false) => fetchSheetData('master', force, { silent }),
     getRatings: (force = false, silent = false) => fetchSheetData('Complaint_Ratings', force, { silent }), // Updated Sheet Name
+    getBoosters: (force = false, silent = false) => fetchSheetData('BOOSTER_NOTICES', force, { silent }), // NEW
     getUserPerformance: (username, silent = false) => fetchPaginatedData('getUserPerformance', { username }, false, silent),
     getAllUserPerformance: (force = false, silent = false) => fetchSheetData('User_Performance_Ratings', force, { silent }),
 
     getComplaintsPaginated: (page, limit, department, status, search, reporter, resolver, viewer, viewerRole, viewerDept, force = false, silent = true) => {
-        // ADMIN VISIBILITY FIX: If Admin/Super Admin or 'AM Sir', ignore department filter to see ALL
-        const isSuper = viewerRole?.toUpperCase() === 'SUPER_ADMIN' || (viewer && viewer.toLowerCase() === 'am sir');
-        const effectiveDept = (viewerRole?.toUpperCase() === 'ADMIN' || isSuper) ? '' : (department || viewerDept);
+        const role = String(viewerRole || '').toLowerCase().trim();
+        const isSuper = role === 'super_admin' || role === 'superadmin' || (viewer && String(viewer).toLowerCase().trim() === 'am sir');
+        const isAdmin = role === 'admin';
+
+        // Visibility Rule: SuperAdmin/Admin can see any dept.
+        // Simple User is locked to their own dept (backend enforces this).
+        // Frontend sends the filter if selected, otherwise backend uses viewerDept.
+        const effectiveDept = (isAdmin || isSuper) ? (department || '') : (department || viewerDept);
 
         return fetchPaginatedData('getComplaintsPaginated', {
             page, limit,
             department: effectiveDept,
-            status: status || 'All', // Ensure default status
+            status: status || 'All',
             search, reporter, resolver, viewer, viewerRole, viewerDept
         }, force, silent);
     },
 
     getDashboardStats: (username, department, role, force = false, silent = true) => {
-        const isSuper = role?.toUpperCase() === 'SUPER_ADMIN' || (username && username.toLowerCase() === 'am sir');
-        const effectiveDept = (role?.toUpperCase() === 'ADMIN' || isSuper) ? '' : department;
-        return fetchPaginatedData('getDashboardStats', { username, department: effectiveDept, role }, force, silent);
+        const uRole = String(role || '').toUpperCase().trim();
+        const isSuper = uRole === 'SUPER_ADMIN' || (username && String(username).toLowerCase().trim() === 'am sir');
+        const effectiveDept = (uRole === 'ADMIN' || isSuper) ? '' : department;
+
+        return fetchPaginatedData('getDashboardStats', {
+            viewer: username,
+            viewerDept: effectiveDept,
+            viewerRole: role,
+            // Keep legacy keys just in case backend uses them
+            username,
+            department: effectiveDept,
+            role
+        }, force, silent);
     },
 
-    getComplaintById: (id, force = false, silent = false) =>
-        fetchPaginatedData('getComplaintById', { id }, force, silent),
+    getComplaintById: async (id, force = false, silent = false) => {
+        const data = await fetchPaginatedData('getComplaintById', { id }, force, silent);
+        if (data && !Array.isArray(data)) {
+            const normalized = normalizeRows([data]);
+            return normalized.length > 0 ? normalized[0] : null;
+        }
+        if (data && Array.isArray(data.items)) return data.items[0];
+        return data;
+    },
 
     getTransferLogs: (force = false, silent = false) => fetchSheetData('Case_Transfer_Log', force, { silent }),
     getExtensionLogs: (force = false, silent = false) => fetchSheetData('Case_Extend_Log', force, { silent }),
@@ -438,5 +467,9 @@ export const sheetsService = {
             console.warn("IP Tracking failed:", e);
             // Fallback: Send 'Unknown' or retry logic if needed, but don't block user
         }
+    },
+
+    sendBoosterNotice: async (id, adminName, reason) => {
+        return sendToSheet('sendBoosterAction', { id, adminName, reason }, false);
     }
 };

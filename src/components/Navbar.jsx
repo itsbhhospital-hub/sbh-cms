@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle, Calendar, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -10,34 +10,46 @@ import { formatIST } from '../utils/dateUtils';
 import UserProfilePanel from '../components/UserProfilePanel';
 
 const parseBackendDate = (str) => {
-    // Expected: "10-02-2026 11:54:11 AM"
+    // Expected: "12-02-2026 11:54:11 AM" 
     if (!str) return new Date();
-    const clean = String(str).replace(/'/g, '').replace('at', '').trim(); // Remove ' and 'at' just in case
-    const parts = clean.split(' ');
+    const clean = String(str).replace(/'/g, '').replace('at', '').trim();
 
-    // If standard ISO or just Date
-    if (parts.length < 2 && clean.includes('-')) {
-        const [d, m, y] = clean.split('-').map(Number);
-        return new Date(y, m - 1, d);
-    }
+    // Regex for DD-MM-YYYY
+    const dmyRegex = /^(\d{1,2})-(\d{1,2})-(\d{4})(.*)/;
+    const match = clean.match(dmyRegex);
 
-    if (parts.length >= 2) {
-        const [d, m, y] = parts[0].split('-').map(Number);
-        const timePart = parts.slice(1).join(' ');
-        return new Date(`${m}/${d}/${y} ${timePart}`); // JS prefers MM/DD/YYYY for parsing
+    if (match) {
+        const [_, d, m, y, rest] = match;
+        const day = parseInt(d, 10);
+        const month = parseInt(m, 10) - 1;
+        const year = parseInt(y, 10);
+
+        let hours = 0, minutes = 0, seconds = 0;
+        if (rest) {
+            const timeMatch = rest.trim().match(/(\d{1,2}):(\d{1,2}):?(\d{1,2})?\s*(AM|PM)?/i);
+            if (timeMatch) {
+                hours = parseInt(timeMatch[1], 10);
+                minutes = parseInt(timeMatch[2], 10);
+                seconds = parseInt(timeMatch[3] || "0", 10);
+                if (timeMatch[4] && timeMatch[4].toUpperCase() === 'PM' && hours < 12) hours += 12;
+                if (timeMatch[4] && timeMatch[4].toUpperCase() === 'AM' && hours === 12) hours = 0;
+            }
+        }
+        return new Date(year, month, day, hours, minutes, seconds);
     }
     return new Date(clean);
 };
+
+const normalize = (val) => String(val || '').toLowerCase().trim();
 
 // Extracted Notification Bell Component to isolate re-renders
 const NotificationBell = memo(() => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
 
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [showAllNotifications, setShowAllNotifications] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [isPolling, setIsPolling] = useState(false);
 
     const notifRef = useRef(null);
@@ -48,93 +60,159 @@ const NotificationBell = memo(() => {
         if (!user) return;
         const fetchNotifs = async () => {
             try {
-                const [complaintsData, transferData, extendData] = await Promise.all([
+                const [complaintsData, transferData] = await Promise.all([
                     sheetsService.getComplaints(false, true),
-                    sheetsService.getTransferLogs(false, true),
-                    sheetsService.getExtensionLogs(false, true)
+                    sheetsService.getTransferLogs(false, true)
                 ]);
 
                 const role = String(user.Role || '').toUpperCase().trim();
+                const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
                 const username = String(user.Username || '').toLowerCase().trim();
                 const userDept = String(user.Department || '').toLowerCase().trim();
 
                 let allEvents = [];
-                const getTicket = (id) => complaintsData.find(c => String(c.ID || '').trim() === String(id || '').trim());
 
                 complaintsData.forEach(t => {
-                    if (String(t.Status).toLowerCase() === 'open') {
-                        allEvents.push({
-                            id: t.ID,
-                            type: 'new',
-                            title: 'Initial Registry',
-                            by: t.ReportedBy,
-                            dept: t.Department,
-                            time: t.Date,
-                            icon: AlertTriangle,
-                            color: 'text-amber-600 bg-amber-50 border-amber-100',
-                            iconBg: 'bg-amber-50 text-amber-600',
-                            viewParams: `?ticketId=${t.ID}`
-                        });
+                    const rowDept = normalize(t.Department);
+                    const rowReporter = normalize(t.ReportedBy);
+                    const rowResolver = normalize(t.ResolvedBy || t.AssignedTo);
+                    const userDept = normalize(user.Department);
+                    const userName = normalize(user.Username);
+
+                    // Visibility Check for Notifications (STRICT)
+                    if (!isAdmin) {
+                        const isMyDept = rowDept === userDept;
+                        const isMyReport = rowReporter === userName;
+                        const isMyTask = rowResolver === userName;
+                        if (!isMyDept && !isMyReport && !isMyTask) return;
                     }
+
+                    // Complaint Registered
+                    allEvents.push({
+                        id: t.ID,
+                        type: 'REGISTERED',
+                        title: 'New Complaint Registered',
+                        timeText: formatIST(t.Date),
+                        rawTime: t.Date, // For sorting
+                        details: {
+                            ticket: t.ID,
+                            department: t.Department,
+                            unit: t.Unit,
+                            registeredBy: t.ReportedBy
+                        },
+                        icon: Star,
+                        color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+                        iconBg: 'bg-emerald-50 text-emerald-600',
+                        viewParams: `?ticketId=${t.ID}`
+                    });
+
+                    // Complaint Closed/Resolved
                     if (['solved', 'closed', 'resolved', 'force close'].includes(String(t.Status).toLowerCase())) {
                         allEvents.push({
                             id: t.ID,
-                            type: 'solved',
-                            title: 'Unit Resolution',
-                            by: t.ResolvedBy,
-                            dept: t.Department,
-                            time: t.ResolvedDate || t.LastUpdated || t.Date,
+                            type: 'RESOLVED',
+                            title: 'Complaint Successfully Resolved',
+                            timeText: formatIST(t.ResolvedDate || t.LastUpdated || t.Date),
+                            rawTime: t.ResolvedDate || t.LastUpdated || t.Date,
+                            details: {
+                                ticket: t.ID,
+                                department: t.Department,
+                                resolvedBy: t.ResolvedBy || 'AM Sir'
+                            },
                             icon: CheckCircle,
-                            color: 'text-[#2e7d32] bg-[#cfead6] border-[#2e7d32]/10',
-                            iconBg: 'bg-[#cfead6] text-[#2e7d32]',
+                            color: 'text-purple-600 bg-purple-50 border-purple-100',
+                            iconBg: 'bg-purple-50 text-purple-600',
+                            viewParams: `?ticketId=${t.ID}`
+                        });
+                    }
+
+                    // Complaint Delayed (NEW)
+                    if (String(t.Status).toLowerCase() === 'delayed') {
+                        allEvents.push({
+                            id: t.ID,
+                            type: 'DELAYED',
+                            title: 'Ticket Milestone Delayed',
+                            timeText: formatIST(new Date()), // Show current time for delay alert or use target
+                            rawTime: new Date().toISOString(),
+                            details: {
+                                ticket: t.ID,
+                                department: t.Department,
+                                status: 'OVERDUE'
+                            },
+                            icon: AlertTriangle,
+                            color: 'text-rose-600 bg-rose-50 border-rose-100',
+                            iconBg: 'bg-rose-50 text-rose-600',
                             viewParams: `?ticketId=${t.ID}`
                         });
                     }
                 });
 
-                if (transferData) {
+                // Booster Action Notifications (NEW)
+                const boosterData = await sheetsService.getBoosters(true, true).catch(() => []);
+                if (boosterData && boosterData.length > 0) {
+                    boosterData.forEach(b => {
+                        const bDept = normalize(b.Department);
+                        const userDept = normalize(user.Department);
+
+                        // Rule: Admin sees ALL, User sees ONLY their dept
+                        if (!isAdmin && bDept !== userDept) return;
+
+                        allEvents.push({
+                            id: b.TicketID,
+                            type: 'BOOSTER',
+                            title: '🚨 PRIORITY ACTION NOTICE',
+                            timeText: formatIST(b.Timestamp),
+                            rawTime: b.Timestamp,
+                            details: {
+                                ticket: b.TicketID,
+                                department: b.Department,
+                                admin: b.Admin,
+                                reason: b.Reason
+                            },
+                            icon: AlertTriangle,
+                            color: 'text-amber-600 bg-amber-50 border-amber-100',
+                            iconBg: 'bg-amber-50 text-amber-600',
+                            viewParams: `?ticketId=${b.TicketID}`
+                        });
+                    });
+                }
+
+                // Complaint Transferred (Admins only)
+                if (isAdmin && transferData) {
                     transferData.forEach(l => {
-                        const ticket = getTicket(l.ID);
                         allEvents.push({
                             id: l.ID,
-                            type: 'transfer',
-                            title: 'Provision Transfer',
-                            by: l.TransferredBy,
-                            dept: l.NewDepartment || (ticket ? ticket.Department : 'N/A'),
-                            time: l.Date || l.Timestamp,
+                            type: 'TRANSFERRED',
+                            title: 'Complaint Transferred',
+                            timeText: formatIST(l.Date || l.Timestamp || l.TransferDate),
+                            rawTime: l.Date || l.Timestamp || l.TransferDate,
+                            details: {
+                                ticket: l.ID,
+                                from: l.FromDepartment,
+                                to: l.NewDepartment,
+                                transferredBy: l.TransferredBy
+                            },
                             icon: ArrowRight,
-                            color: 'text-[#1f2d2a] bg-slate-50 border-[#dcdcdc]',
-                            iconBg: 'bg-slate-100 text-[#1f2d2a]',
+                            color: 'text-blue-600 bg-blue-50 border-blue-100',
+                            iconBg: 'bg-blue-50 text-blue-600',
                             viewParams: `?ticketId=${l.ID}`
                         });
                     });
                 }
 
-                if (extendData) {
-                    extendData.forEach(l => {
-                        const ticket = getTicket(l.ID);
-                        allEvents.push({
-                            id: l.ID,
-                            type: 'extended',
-                            title: 'Protocol Extension',
-                            by: l.ExtendedBy,
-                            dept: ticket ? ticket.Department : 'N/A',
-                            time: l.Date || l.Timestamp,
-                            icon: Clock,
-                            color: 'text-[#2e7d32] bg-slate-50 border-[#dcdcdc]',
-                            iconBg: 'bg-slate-100 text-[#2e7d32]',
-                            viewParams: `?ticketId=${l.ID}`
-                        });
-                    });
-                }
+                // Strict Sorting: Newest DateTime -> Top (YYYY-MM-DD HH:MM:SS comparison)
+                allEvents.sort((a, b) => {
+                    const dateA = new Date(String(a.rawTime).replace(/'/g, ''));
+                    const dateB = new Date(String(b.rawTime).replace(/'/g, ''));
+                    return dateB - dateA;
+                });
 
-                let filteredEvents = (role === 'ADMIN' || role === 'SUPER_ADMIN')
-                    ? allEvents
-                    : allEvents.filter(e => String(e.dept || '').toLowerCase() === userDept || String(e.by || '').toLowerCase() === username);
-
-                filteredEvents.sort((a, b) => parseBackendDate(b.time) - parseBackendDate(a.time));
-                setNotifications(filteredEvents);
-            } catch (e) { console.error(e); } finally { setIsPolling(false); }
+                setNotifications(allEvents);
+            } catch (e) {
+                console.error("Notification processing error:", e);
+            } finally {
+                setIsPolling(false);
+            }
         };
 
         fetchNotifs();
@@ -143,83 +221,215 @@ const NotificationBell = memo(() => {
                 setIsPolling(true);
                 fetchNotifs();
             }
-        }, 15000);
+        }, 30000); // Polling every 30s for performance
         return () => clearInterval(interval);
     }, [user]);
 
     const renderNotificationItem = (n, i, full = false) => {
-        const notifDate = parseBackendDate(n.time);
-        const isToday = notifDate.toDateString() === new Date().toDateString();
-        const displayTime = isToday
-            ? notifDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-            : n.time.replace(/'/g, '');
-
         return (
             <div
-                key={i}
+                key={`${n.type}-${n.id}-${i}`}
                 onClick={() => {
                     setShowNotifications(false);
-                    setShowAllNotifications(false);
+                    setShowHistoryModal(false);
                     navigate(`/my-complaints${n.viewParams}`);
                 }}
-                className={`p-3 bg-[#f8faf9] rounded-xl hover:bg-[#cfead6] transition-all border border-[#dcdcdc] cursor-pointer flex gap-3 ${full ? 'mb-2' : ''}`}
+                className={`p-4 bg-white hover:bg-[#f0f9f1] transition-all border border-[#f0f0f0] rounded-2xl cursor-pointer flex gap-3 group/item ${full ? 'mb-3' : 'mb-1 shadow-sm'}`}
             >
-                <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center border border-black/5 ${n.iconBg}`}>
-                    <n.icon size={16} strokeWidth={2.5} />
+                <div className={`w-12 h-12 rounded-xl shrink-0 flex items-center justify-center border border-black/5 ${n.iconBg} group-hover/item:scale-110 transition-transform`}>
+                    <n.icon size={20} strokeWidth={2.5} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                        <p className="text-xs font-black text-[#1f2d2a] leading-tight mb-0.5">{n.title}</p>
-                        <span className="text-[10px] font-mono font-bold text-slate-400 whitespace-nowrap ml-2">{displayTime}</span>
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                        <p className="text-[12px] font-black text-[#1f2d2a] leading-tight uppercase tracking-tight">{n.title}</p>
+                        <span className="text-[9px] font-black text-slate-400 whitespace-nowrap uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
+                            {(() => {
+                                const today = new Date();
+                                const todayStr = `${today.getDate().toString().padStart(2, '0')} ${today.toLocaleString('en-IN', { month: 'short' }).toUpperCase()} ${today.getFullYear()}`;
+                                const parts = n.timeText.split('•');
+                                const datePart = parts[0].trim();
+                                const timePart = parts[1]?.trim() || parts[0];
+
+                                // In history modal (full=true), always show only time as date is in header
+                                if (full) return timePart;
+
+                                // In popup, show "TODAY" or time if it's today
+                                if (datePart === todayStr) return timePart;
+                                return n.timeText;
+                            })()}
+                        </span>
                     </div>
-                    <p className="text-[11px] font-bold text-slate-500 truncate">Ticket #{n.id} • {n.dept}</p>
+
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Ticket:</span>
+                            <span className="text-[10px] font-black text-[#1f2d2a] px-1.5 py-0.5 bg-slate-100 rounded-md border border-slate-200">
+                                #{n.details.ticket || n.id || 'N/A'}
+                            </span>
+                        </div>
+
+                        {n.type === 'TRANSFERRED' ? (
+                            <>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">From:</span>
+                                    <span className="text-[10px] font-black text-slate-700 truncate">{n.details.from}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">To:</span>
+                                    <span className="text-[10px] font-black text-[#2e7d32] truncate">{n.details.to}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 pt-1 mt-1 border-t border-slate-50">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Transferred By:</span>
+                                    <span className="text-[10px] font-black text-slate-600 truncate">{n.details.transferredBy}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Department:</span>
+                                    <span className="text-[10px] font-black text-slate-700 truncate">{n.details.department}</span>
+                                </div>
+                                {n.details.status === 'OVERDUE' && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest shrink-0">Alert:</span>
+                                        <span className="text-[10px] font-black text-rose-600 truncate">SLA BREACHED</span>
+                                    </div>
+                                )}
+                                {n.details.unit && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Unit:</span>
+                                        <span className="text-[10px] font-black text-slate-700 truncate">{n.details.unit}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-1.5 pt-1 mt-1 border-t border-slate-50">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0">
+                                        {n.type === 'REGISTERED' ? 'Registered By:' : n.type === 'DELAYED' ? 'System Check:' : 'Resolved By:'}
+                                    </span>
+                                    <span className="text-[10px] font-black text-slate-600 truncate">
+                                        {n.type === 'REGISTERED' ? n.details.registeredBy : n.type === 'DELAYED' ? 'Auto-Detection' : n.details.resolvedBy}
+                                    </span>
+                                </div>
+                            </>
+                        )}
+
+                        {full && (
+                            <div className="mt-2 text-[9px] font-black text-[#2e7d32] uppercase tracking-widest opacity-60">
+                                Date: {n.timeText.split('•')[0]}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="relative z-50" ref={notifRef}>
+        <div className="relative z-50 flex items-center" ref={notifRef}>
             <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="w-10 h-10 bg-white border border-[#dcdcdc] rounded-xl flex items-center justify-center text-[#2e7d32] hover:bg-[#cfead6] transition-all relative"
+                className="w-10 h-10 bg-white border border-[#dcdcdc] rounded-xl flex items-center justify-center text-[#2e7d32] hover:bg-[#cfead6] transition-all relative group shadow-none"
             >
-                <Bell size={20} />
+                <Bell size={20} className="group-active:scale-90 transition-transform" />
                 {notifications.length > 0 && (
-                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
                 )}
             </button>
 
             {showNotifications && (
-                <div className="fixed w-[90vw] right-4 top-16 md:absolute md:w-80 md:right-0 md:top-full md:mt-3 bg-white rounded-xl shadow-lg border border-[#dcdcdc] overflow-hidden z-[200]">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <h4 className="font-black text-[#1f2d2a] text-sm">Notifications</h4>
-                        <span className="text-xs font-bold bg-white border border-[#dcdcdc] px-2 py-0.5 rounded-full text-slate-500">{notifications.length}</span>
+                <div className="fixed w-[90vw] right-4 top-16 md:absolute md:w-80 md:right-0 md:top-full md:mt-3 bg-white rounded-2xl shadow-2xl border border-[#dcdcdc] overflow-hidden z-[200] animate-in slide-in-from-top-2 duration-200">
+                    <div className="p-4 border-b border-[#f0f0f0] flex justify-between items-center bg-[#f8faf9]">
+                        <div>
+                            <h4 className="font-black text-[#1f2d2a] text-xs uppercase tracking-widest">Protocol Alerts</h4>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">System Activity Log</p>
+                        </div>
+                        <span className="text-[10px] font-black bg-white border border-[#dcdcdc] px-2.5 py-1 rounded-lg text-[#2e7d32]">{notifications.length}</span>
                     </div>
 
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                    <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-3 space-y-2 bg-white">
                         {notifications.length === 0 ? (
-                            <div className="text-center py-8 opacity-50">
-                                <Bell size={32} className="mx-auto mb-2 text-slate-300" />
-                                <p className="text-xs font-bold text-slate-400">No new notifications</p>
+                            <div className="text-center py-12 opacity-50">
+                                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-100">
+                                    <Bell size={24} className="text-slate-300" />
+                                </div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Active Notifications</p>
                             </div>
                         ) : (
                             notifications.slice(0, 5).map((n, i) => renderNotificationItem(n, i))
                         )}
                     </div>
 
-                    {notifications.length > 5 && (
-                        <div className="p-2 border-t border-slate-100 bg-slate-50">
-                            <button
-                                onClick={() => { setShowNotifications(false); setShowAllNotifications(true); }}
-                                className="w-full py-2 text-xs font-black text-[#2e7d32] hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-1"
-                            >
-                                See More <ArrowRight size={12} />
-                            </button>
-                        </div>
-                    )}
+                    <div className="p-3 border-t border-[#f0f0f0] bg-[#f8faf9]">
+                        <button
+                            onClick={() => { setShowNotifications(false); setShowHistoryModal(true); }}
+                            className="w-full py-2.5 text-[10px] font-black text-[#2e7d32] bg-white border border-[#2e7d32]/10 hover:bg-[#cfead6] rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-none"
+                        >
+                            See More Notifications <ArrowRight size={12} />
+                        </button>
+                    </div>
                 </div>
             )}
+
+            {/* Notification History Modal */}
+            <AnimatePresence>
+                {showHistoryModal && (
+                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-[#dcdcdc] max-h-[80vh]"
+                        >
+                            <div className="p-6 border-b border-[#f0f0f0] flex justify-between items-center bg-[#f8faf9] sticky top-0 z-10">
+                                <div>
+                                    <h2 className="text-lg font-black text-[#1f2d2a] leading-tight uppercase tracking-tight">Notification History</h2>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Full System Event Log</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowHistoryModal(false)}
+                                    className="p-2.5 hover:bg-[#cfead6] rounded-xl transition-all border border-transparent hover:border-[#2e7d32]/10 group"
+                                >
+                                    <X size={20} className="text-slate-400 group-hover:text-[#2e7d32]" />
+                                </button>
+                            </div>
+
+                            <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                                {notifications.length === 0 ? (
+                                    <div className="text-center py-20">
+                                        <p className="text-xs font-black text-slate-300 uppercase tracking-widest">No history available</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {/* Grouping by Date */}
+                                        {Object.entries(
+                                            notifications.reduce((acc, n) => {
+                                                const date = n.timeText.split('•')[0].trim();
+                                                if (!acc[date]) acc[date] = [];
+                                                acc[date].push(n);
+                                                return acc;
+                                            }, {})
+                                        ).map(([date, items]) => (
+                                            <div key={date} className="space-y-3">
+                                                <div className="sticky top-0 z-10 py-2 bg-white flex items-center gap-3">
+                                                    <div className="h-[1px] flex-1 bg-slate-100"></div>
+                                                    <span className="text-[10px] font-black text-[#2e7d32] bg-[#f0f9f1] px-4 py-1.5 rounded-xl uppercase tracking-[0.1em] border border-[#2e7d32]/20 shadow-sm">
+                                                        {(() => {
+                                                            const today = new Date();
+                                                            const todayStr = `${today.getDate().toString().padStart(2, '0')} ${today.toLocaleString('en-IN', { month: 'short' }).toUpperCase()} ${today.getFullYear()}`;
+                                                            return date === todayStr ? 'TODAY' : date;
+                                                        })()}
+                                                    </span>
+                                                    <div className="h-[1px] flex-1 bg-slate-100"></div>
+                                                </div>
+                                                {items.map((n, i) => renderNotificationItem(n, i, true))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 });

@@ -4,6 +4,8 @@ import { sheetsService } from '../services/googleSheets';
 
 const AnalyticsContext = createContext(null);
 
+const normalize = (val) => String(val || '').toLowerCase().trim();
+
 export const AnalyticsProvider = ({ children }) => {
     const { user } = useAuth();
     const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -54,7 +56,7 @@ export const AnalyticsProvider = ({ children }) => {
         // Initial Fetch
         fetchData();
 
-        const interval = setInterval(fetchData, 10000);
+        const interval = setInterval(fetchData, 30000);
         return () => {
             clearInterval(interval);
             isMounted = false;
@@ -127,37 +129,111 @@ export const AnalyticsProvider = ({ children }) => {
             }
 
             // --- Staff Metrics ---
+            const normalizedResolver = resolver.toLowerCase().trim();
             if (resolver !== 'Unassigned') {
-                if (!staffMap[resolver]) staffMap[resolver] = { name: resolver, solved: 0, ratings: [], active: 0 };
+                if (!staffMap[normalizedResolver]) staffMap[normalizedResolver] = { name: resolver, solved: 0, ratings: [], active: 0 };
 
-                if (['solved', 'resolved', 'closed'].includes(status)) {
-                    staffMap[resolver].solved++;
+                if (['solved', 'resolved', 'closed', 'force close'].includes(status)) {
+                    staffMap[normalizedResolver].solved++;
                 } else {
-                    staffMap[resolver].active++;
+                    staffMap[normalizedResolver].active++;
                 }
             }
         });
 
-        // --- 2. Staff Ratings Integration ---
-        // (Assuming allRatings has { Staff Name, Rating })
+        // --- 2. Staff Ratings Integration (Precise Sync) ---
+        // Build Ticket -> Resolver map for precise attribution
+        const ticketToResolver = {};
+        allComplaints.forEach(c => {
+            if (c.ID) ticketToResolver[c.ID.toString()] = normalize(c.ResolvedBy || c.AssignedTo || '');
+        });
+
         allRatings.forEach(r => {
-            const name = r['Staff Name'];
+            const ticketId = (r.ID || r.TicketID || '').toString();
             const rating = parseInt(r.Rating);
-            if (name && !isNaN(rating) && staffMap[name]) {
+            if (isNaN(rating)) return;
+
+            // Priority 1: Match by Ticket ID (Most Accurate)
+            const resolverFromTicket = ticketToResolver[ticketId];
+            if (resolverFromTicket && staffMap[resolverFromTicket]) {
+                staffMap[resolverFromTicket].ratings.push(rating);
+                return;
+            }
+
+            // Priority 2: Match by Staff Name (Fallback)
+            const rawStaffName = r['Staff Name'] || r['StaffName'] || r['Resolver'];
+            const name = normalize(rawStaffName);
+            if (name && staffMap[name]) {
                 staffMap[name].ratings.push(rating);
             }
         });
 
         // Final Staff Stats Calculation
         const finalStaffStats = Object.values(staffMap).map(s => {
+            const solvedCount = s.solved || 0;
             const avgRating = s.ratings.length ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length) : 0;
-            const efficiency = (s.solved * avgRating) || 0; // Simple Formula
+
+            // Calculate Speed & Delay per staff
+            let staffSpeedHours = 0;
+            let staffSpeedCount = 0;
+            let staffDelayCount = 0;
+            let staffTotalCases = 0;
+
+            allComplaints.forEach(c => {
+                const resolver = normalize(c.ResolvedBy || c.AssignedTo || '');
+                if (resolver === s.name.toLowerCase().trim()) {
+                    staffTotalCases++;
+                    const status = String(c.Status || '').toLowerCase();
+                    const isSolved = ['solved', 'resolved', 'closed', 'force close'].includes(status);
+
+                    if (isSolved && c.Date && c.ResolvedDate) {
+                        const d1 = new Date(c.Date);
+                        const d2 = new Date(c.ResolvedDate);
+                        if (d2 > d1) {
+                            staffSpeedHours += (d2 - d1) / (1000 * 60 * 60);
+                            staffSpeedCount++;
+                        }
+                    }
+
+                    // Delay Check (matches backend logic)
+                    const regDate = c.Date ? new Date(c.Date) : null;
+                    let targetDate = c.TargetDate ? new Date(c.TargetDate) : null;
+                    if (!targetDate && regDate) {
+                        targetDate = new Date(regDate);
+                        targetDate.setHours(targetDate.getHours() + 24);
+                    }
+                    if (targetDate) {
+                        if (isSolved) {
+                            const closedDate = c.ResolvedDate ? new Date(c.ResolvedDate) : new Date();
+                            if (closedDate > targetDate) staffDelayCount++;
+                        } else if (new Date() > targetDate) {
+                            staffDelayCount++;
+                        }
+                    }
+                }
+            });
+
+            const avgSpeed = staffSpeedCount > 0 ? (staffSpeedHours / staffSpeedCount) : 0;
+
+            // MASTER FORMULA (Simplified as per plan): Average Rating * 10
+            // This provides a scale of 0-50 based on quality.
+            const efficiency = avgRating * 10;
+
             return {
                 ...s,
                 avgRating: avgRating.toFixed(1),
-                efficiency: efficiency.toFixed(1)
+                efficiency: efficiency.toFixed(1),
+                solved: solvedCount,
+                avgSpeed: avgSpeed.toFixed(1),
+                speedScore: (avgSpeed > 0 ? Math.min(30, (24 / avgSpeed) * 10) : (solvedCount > 0 ? 30 : 0)).toFixed(1),
+                delayPenalty: (staffTotalCases > 0 ? Math.max(0, (1 - (staffDelayCount / staffTotalCases)) * 20) : 20).toFixed(1)
             };
-        }).sort((a, b) => b.efficiency - a.efficiency); // Top Performers First
+        }).sort((a, b) => {
+            // Sort Rule: 1. Efficiency, 2. Avg Rating, 3. Solved Count
+            if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
+            if (parseFloat(b.avgRating) !== parseFloat(a.avgRating)) return parseFloat(b.avgRating) - parseFloat(a.avgRating);
+            return b.solved - a.solved;
+        }); // Excellence Registry Sorting
 
         // --- 3. Alerts Generation ---
         Object.entries(depts).forEach(([d, stats]) => {

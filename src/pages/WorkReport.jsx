@@ -130,7 +130,7 @@ const WorkReport = () => {
                             <p className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{Number(selectedUser.stats.avgSpeed).toFixed(1)}</p>
                         </div>
                         <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-none text-white">
-                            <p className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-2">Efficiency Index</p>
+                            <p className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-2">Efficiency Rating</p>
                             <p className="text-3xl font-black text-white leading-none tracking-tight">{Number(selectedUser.stats.efficiency).toFixed(0)}</p>
                         </div>
                     </div>

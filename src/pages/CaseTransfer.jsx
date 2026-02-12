@@ -63,7 +63,7 @@ const CaseTransfer = () => {
                 <div>
                     <h1 className="text-page-title text-slate-900 tracking-tight flex items-center gap-3">
                         <History className="text-orange-600 bg-orange-50 p-2 rounded-xl" size={32} />
-                        Transfer Ledger
+                        Ticket Reference Ledger
                     </h1>
                     <p className="text-table-data text-slate-500 font-bold mt-1 ml-1">
                         Movement Tracking: <span className="text-slate-800">{logs.length} Entries</span>
