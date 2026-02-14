@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { sheetsService } from '../services/googleSheets';
 import ComplaintList from '../components/ComplaintList';
 import ActiveUsersModal from '../components/ActiveUsersModal';
 import DashboardPopup from '../components/DashboardPopup';
-import DashboardSkeleton from '../components/DashboardSkeleton'; // Imported
-import { motion } from 'framer-motion';
+import DashboardSkeleton from '../components/DashboardSkeleton';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DirectorDashboard from '../components/Analytics/DirectorDashboard';
@@ -15,221 +14,184 @@ const normalize = (val) => String(val || '').toLowerCase().trim();
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const [stats, setStats] = useState({
-        open: 0,
-        pending: 0,
-        solved: 0,
-        transferred: 0,
-        extended: 0,
-        delayed: 0,
-        activeStaff: 0
-    });
-    const [allComplaints, setAllComplaints] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    // ------------------------------------------------------------------
+    // INTELLIGENCE & DATA LAYER (Global Sync)
+    // ------------------------------------------------------------------
+    const {
+        allTickets,
+        stats,
+        boosters,
+        users: activeUsers,
+        loading: intelligenceLoading,
+        stressIndex,
+        crisisRisk
+    } = useIntelligence();
+
+    // ------------------------------------------------------------------
+    // LOCAL UI STATE
+    // ------------------------------------------------------------------
     const [reopenedTickets, setReopenedTickets] = useState([]);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const [showActiveStaffModal, setShowActiveStaffModal] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
-    const { stressIndex, crisisRisk } = useIntelligence();
 
-    // Popup State
+    // Popup System
     const [popupOpen, setPopupOpen] = useState(false);
     const [popupCategory, setPopupCategory] = useState('');
     const [popupItems, setPopupItems] = useState([]);
     const [trackTicket, setTrackTicket] = useState(null);
-    const [boosterNotice, setBoosterNotice] = useState(null);
 
+    // Automated Alerts
+    const [boosterNotice, setBoosterNotice] = useState(null);
+    const [delayAlert, setDelayAlert] = useState(null);
 
     const isSuperAdmin = user?.Role?.toUpperCase() === 'SUPER_ADMIN';
     const isAdmin = user?.Role?.toLowerCase() === 'admin' || user?.Role?.toUpperCase() === 'ADMIN' || isSuperAdmin;
 
-    const calculateLocalStats = (data) => {
-        const uRole = String(user.Role || '').toUpperCase().trim();
-        const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
-        const uDept = String(user.Department || '').toLowerCase().trim();
-        const uname = String(user.Username || '').toLowerCase().trim();
-
-        const today = new Date();
-        const todayStr = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-
-        // 1. Get Visibility Filtered List
-        const visibleTickets = data.filter(t => {
-            if (isAdminView) return true;
-            const tDept = String(t.Department || '').toLowerCase().trim();
-            const tBy = String(t.ReportedBy || '').toLowerCase().trim();
-            const tReporter = String(t.Reporter || t.Username || '').toLowerCase().trim();
-
-            // FIX: Show cases I reported OR cases in my department
-            return tBy === uname || tReporter === uname || tDept === uDept;
-        });
-
-        const counts = { open: 0, pending: 0, solved: 0, transferred: 0, extended: 0, delayed: 0 };
-
-        visibleTickets.forEach(t => {
-            const status = String(t.Status || '').toLowerCase().trim();
-            const regDate = String(t.Date || '').replace(/'/g, '').trim(); // Format: DD-MM-YYYY
-
-            if (status === 'open') counts.open++;
-            if (status === 'solved' || status === 'closed' || status === 'resolved') counts.solved++;
-            if (status === 'transferred') counts.transferred++;
-            if (status === 'pending') counts.pending++;
-
-            // DELAY LOGIC: Only delayed if NOT registered today (Strict "Next Day" rule)
-            const isDelayed = (status === 'open' || status === 'transferred') && (regDate && regDate !== todayStr);
-
-            if (isDelayed) counts.delayed++;
-            if (status === 'extended') counts.extended++;
-        });
-
-        return counts;
-    };
-
+    // ------------------------------------------------------------------
+    // AUTOMATED CHECKS (Run when Data Updates)
+    // ------------------------------------------------------------------
     useEffect(() => {
-        loadInitialData();
-        const interval = setInterval(refreshDashboardOnly, 30000);
-        return () => clearInterval(interval);
-    }, []);
+        if (intelligenceLoading || !allTickets.length) return;
 
-    const refreshDashboardOnly = async () => {
-        try {
-            // SILENT REFRESH (Only stats and boosters)
-            const [statsData, boosterData] = await Promise.all([
-                sheetsService.getDashboardStats(user.Username, user.Department, user.Role),
-                sheetsService.getBoosters(true, true).catch(() => [])
-            ]);
+        // 1. DELAY POPUP (Daily Logic)
+        const checkDelay = () => {
+            const todayStr = new Date().toLocaleDateString();
+            const lastSeenDate = localStorage.getItem(`delay_alert_date_${user.Username}`);
 
-            if (statsData) {
-                // Merge backend stats with local staff count
-                setStats(prev => ({
-                    ...prev,
-                    ...statsData,
-                }));
-            }
+            if (lastSeenDate === todayStr) return;
 
-            if (boosterData && boosterData.length > 0) {
-                const uDept = normalize(user.Department);
-                const isAdmin = ['admin', 'super_admin'].includes(String(user.Role).toLowerCase());
-                const lastSeenBooster = localStorage.getItem(`last_booster_${user.Username}`);
+            const uDept = normalize(user.Department);
+            const uname = normalize(user.Username);
+            let delayCount = 0;
 
-                const relevant = boosterData.filter(b => isAdmin || normalize(b.Department) === uDept)
-                    .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+            allTickets.forEach(t => {
+                if (String(t.Status).toLowerCase() === 'delayed') {
+                    if (isAdmin) {
+                        delayCount++;
+                    } else {
+                        const rowDept = normalize(t.Department);
+                        const rowBy = normalize(t.ReportedBy);
+                        const rowReporter = normalize(t.Reporter || t.Username);
 
-                if (relevant.length > 0) {
-                    const latest = relevant[0];
-                    if (latest.Timestamp !== lastSeenBooster) {
-                        setBoosterNotice(latest);
+                        // Strict Rule: Target Dept Only, Exclude Reporter
+                        if (rowDept === uDept && rowBy !== uname && rowReporter !== uname) {
+                            delayCount++;
+                        }
                     }
                 }
-            }
-        } catch (e) { console.warn("Background refresh failed:", e); }
-    };
-
-    const loadInitialData = async () => {
-        setLoading(true);
-
-        try {
-            const [statsData, usersData, allData, boosterData] = await Promise.all([
-                sheetsService.getDashboardStats(user.Username, user.Department, user.Role),
-                isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
-                sheetsService.getComplaints(false, true), // Fetch ALL for local filtering
-                sheetsService.getBoosters(true, true).catch(() => [])
-            ]);
-
-            const localCounts = calculateLocalStats(allData || []);
-
-            setStats({
-                ...localCounts,
-                activeStaff: isAdmin ? usersData.filter(u => String(u.Status).toLowerCase() === 'active').length : 0
             });
 
-            setAllComplaints(allData || []);
+            if (delayCount > 0) {
+                setDelayAlert({ count: delayCount, dept: isAdmin ? 'All Departments' : user.Department });
+            }
+        };
 
-            // Check for Re-opened tickets (For User/Staff)
-            if (!isAdmin) {
-                const reopened = (allData || []).filter(t =>
-                    String(t.Status).toLowerCase() === 'open' &&
-                    (String(t.Reporter || '').toLowerCase() === user.Username.toLowerCase() ||
-                        String(t.ReportedBy || '').toLowerCase() === user.Username.toLowerCase())
-                ).slice(0, 10);
+        // 2. BOOSTER POPUP
+        const checkBooster = () => {
+            if (!boosters || boosters.length === 0) return;
+            const uDept = normalize(user.Department);
+            const lastSeenBooster = localStorage.getItem(`last_booster_${user.Username}`);
 
-                if (reopened.length > 0) {
-                    setReopenedTickets(reopened);
-                    setShowReopenModal(true);
+            const relevant = boosters.filter(b => {
+                const isTargetDept = isAdmin || normalize(b.Department) === uDept;
+                if (!isTargetDept) return false;
+
+                const ticket = allTickets.find(t => String(t.ID) === String(b.TicketID));
+                // Only show if ticket is still active
+                return ticket ? ['open', 'pending', 'transferred', 're-open'].includes(String(ticket.Status).toLowerCase()) : true;
+            }).sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+
+            if (relevant.length > 0) {
+                const latest = relevant[0];
+                if (latest.Timestamp !== lastSeenBooster) {
+                    setBoosterNotice(latest);
                 }
             }
+        };
 
-            // --- BOOSTER ALERT CHECK ---
-            if (boosterData && boosterData.length > 0) {
-                const uDept = normalize(user.Department);
-                const lastSeenBooster = localStorage.getItem(`last_booster_${user.Username}`);
+        // 3. REOPEN NOTIFICATION
+        const checkReopen = () => {
+            if (isAdmin) return;
+            const reopened = allTickets.filter(t =>
+                String(t.Status).toLowerCase() === 'open' &&
+                (normalize(t.Reporter || '') === normalize(user.Username) || normalize(t.ReportedBy || '') === normalize(user.Username))
+            ).slice(0, 10);
 
-                const relevant = boosterData.filter(b => isAdmin || normalize(b.Department) === uDept)
-                    .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-
-                if (relevant.length > 0) {
-                    const latest = relevant[0];
-                    if (latest.Timestamp !== lastSeenBooster) {
-                        setBoosterNotice(latest);
-                    }
-                }
+            if (reopened.length > 0) {
+                // Only show if we haven't acknowledged active reopening? 
+                // Existing logic didn't assume persistence. We'll show it.
+                setReopenedTickets(reopened);
+                setShowReopenModal(true);
             }
+        };
 
-        } catch (err) {
-            console.error("Dashboard Initial Load Error:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        checkDelay();
+        checkBooster();
+        checkReopen();
 
+    }, [allTickets, boosters, intelligenceLoading, isAdmin, user]);
+
+
+    // ------------------------------------------------------------------
+    // UI HANDLERS
+    // ------------------------------------------------------------------
     const handleCardClick = (type) => {
         if (type === 'Active Staff') {
             setShowActiveStaffModal(true);
         } else {
-            console.log(`DEBUG: Local Filtering for Popup [${type}]`);
-
             const uRole = String(user.Role || '').toUpperCase().trim();
             const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
-            const uDept = String(user.Department || '').toLowerCase().trim();
-            const uname = String(user.Username || '').toLowerCase().trim();
+            const uDept = normalize(user.Department);
+            const uname = normalize(user.Username);
+            const todayStr = new Date().toLocaleDateString();
 
-            const today = new Date();
-            const todayStr = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-
-            const filtered = allComplaints.filter(t => {
-                // Visibility Check (Same as stats calculation)
-                const tDept = String(t.Department || '').toLowerCase().trim();
-                const tBy = String(t.ReportedBy || '').toLowerCase().trim();
-                const tReporter = String(t.Reporter || t.Username || '').toLowerCase().trim();
-                const isVisible = isAdminView || tDept === uDept || tBy === uname || tReporter === uname;
+            const filtered = allTickets.filter(t => {
+                // Visibility Check
+                const rowDept = normalize(t.Department);
+                const rowBy = normalize(t.ReportedBy);
+                const rowReporter = normalize(t.Reporter || t.Username);
+                const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname;
 
                 if (!isVisible) return false;
 
-                const status = String(t.Status || '').toLowerCase().trim();
+                const status = normalize(t.Status);
                 const regDate = String(t.Date || '').replace(/'/g, '').trim();
+                const targetDateStr = String(t.TargetDate || '').replace(/'/g, '').trim();
 
-                // 1. All Filter
                 if (type === 'All') return true;
 
-                // 2. Delayed Filter
                 if (type === 'Delayed') {
-                    if (status !== 'open' && status !== 'transferred') return false;
-                    if (!regDate) return false;
-                    return regDate !== todayStr; // Strictly next day or older
+                    // Logic: Must be Open/Pending AND Delayed Logic
+                    // Or if Status is explicitly 'delayed'
+                    if (status === 'delayed') return true; // Explicit status match
+
+                    // Fallback for visual delay calculation if backend hasn't marked it yet (shouldn't happen with new script)
+                    if (!['open', 'transferred', 'pending', 're-open'].includes(status)) return false;
+                    const effectiveDateStr = targetDateStr || regDate;
+                    if (!effectiveDateStr) return false;
+                    const isNextDay = effectiveDateStr && effectiveDateStr !== todayStr; // Simplified Next Day
+
+                    // Delay Routing Rule
+                    const isMyDept = rowDept === uDept;
+                    const isReporter = rowBy === uname || rowReporter === uname;
+                    if (!isAdminView && (isReporter || !isMyDept)) return false;
+
+                    return isNextDay;
                 }
 
-                // 3. Status Match
-                if (type === 'Solved') return status === 'solved' || status === 'closed' || status === 'resolved';
+                if (type === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
                 return status === type.toLowerCase();
             });
 
-            console.log(`DEBUG: Popup Result Count: ${filtered.length}`);
             setPopupItems(filtered);
             setPopupCategory(type);
             setPopupOpen(true);
         }
     };
 
-    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, borderClass, delay, filterType }) => (
+    const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, filterType }) => (
         <div
             onClick={() => handleCardClick(filterType)}
             className={`flex flex-col justify-between p-6 rounded-3xl bg-white border cursor-pointer relative overflow-hidden transition-all
@@ -255,7 +217,7 @@ const Dashboard = () => {
         </div>
     );
 
-    if (loading) return <DashboardSkeleton />;
+    if (intelligenceLoading) return <DashboardSkeleton />;
 
     return (
         <div className="w-full max-w-full overflow-x-hidden md:px-0 space-y-6 md:space-y-8 pb-10">
@@ -276,6 +238,57 @@ const Dashboard = () => {
             />
 
             {user?.Username === 'AM Sir' && <DirectorDashboard />}
+
+            <AnimatePresence>
+                {delayAlert && (
+                    <div className="fixed inset-0 z-[310] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            key="delay-alert-popup"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border-2 border-rose-500"
+                        >
+                            <div className="p-8 text-center bg-gradient-to-b from-rose-50 to-white">
+                                <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-rose-200 shadow-sm">
+                                    <Clock size={40} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="text-2xl font-black text-[#1f2d2a] mb-2 uppercase tracking-tight">Delay Warning</h3>
+                                <div className="inline-block px-3 py-1 bg-rose-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest mb-6">Action Overdue</div>
+
+                                <p className="text-sm text-slate-600 mb-8 font-medium leading-relaxed">
+                                    You have <span className="text-rose-600 font-black">{delayAlert.count} cases</span> that have crossed the resolution timeline for <span className="font-black text-[#1f2d2a]">{delayAlert.dept}</span>.
+                                </p>
+
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const todayStr = new Date().toLocaleDateString();
+                                            localStorage.setItem(`delay_alert_date_${user.Username}`, todayStr);
+                                            setDelayAlert(null);
+                                            setActiveFilter('Delayed');
+                                            handleCardClick('Delayed'); // Open popup immediately
+                                        }}
+                                        className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 text-xs uppercase tracking-widest transform active:scale-95"
+                                    >
+                                        View Delayed Cases
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const todayStr = new Date().toLocaleDateString();
+                                            localStorage.setItem(`delay_alert_date_${user.Username}`, todayStr);
+                                            setDelayAlert(null);
+                                        }}
+                                        className="w-full py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {showReopenModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40">
@@ -310,62 +323,66 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {boosterNotice && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-amber-400"
-                    >
-                        <div className="p-8 text-center relative bg-gradient-to-b from-amber-50 to-white">
-                            <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-amber-200 animate-pulse">
-                                <AlertCircle size={40} strokeWidth={2.5} />
-                            </div>
-                            <h3 className="text-2xl font-black text-[#1f2d2a] mb-2 uppercase tracking-tight">Priority Booster Alert</h3>
-                            <div className="inline-block px-3 py-1 bg-amber-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest mb-6">Action Required</div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm mb-6 text-left">
-                                <div className="flex justify-between items-center mb-3 pb-3 border-b border-amber-100">
-                                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Ticket ID</span>
-                                    <span className="text-sm font-black text-[#1f2d2a]">#{boosterNotice.TicketID || boosterNotice.ComplaintID || 'N/A'}</span>
+            <AnimatePresence>
+                {boosterNotice && (
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            key="booster-alert-popup"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-amber-400"
+                        >
+                            <div className="p-8 text-center relative bg-gradient-to-b from-amber-50 to-white">
+                                <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-amber-200 animate-pulse">
+                                    <AlertCircle size={40} strokeWidth={2.5} />
                                 </div>
-                                <div className="space-y-3">
-                                    <div>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reason for Urgency</p>
-                                        <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{boosterNotice.Reason || 'Urgent attention required.'}"</p>
+                                <h3 className="text-2xl font-black text-[#1f2d2a] mb-2 uppercase tracking-tight">Priority Booster Alert</h3>
+                                <div className="inline-block px-3 py-1 bg-amber-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest mb-6">Action Required</div>
+
+                                <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm mb-6 text-left">
+                                    <div className="flex justify-between items-center mb-3 pb-3 border-b border-amber-100">
+                                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Ticket ID</span>
+                                        <span className="text-sm font-black text-[#1f2d2a]">#{boosterNotice.TicketID || boosterNotice.ComplaintID || 'N/A'}</span>
                                     </div>
-                                    <div className="pt-2">
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Issued By</p>
-                                        <p className="text-xs font-black text-amber-700 uppercase">{boosterNotice.Admin || boosterNotice.TransferredBy || 'Management'}</p>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reason for Urgency</p>
+                                            <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{boosterNotice.Reason || 'Urgent attention required.'}"</p>
+                                        </div>
+                                        <div className="pt-2">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Issued By</p>
+                                            <p className="text-xs font-black text-amber-700 uppercase">{boosterNotice.Admin || boosterNotice.TransferredBy || 'Management'}</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
-                                        setBoosterNotice(null);
-                                    }}
-                                    className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest"
-                                >
-                                    Later
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
-                                        setBoosterNotice(null);
-                                        setTrackTicket(boosterNotice.TicketID);
-                                    }}
-                                    className="flex-[2] py-4 bg-amber-600 text-white font-black rounded-2xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 text-xs uppercase tracking-widest transform active:scale-95"
-                                >
-                                    Resolve Now
-                                </button>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
+                                            setBoosterNotice(null);
+                                        }}
+                                        className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest"
+                                    >
+                                        Later
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
+                                            setBoosterNotice(null);
+                                            setTrackTicket(boosterNotice.TicketID);
+                                        }}
+                                        className="flex-[2] py-4 bg-amber-600 text-white font-black rounded-2xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 text-xs uppercase tracking-widest transform active:scale-95"
+                                    >
+                                        Resolve Now
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Hospital Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-4">
@@ -434,7 +451,7 @@ const Dashboard = () => {
 
                     {isAdmin ? (
                         <>
-                            <StatCard icon={Users} title="Staff Active" value={stats.activeStaff} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
+                            <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
                             {isSuperAdmin && (
                                 <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
                             )}

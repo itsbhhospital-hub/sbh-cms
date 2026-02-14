@@ -30,7 +30,7 @@ const Footer = () => {
                         rel="noopener noreferrer"
                         className="hover:text-white transition-colors group"
                     >
-                        Infrastructure: <span className="text-slate-500 group-hover:text-white transition-colors">Digital Registry v2.0</span>
+                        Infrastructure: <span className="text-slate-500 group-hover:text-white transition-colors">Naman Mishra</span>
                     </a>
                 </div>
             </div>

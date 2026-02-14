@@ -128,22 +128,27 @@ const NotificationBell = memo(() => {
 
                     // Complaint Delayed (NEW)
                     if (String(t.Status).toLowerCase() === 'delayed') {
-                        allEvents.push({
-                            id: t.ID,
-                            type: 'DELAYED',
-                            title: 'Ticket Milestone Delayed',
-                            timeText: formatIST(new Date()), // Show current time for delay alert or use target
-                            rawTime: new Date().toISOString(),
-                            details: {
-                                ticket: t.ID,
-                                department: t.Department,
-                                status: 'OVERDUE'
-                            },
-                            icon: AlertTriangle,
-                            color: 'text-rose-600 bg-rose-50 border-rose-100',
-                            iconBg: 'bg-rose-50 text-rose-600',
-                            viewParams: `?ticketId=${t.ID}`
-                        });
+                        // Delay Routing Rule: Sent only to Target Dept or Admin (NOT Reporter)
+                        const isReporter = normalize(t.ReportedBy) === normalize(user.Username) || normalize(t.Username) === normalize(user.Username);
+                        const isMyDept = rowDept === userDept;
+                        if (isAdmin || (isMyDept && !isReporter)) {
+                            allEvents.push({
+                                id: t.ID,
+                                type: 'DELAYED',
+                                title: 'Ticket Milestone Delayed',
+                                timeText: formatIST(new Date()),
+                                rawTime: new Date().toISOString(),
+                                details: {
+                                    ticket: t.ID,
+                                    department: t.Department,
+                                    status: 'OVERDUE'
+                                },
+                                icon: AlertTriangle,
+                                color: 'text-rose-600 bg-rose-50 border-rose-100',
+                                iconBg: 'bg-rose-50 text-rose-600',
+                                viewParams: `?ticketId=${t.ID}`
+                            });
+                        }
                     }
                 });
 
@@ -156,6 +161,11 @@ const NotificationBell = memo(() => {
 
                         // Rule: Admin sees ALL, User sees ONLY their dept
                         if (!isAdmin && bDept !== userDept) return;
+
+                        // NEW: Only show if case is still OPEN/PENDING
+                        const ticket = complaintsData.find(t => String(t.ID) === String(b.TicketID));
+                        const isTicketOpen = ticket ? ['open', 'pending', 'transferred', 're-open', 'delayed'].includes(String(ticket.Status).toLowerCase()) : true;
+                        if (!isTicketOpen) return;
 
                         allEvents.push({
                             id: b.TicketID,

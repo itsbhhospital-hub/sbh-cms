@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
-import { AnalyticsProvider } from './context/AnalyticsContext';
+
 import { IntelligenceProvider } from './context/IntelligenceContext';
 import { LayoutProvider } from './context/LayoutContext';
 import GlobalLoader from './components/GlobalLoader';
@@ -63,85 +63,85 @@ function App() {
     <Router>
       <LoadingProvider>
         <AuthProvider>
-          <AnalyticsProvider>
-            <IntelligenceProvider>
-              <GlobalLoader />
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Dashboard />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/new-complaint" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <NewComplaint />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-complaints" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <MyComplaints />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/solved-by-me" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <SolvedByMe />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/work-report" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <WorkReport />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/user-management" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <UserManagement />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/case-transfer" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <CaseTransfer />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/extended-cases" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <ExtendedCases />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/change-password" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <ChangePassword />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/ai-command-center" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <AICommandCenter />
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </IntelligenceProvider>
-          </AnalyticsProvider>
+
+          <IntelligenceProvider>
+            <GlobalLoader />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/new-complaint" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <NewComplaint />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/my-complaints" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MyComplaints />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/solved-by-me" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SolvedByMe />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/work-report" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkReport />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/user-management" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UserManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/case-transfer" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <CaseTransfer />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/extended-cases" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ExtendedCases />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/change-password" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ChangePassword />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-command-center" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AICommandCenter />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </IntelligenceProvider>
+
         </AuthProvider>
       </LoadingProvider>
     </Router>

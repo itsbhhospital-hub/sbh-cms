@@ -15,7 +15,7 @@ const MOCK_USERS = [
 
 // --- LOCAL STORAGE CACHE HELPERS ---
 const CACHE_PREFIX = 'sbh_cache_';
-const CACHE_DURATION = 15 * 1000; // 15 Seconds (Optimized for Live Feel)
+const CACHE_DURATION = 20 * 1000; // 20 Seconds (Optimized for Live Feel)
 
 const getCachedData = (key) => {
     try {
@@ -102,6 +102,7 @@ const normalizeRows = (rows) => {
         normalized.Description = findValue(['Description', 'Desc', 'Complaint']);
         const rawStatus = String(findValue(['Status']) || '').trim();
         normalized.Status = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : ''; // Normalize: Open, Solved, etc.
+        normalized.Delay = findValue(['Delay', 'Delayed', 'IsDelayed']); // NEW: Delay Flag mapping
         normalized.ReportedBy = findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name']);
         // Complaint_Ratings specific
         normalized.ResolvedBy = findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name']);

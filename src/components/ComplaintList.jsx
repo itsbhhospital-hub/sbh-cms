@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef, memo } from 'react';
-import { formatIST } from '../utils/dateUtils';
+import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
+import { formatIST, parseCustomDate } from '../utils/dateUtils';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { sheetsService } from '../services/googleSheets';
@@ -196,7 +196,7 @@ const ComplaintCard = memo(({ complaint, onClick, aiDecision }) => (
 const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, customReporter = null, customResolver = null, initialFilter = 'All', autoOpenTicket = null, onAutoOpenComplete = () => { } }) => {
     const { user } = useAuth();
     const isAdmin = user?.Role?.toUpperCase() === 'ADMIN' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
-    const { getAiCaseDecision } = useIntelligence();
+    const { getAiCaseDecision, lastSync } = useIntelligence();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState(initialFilter); // Initialize with prop
@@ -364,7 +364,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                 isRefetch
             );
 
-            // Handle Response Structure { items, total, page, totalPages }
+            // Handle Response Structure {items, total, page, totalPages}
             if (data && Array.isArray(data.items)) {
                 setComplaints(data.items);
                 setTotalPages(data.totalPages || 1);
@@ -383,7 +383,16 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
 
     useEffect(() => {
         loadComplaints();
-    }, [page, filter, debouncedSearchTerm, onlyMyComplaints, onlySolvedByMe]); // Reload on these changes
+    }, [page, filter, debouncedSearchTerm, onlyMyComplaints, onlySolvedByMe]);
+
+    // Live Sync Trigger
+    useEffect(() => {
+        if (lastSync) {
+            // console.log("Live Sync: Refreshing list...");
+            loadComplaints(true);
+        }
+    }, [lastSync]);
+
 
     const openDetailModal = (complaint) => {
         const role = (user.Role || '').toUpperCase().trim();
@@ -679,10 +688,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         <span className="text-[10px] font-black uppercase tracking-widest">Reporting Log</span>
                                     </div>
                                     <p className="font-black text-[#1f2d2a] text-xs uppercase">
-                                        {(selectedComplaint.Date || '').replace(/'/g, '').split(' ')[0]}
-                                        <span className="text-slate-400 ml-2">
-                                            {(selectedComplaint.Time || '').replace(/'/g, '')}
-                                        </span>
+                                        {formatIST(selectedComplaint.Date)}
                                     </p>
                                 </div>
                                 <div className="bg-[#f8faf9] p-5 rounded-2xl border border-[#dcdcdc]">
@@ -700,9 +706,14 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                 </h4>
                                 <div className="space-y-0 pl-4 border-l-2 border-[#f0f0f0] ml-2 relative">
                                     {(() => {
+                                        const parse = (d) => {
+                                            const parsed = parseCustomDate(d);
+                                            return parsed && !isNaN(parsed.getTime()) ? parsed : new Date();
+                                        };
+
                                         const events = [{
                                             type: 'created',
-                                            date: new Date(String(selectedComplaint.Date).replace(/'/g, '')),
+                                            date: parse(selectedComplaint.Date),
                                             title: 'Complaint Registered',
                                             subtitle: `Initiated by ${selectedComplaint.ReportedBy}`,
                                             icon: <Plus size={10} />,
@@ -712,7 +723,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         if (selectedComplaint.Department) {
                                             events.push({
                                                 type: 'assigned',
-                                                date: new Date(String(selectedComplaint.Date).replace(/'/g, '')),
+                                                date: parse(selectedComplaint.Date),
                                                 title: 'Department Assigned',
                                                 subtitle: `Routed to ${selectedComplaint.Department} Management`,
                                                 icon: <Building2 size={10} />,
@@ -724,9 +735,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         transfers.forEach(t => {
                                             events.push({
                                                 type: 'transfer',
-                                                date: new Date(String(t.TransferDate || t.Date).replace(/'/g, '')),
+                                                date: parse(t.TransferDate || t.Date),
                                                 title: 'Complaint Transferred',
-                                                subtitle: `Relocated from ${t.FromDepartment} to ${t.NewDepartment}`,
+                                                subtitle: `Relocated from ${t.FromDepartment} to ${t.NewDepartment}`, // Fixed format
                                                 icon: <ArrowRight size={10} />,
                                                 color: 'sky'
                                             });
@@ -736,7 +747,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         extensions.forEach(e => {
                                             events.push({
                                                 type: 'extension',
-                                                date: new Date(String(e.ExtensionDate || e.Date || e.Timestamp).replace(/'/g, '')),
+                                                date: parse(e.ExtensionDate || e.Date || e.Timestamp),
                                                 title: 'Timeline Authorized',
                                                 subtitle: `Extended to ${e.NewTargetDate} (${e.Reason})`,
                                                 icon: <Clock size={10} />,
@@ -744,13 +755,17 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                             });
                                         });
 
-                                        // Virtual Delay Entry (ISSUE 6)
+                                        // Virtual Delay Entry
                                         const now = new Date();
                                         const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                        const regTime = new Date(String(selectedComplaint.Date).replace(/'/g, ''));
+                                        const regTime = parse(selectedComplaint.Date);
                                         const regAtMidnight = new Date(regTime.getFullYear(), regTime.getMonth(), regTime.getDate());
 
-                                        if (selectedComplaint.Status !== 'Closed' && regAtMidnight < todayAtMidnight) {
+                                        if (String(selectedComplaint.Status).toLowerCase() !== 'closed' &&
+                                            String(selectedComplaint.Status).toLowerCase() !== 'solved' &&
+                                            String(selectedComplaint.Status).toLowerCase() !== 'resolved' &&
+                                            String(selectedComplaint.Status).toLowerCase() !== 'force close' &&
+                                            regAtMidnight < todayAtMidnight) {
                                             events.push({
                                                 type: 'delay',
                                                 date: new Date(regAtMidnight.getTime() + (24 * 60 * 60 * 1000)), // Show at 12:00 AM next day
@@ -764,7 +779,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         if (selectedComplaint.ResolvedDate) {
                                             events.push({
                                                 type: 'resolved',
-                                                date: new Date(String(selectedComplaint.ResolvedDate).replace(/'/g, '')),
+                                                date: parse(selectedComplaint.ResolvedDate),
                                                 title: 'Complaint Resolved',
                                                 subtitle: `Finalized by ${selectedComplaint.ResolvedBy}`,
                                                 icon: <CheckCircle size={10} />,
@@ -775,7 +790,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         if (String(selectedComplaint.Status).toLowerCase() === 'closed') {
                                             events.push({
                                                 type: 'closed',
-                                                date: new Date(String(selectedComplaint.LastUpdated || selectedComplaint.ResolvedDate).replace(/'/g, '')),
+                                                date: parse(selectedComplaint.LastUpdated || selectedComplaint.ResolvedDate),
                                                 title: 'Ticket Closed',
                                                 subtitle: `Case workflow completed`,
                                                 icon: <LockIcon size={10} />,
@@ -787,7 +802,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                         if (rating) {
                                             events.push({
                                                 type: 'rated',
-                                                date: new Date(String(rating.Date).replace(/'/g, '')),
+                                                date: parse(rating.Date),
                                                 title: 'Quality Assessment',
                                                 subtitle: (
                                                     <span className="flex items-center gap-1.5 mt-1">
@@ -824,7 +839,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                                     <div className="flex justify-between items-start">
                                                         <h5 className="text-[10px] font-black text-[#1f2d2a] uppercase tracking-widest">{ev.title}</h5>
                                                         <span className="text-[9px] font-black text-slate-400 bg-white/50 px-2 py-0.5 rounded-lg border border-[#f0f0f0] whitespace-nowrap ml-2 uppercase tracking-tighter">
-                                                            {formatIST(ev.date).split('•')[1]}
+                                                            {formatIST(ev.date).split('•')[1] || formatIST(ev.date)}
                                                         </span>
                                                     </div>
                                                     <div className="text-[11px] font-bold text-slate-500 mt-1 uppercase tracking-tight">{ev.subtitle}</div>

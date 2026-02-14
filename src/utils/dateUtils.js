@@ -17,7 +17,7 @@ export const formatIST = (dateInput) => {
 
         // Display format: DD MMM YYYY • hh:mm A
         const day = date.getDate().toString().padStart(2, '0');
-        const monthShort = date.toLocaleString('en-IN', { month: 'short', timeZone: 'Asia/Kolkata' }).toUpperCase();
+        const monthShort = date.toLocaleString('en-IN', { month: 'short', timeZone: 'Asia/Kolkata' });
         const year = date.getFullYear();
 
         let hours = date.getHours();
@@ -91,8 +91,8 @@ export const parseCustomDate = (dateStr) => {
         const day = parseInt(d, 10);
         const month = parseInt(m, 10) - 1;
         const year = parseInt(y, 10);
-
         let hours = 0, minutes = 0, seconds = 0;
+
         if (rest && rest.trim()) {
             const timeMatch = rest.trim().match(/(\d{1,2}):(\d{1,2}):?(\d{1,2})?\s*(AM|PM)?/i);
             if (timeMatch) {
@@ -105,6 +105,23 @@ export const parseCustomDate = (dateStr) => {
             }
         }
         const dObj = new Date(year, month, day, hours, minutes, seconds);
+        if (!isNaN(dObj.getTime())) return dObj;
+    }
+
+    // NEW: Check for "DD MMM YYYY • hh:mm:ss a" format (e.g. 13 Feb 2026 • 01:04:41 PM)
+    const bulletRegex = /^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s*•\s*(\d{1,2}):(\d{1,2}):?(\d{1,2})?\s+(AM|PM)/i;
+    const bMatch = clean.match(bulletRegex);
+
+    if (bMatch) {
+        const months = { 'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5, 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11 };
+        const [_, d, mStr, y, h, min, s, ampm] = bMatch;
+        const month = months[mStr.toLowerCase().substring(0, 3)];
+        let hours = parseInt(h, 10);
+
+        if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+
+        const dObj = new Date(parseInt(y), month, parseInt(d), hours, parseInt(min), parseInt(s || 0));
         if (!isNaN(dObj.getTime())) return dObj;
     }
 

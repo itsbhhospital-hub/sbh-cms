@@ -1,16 +1,37 @@
-import React from 'react';
-import { useAnalytics } from '../../context/AnalyticsContext';
+import React, { useMemo } from 'react';
+import { useIntelligence } from '../../context/IntelligenceContext';
 import TicketFlowMap from './TicketFlowMap';
 import DepartmentLoadTable from './DepartmentLoadTable';
 import StaffRankingCard from './StaffRankingCard';
-import { AlertTriangle, Zap, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Zap } from 'lucide-react';
 
 const DirectorDashboard = () => {
-    const { loading, flowStats, deptStats, staffStats, delayRisks, alerts, lastUpdated } = useAnalytics();
+    // Consume Unified Intelligence Layer
+    const {
+        loading,
+        flowStats,
+        deptRisks,
+        staffStats,
+        detailedDelayRisks,
+        alerts,
+        lastSync
+    } = useIntelligence();
+
+    // Adapt Data Formats
+    const deptStats = useMemo(() => {
+        if (!deptRisks) return [];
+        return Object.entries(deptRisks).map(([name, data]) => ({
+            name,
+            ...data.counts
+        }));
+    }, [deptRisks]);
+
+    const delayRisks = detailedDelayRisks || [];
+    const lastUpdated = lastSync || new Date();
 
     if (loading) return (
         <div className="w-full h-32 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-            <span className="text-xs font-bold text-slate-400 animate-pulse">Initializing Analytics Engine...</span>
+            <span className="text-xs font-bold text-slate-400 animate-pulse">Initializing Intelligence Engine...</span>
         </div>
     );
 

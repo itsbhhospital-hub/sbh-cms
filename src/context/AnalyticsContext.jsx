@@ -180,10 +180,12 @@ export const AnalyticsProvider = ({ children }) => {
             let staffTotalCases = 0;
 
             allComplaints.forEach(c => {
-                const resolver = normalize(c.ResolvedBy || c.AssignedTo || '');
-                if (resolver === s.name.toLowerCase().trim()) {
+                const rowResolver = normalize(c.ResolvedBy || c.AssignedTo);
+                const staffName = normalize(s.name);
+
+                if (rowResolver === staffName) {
                     staffTotalCases++;
-                    const status = String(c.Status || '').toLowerCase();
+                    const status = normalize(c.Status);
                     const isSolved = ['solved', 'resolved', 'closed', 'force close'].includes(status);
 
                     if (isSolved && c.Date && c.ResolvedDate) {
@@ -195,19 +197,30 @@ export const AnalyticsProvider = ({ children }) => {
                         }
                     }
 
-                    // Delay Check (matches backend logic)
-                    const regDate = c.Date ? new Date(c.Date) : null;
-                    let targetDate = c.TargetDate ? new Date(c.TargetDate) : null;
-                    if (!targetDate && regDate) {
-                        targetDate = new Date(regDate);
-                        targetDate.setHours(targetDate.getHours() + 24);
-                    }
-                    if (targetDate) {
+                    // Delay Check (Strict matches backend/dashboard next-day rule)
+                    const regDate = String(c.Date || '').replace(/'/g, '').trim();
+                    const targetDateStr = String(c.TargetDate || '').replace(/'/g, '').trim();
+                    const effectiveDateStr = targetDateStr || regDate;
+
+                    if (effectiveDateStr) {
+                        const today = new Date();
+                        const todayStr = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+                        const isNextDay = effectiveDateStr !== todayStr;
+
                         if (isSolved) {
-                            const closedDate = c.ResolvedDate ? new Date(c.ResolvedDate) : new Date();
-                            if (closedDate > targetDate) staffDelayCount++;
-                        } else if (new Date() > targetDate) {
-                            staffDelayCount++;
+                            const closedD = String(c.ResolvedDate || '').replace(/'/g, '').trim();
+                            // If closed day is today, but it was due yesterday, it's delayed
+                            if (closedD && closedD !== effectiveDateStr && closedD !== todayStr) {
+                                // Simple string check for legacy or date comparison for accuracy
+                                const dEffective = new Date(effectiveDateStr.split('-').reverse().join('-'));
+                                const dClosed = new Date(closedD.split('-').reverse().join('-'));
+                                if (dClosed > dEffective) staffDelayCount++;
+                            }
+                        } else {
+                            // Active cases: Delayed if not registered today
+                            if (isNextDay && ['open', 'transferred', 'pending', 're-open'].includes(status)) {
+                                staffDelayCount++;
+                            }
                         }
                     }
                 }

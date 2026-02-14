@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
+import { useIntelligence } from '../context/IntelligenceContext';
 import ComplaintList from '../components/ComplaintList';
 import {
     BarChart3, Users, Star, Search, ArrowRight,
@@ -11,49 +12,36 @@ import {
 const WorkReport = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [users, setUsers] = useState([]);
-    const [performanceData, setPerformanceData] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { staffStats, users: contextUsers, loading: intLoading } = useIntelligence();
+
+    // We can use contextUsers if available, otherwise fetch users (or just rely on staffStats names?)
+    // The requirement says "Ensure User Work Report pulls from: Main ticket sheet, Rating sheet, user_performance sheet" 
+    // BUT we moved calculation to IntelligenceContext. user_performance sheet is legacy/backup?
+    // Let's rely on contextUsers to get the FULL list of staff (even those with 0 tickets).
+
+    // We still need local state for search/selection
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        try {
-            const [usersData, perfData] = await Promise.all([
-                sheetsService.getUsers(),
-                sheetsService.getAllUserPerformance(true)
-            ]);
-            setUsers(usersData);
-            setPerformanceData(perfData);
-        } catch (err) {
-            console.error("Failed to load report data", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Merge User Data with Performance Metrics
+    // Merge User Data with Intelligence Stats
     const userMetrics = useMemo(() => {
-        if (!Array.isArray(users)) return [];
+        if (!contextUsers || !Array.isArray(contextUsers)) return [];
 
-        return users.map(u => {
+        return contextUsers.map(u => {
             const username = String(u.Username || '').trim();
-            const stats = performanceData.find(p => String(p.Username || '').toLowerCase() === username.toLowerCase()) || {};
+            // Find stats in the calculated staffStats from Context
+            const stats = staffStats.find(p => String(p.Username || '').toLowerCase() === username.toLowerCase()) || {};
 
             return {
                 ...u,
                 stats: {
-                    resolved: parseInt(stats.SolvedCount || 0),
-                    avgRating: parseFloat(stats.AvgRating || '0.0').toFixed(1),
-                    ratingCount: parseInt(stats.RatingCount || 0),
-                    avgSpeed: parseFloat(stats.AvgSpeedHours || 0),
-                    efficiency: parseFloat(stats.EfficiencyScore || 0),
-                    delayed: parseInt(stats.DelayCount || 0),
-                    total: parseInt(stats.TotalCases || 0),
+                    resolved: parseInt(stats.resolved || 0),
+                    avgRating: parseFloat(stats.avgRating || '0.0').toFixed(1),
+                    ratingCount: parseInt(stats.ratingCount || 0),
+                    avgSpeed: parseFloat(stats.avgSpeed || 0),
+                    efficiency: parseFloat(stats.efficiency || 0),
+                    delayed: parseInt(stats.delayed || 0),
+                    // total: parseInt(stats.total || 0), // Not strictly needed for display but good to have
                     breakdown: {
                         5: parseInt(stats.R5 || 0),
                         4: parseInt(stats.R4 || 0),
@@ -64,7 +52,7 @@ const WorkReport = () => {
                 }
             };
         });
-    }, [users, performanceData]);
+    }, [contextUsers, staffStats]);
 
     const filteredUsers = useMemo(() => {
         const list = userMetrics.filter(u => {
@@ -78,7 +66,7 @@ const WorkReport = () => {
         return list.sort((a, b) => (b.stats?.efficiency || 0) - (a.stats?.efficiency || 0));
     }, [userMetrics, searchTerm]);
 
-    if (loading) return null;
+    if (intLoading) return <div className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">Loading Analytics...</div>;
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 space-y-6">
@@ -140,7 +128,7 @@ const WorkReport = () => {
                         {/* Rating Breakdown */}
                         <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] col-span-1">
                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <Star size={16} className="text-amber-400" /> Patient Satisfaction
+                                <Star size={16} className="text-amber-400" /> User Satisfaction
                             </h4>
                             <div className="space-y-3">
                                 {[5, 4, 3, 2, 1].map(star => {
