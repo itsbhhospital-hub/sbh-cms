@@ -212,7 +212,7 @@ const fetchSheetData = async (sheetName, forceRefresh = false, options = { silen
                 if (error.message.includes('Sheet not found')) return [];
 
                 // NEW: Handle additional optional sheets gracefully
-                if (['Complaint_Ratings', 'User_Performance_Ratings', 'Case_Transfer_Log', 'Case_Extend_Log'].includes(sheetName)) {
+                if (['Complaint_Ratings', 'USER_PERFORMANCE', 'Case_Transfer_Log', 'Case_Extend_Log'].includes(sheetName)) {
                     console.warn(`Optional sheet '${sheetName}' load failed. Serving empty data.`);
                     return [];
                 }
@@ -324,7 +324,7 @@ export const sheetsService = {
     getRatings: (force = false, silent = false) => fetchSheetData('Complaint_Ratings', force, { silent }), // Updated Sheet Name
     getBoosters: (force = false, silent = false) => fetchSheetData('BOOSTER_NOTICES', force, { silent }), // NEW
     getUserPerformance: (username, silent = false) => fetchPaginatedData('getUserPerformance', { username }, false, silent),
-    getAllUserPerformance: (force = false, silent = false) => fetchSheetData('User_Performance_Ratings', force, { silent }),
+    getAllUserPerformance: (force = false, silent = false) => fetchSheetData('USER_PERFORMANCE', force, { silent }),
 
     getComplaintsPaginated: (page, limit, department, status, search, reporter, resolver, viewer, viewerRole, viewerDept, force = false, silent = true) => {
         const role = String(viewerRole || '').toLowerCase().trim();

@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Save, User, Shield, Phone, Building2, Clock, Globe, Lock, CheckCircle, AlertTriangle, Key, Trash2 } from 'lucide-react';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
+import { useIntelligence } from '../context/IntelligenceContext';
 import ImageCropper from './ImageCropper';
 import SuccessPopup from './SuccessPopup';
 
 const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => {
     const { user: currentUser } = useAuth();
+    const { staffStats, loading: intLoading } = useIntelligence();
     const [isEditing, setIsEditing] = useState(false);
 
     // Form and UI State
@@ -35,7 +37,6 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
 
     // Performance Metrics State
     const [performance, setPerformance] = useState(null);
-    const [loadingPerf, setLoadingPerf] = useState(false);
 
     useEffect(() => {
         if (targetUser) {
@@ -53,16 +54,26 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
             });
             setPendingFile(null);
             setTempImage(null);
-
-            // Fetch Performance Data
-            setLoadingPerf(true);
-            sheetsService.getUserPerformance(targetUser.Username)
-                .then(data => {
-                    setPerformance(data || null);
-                }) // Silent catch
-                .finally(() => setLoadingPerf(false));
         }
     }, [targetUser]);
+
+    // Sync Performance from Intelligence Context
+    useEffect(() => {
+        if (targetUser && staffStats) {
+            const stats = staffStats.find(s =>
+                String(s.Username || '').toLowerCase().trim() === String(targetUser.Username || '').toLowerCase().trim()
+            ) || {};
+
+            setPerformance({
+                solved: stats.resolved || 0,
+                avgRating: stats.avgRating ? Number(stats.avgRating).toFixed(1) : '0.0',
+                totalRatings: stats.ratingCount || 0,
+                avgSpeedHours: stats.avgSpeed || 0,
+                rank: stats.rank || '-',
+                totalStaff: staffStats.length
+            });
+        }
+    }, [targetUser, staffStats]);
 
     const [error, setError] = useState('');
 
@@ -232,7 +243,7 @@ const UserProfilePanel = ({ user: targetUser, onClose, onUpdate, onDelete }) => 
                     <div className="space-y-6">
                         {activeTab === 'performance' && (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                                {loadingPerf ? (
+                                {intLoading ? (
                                     <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Loading Analytics...</div>
                                 ) : (
                                     <>

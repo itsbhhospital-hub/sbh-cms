@@ -152,7 +152,8 @@ const Dashboard = () => {
                 const rowDept = normalize(t.Department);
                 const rowBy = normalize(t.ReportedBy);
                 const rowReporter = normalize(t.Reporter || t.Username);
-                const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname;
+                const rowResolver = normalize(t.ResolvedBy); // NEW: Solved by me check
+                const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
 
                 if (!isVisible) return false;
 
@@ -216,6 +217,15 @@ const Dashboard = () => {
             </div>
         </div>
     );
+
+    // --- YOUR IMPACT DATA SYNC ---
+    const myStats = stats?.staffStats?.find(s => normalize(s.Username) === normalize(user.Username)) || {};
+
+    // Fallbacks to 0 to prevent "undefined" or NaN
+    const mySolved = myStats.resolved || 0;
+    const mySpeed = myStats.avgSpeed ? Number(myStats.avgSpeed).toFixed(1) + ' hrs' : '0 hrs';
+    const myRating = myStats.avgRating ? Number(myStats.avgRating).toFixed(1) : '0.0';
+    const myRank = myStats.rank ? `#${myStats.rank}` : '-';
 
     if (intelligenceLoading) return <DashboardSkeleton />;
 
@@ -452,9 +462,8 @@ const Dashboard = () => {
                     {isAdmin ? (
                         <>
                             <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
-                            {isSuperAdmin && (
-                                <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
-                            )}
+                            {/* Delayed Card now visible for ALL Admins */}
+                            <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
                         </>
                     ) : (
                         <>
@@ -465,11 +474,25 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* YOUR IMPACT SECTION (New) */}
+            <div className="bg-white rounded-3xl p-8 border border-[#dcdcdc] shadow-sm">
+                <h3 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2 uppercase tracking-tight">
+                    <Shield size={24} className="text-[#2e7d32]" />
+                    Your Impact
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard icon={CheckCircle} title="Solved Cases" value={mySolved} colorClass="text-[#2e7d32]" bgClass="bg-[#cfead6]" filterType="Solved" />
+                    <StatCard icon={Timer} title="Avg Speed" value={mySpeed} colorClass="text-blue-600" bgClass="bg-blue-50" filterType="Solved" />
+                    <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType="Solved" />
+                    <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType="Active Staff" />
+                </div>
+            </div >
+
             {/* List Container */}
-            <div className="mt-4 md:mt-8">
+            < div className="mt-4 md:mt-8" >
                 <ComplaintList initialFilter={activeFilter} autoOpenTicket={trackTicket} onAutoOpenComplete={() => setTrackTicket(null)} />
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

@@ -497,10 +497,26 @@ const Navbar = () => {
                         {/* LEFT SIDE: Logos & Menu */}
                         <div className="flex items-center gap-3">
                             <div className="hidden md:flex items-center">
-                                <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+                                <img
+                                    src="/sbh_wide.jpg"
+                                    onError={(e) => {
+                                        e.target.onerror = null; // Prevent infinite loop
+                                        e.target.src = '/logo.png'; // Fallback to original logo if wide fails
+                                    }}
+                                    alt="SBH CMS"
+                                    className="h-10 w-auto object-contain"
+                                />
                             </div>
                             <div className="md:hidden flex items-center gap-2">
-                                <img src="/logo.png" alt="Logo" className="h-8 w-auto object-contain mr-1" />
+                                <img
+                                    src="/sbh_wide.jpg"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = '/logo.png';
+                                    }}
+                                    alt="SBH CMS"
+                                    className="h-8 w-auto object-contain mr-1"
+                                />
                             </div>
                             <div className="md:hidden">
                                 <button

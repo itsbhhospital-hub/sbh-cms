@@ -46,12 +46,14 @@ export const IntelligenceProvider = ({ children }) => {
         try {
             const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(String(user.Role).toLowerCase());
 
-            const [statsData, fetchedUsers, allData, boosterData, ratingsData] = await Promise.all([
+            // Fetch Core Data + PRE-CALCULATED Performance Sheet
+            const [statsData, fetchedUsers, allData, boosterData, ratingsData, perfData] = await Promise.all([
                 sheetsService.getDashboardStats(user.Username, user.Department, user.Role),
                 isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
                 sheetsService.getComplaints(false, true),
                 sheetsService.getBoosters(true, true).catch(() => []),
-                sheetsService.getRatings(false, true).catch(() => [])
+                sheetsService.getRatings(false, true).catch(() => []),
+                sheetsService.getAllUserPerformance(false, true).catch(() => []) // NEW: Single Source
             ]);
 
             if (statsData) setStats(prev => ({ ...prev, ...statsData }));
@@ -59,9 +61,27 @@ export const IntelligenceProvider = ({ children }) => {
             if (boosterData) setBoosters(boosterData);
             if (ratingsData) setAllRatings(ratingsData);
 
+            // Populate Staff Stats directly from Sheet (Source of Truth)
+            if (perfData && Array.isArray(perfData)) {
+                // Normalize keys just in case
+                const mappedStats = perfData.map(p => ({
+                    Username: p.Username,
+                    resolved: parseInt(p.TotalSolved || p.Solved || 0),
+                    avgRating: parseFloat(p.AverageRating || p.Rating || 0),
+                    ratingCount: parseInt(p.RatingCount || 0),
+                    avgSpeed: parseFloat(p.AvgSpeed || p.AvgResolutionTime || 0),
+                    rank: p.Rank || '-',
+                    efficiency: parseFloat(p.Efficiency || 0),
+                    delayed: parseInt(p.Delayed || 0),
+                    // Keep breakdown for compatibility if needed, or default to 0s
+                    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+                }));
+                setStaffStats(mappedStats);
+            }
+
             if (allData) {
                 setAllTickets(allData);
-                // Trigger Unified Analysis
+                // Trigger Systems Analysis (Risk, Flow, etc.) - user stats removed
                 analyzeSystem(allData, ratingsData || []);
             }
 
@@ -99,49 +119,21 @@ export const IntelligenceProvider = ({ children }) => {
         const detailedRisks = [];
         const alertList = [];
 
-        // --- NEW STAFF CALCULATION LOGIC ---
-        // 1. Initialize Staff Map from Users List (Ensure everyone is tracked)
-        const staffMap = {};
-        if (users && users.length > 0) {
-            users.forEach(u => {
-                const uname = normalize(u.Username);
-                if (uname) {
-                    staffMap[uname] = {
-                        username: u.Username, // Preserve original casing for display
-                        dept: u.Department,
-                        role: u.Role,
-                        solved: 0,
-                        delayed: 0,
-                        active: 0,
-                        ratings: [],
-                        speedHours: [],
-                        breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-                    };
-                }
-            });
-        }
-
-        // B. Ticket Processing
         tickets.forEach(t => {
-            const dept = t.Department || 'Unknown';
-            const status = String(t.Status || '').toLowerCase();
-            const resolver = normalize(t.ResolvedBy || t.AssignedTo);
-            const reporter = normalize(t.ReportedBy);
+            const status = String(t.Status || '').toLowerCase().trim();
+            const dept = t.Department || 'General';
             const date = t.Date ? new Date(t.Date) : null;
             const solvedDate = t.ResolvedDate ? new Date(t.ResolvedDate) : null;
+            const isActive = !['solved', 'closed'].includes(status);
+            const isSolved = ['solved', 'closed'].includes(status);
 
-            // Init Dept Structure
-            if (!depts[dept]) depts[dept] = { open: 0, delayed: 0, transfers: 0, total: 0, pending: 0, solved: 0 };
-            depts[dept].total++;
-
-            // Global Flow Counters
-            const isActive = ['open', 'pending', 'transferred', 're-open', 'in-progress'].includes(status);
-            const isSolved = ['solved', 'resolved', 'closed', 'force close'].includes(status);
+            // Dept Init
+            if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, transfers: 0 };
 
             if (isActive) {
                 if (status === 'open') { depts[dept].open++; flow.open++; }
                 if (['pending', 'in-progress', 're-open'].includes(status)) { depts[dept].pending++; flow.open++; }
-                // Risk Predictions (Legacy Logic Preserved)
+                // Risk Predictions
                 if (date && !isNaN(date.getTime())) {
                     const hrsOpen = (now - date) / (1000 * 60 * 60);
                     if (hrsOpen > 18 && status !== 'delayed') {
@@ -165,146 +157,29 @@ export const IntelligenceProvider = ({ children }) => {
                 stress += 5;
                 flow.delayed++;
             }
-
-            // --- STAFF METRICS LINKING ---
-            // We want to attribute 'Solved' cases to the resolver.
-            // If the resolver exists in our map (from users list), update them.
-            // If not (maybe deleted user or typo), we skip or add if strict mode off. 
-            // Here we only update if they exist to match "User Work Report" valid users.
-
-            if (isSolved && resolver && staffMap[resolver]) {
-                staffMap[resolver].solved++;
-
-                // Speed Calculation
-                if (date && solvedDate && solvedDate > date) {
-                    const hours = (solvedDate - date) / (1000 * 60 * 60);
-                    staffMap[resolver].speedHours.push(hours);
-                }
-
-                // Delayed Resolutions (Solved AND Delay=Yes)
-                // Normalize delay check: 'yes', 'true', or just truthy if boolean
-                const isDelayed = String(t.Delay || '').toLowerCase().trim();
-                // We check basic 'yes' or 'true'. 
-                if (isDelayed === 'yes' || isDelayed === 'true' || isDelayed === 'delayed') {
-                    staffMap[resolver].delayed++;
-                }
-            }
-
-            // Note: We are NO LONGER counting 'status === delayed' for staff metrics 
-            // because the requirement "Delayed Resolutions" implies Solved tickets.
-            // Active delays are still tracked in Dept stats.
         });
 
-        // C. Rating Allocation
-        const ticketToResolver = {};
-        tickets.forEach(c => {
-            if (c.ID) ticketToResolver[c.ID.toString()] = normalize(c.ResolvedBy || c.AssignedTo || '');
-        });
+        // NOTE: Manual Staff Stats calculation removed to prevent override.
+        // We now fetch pre-calculated stats from 'User_Performance_Ratings' sheet.
 
-        ratings.forEach(r => {
-            const ticketId = (r.ID || r.TicketID || '').toString();
-            const rating = parseInt(r.Rating);
-            if (isNaN(rating)) return;
+        // E. Thresholds & Alerts
+        if (stress > 50) health = Math.max(0, health - 20);
+        if (tickets.length > 500) health -= 10;
 
-            // Link Rating -> Ticket -> Resolver
-            const resolver = ticketToResolver[ticketId];
-            if (resolver && staffMap[resolver]) {
-                staffMap[resolver].ratings.push(rating);
-                // Star Breakdown
-                if (rating >= 1 && rating <= 5) {
-                    staffMap[resolver].breakdown[rating]++;
-                }
-            }
-        });
+        // Push-based Alerts
+        if (health < 60) alertList.push({ type: 'critical', msg: 'System Stress Level High' });
+        if (predictions.length > 5) alertList.push({ type: 'warning', msg: 'Multiple SLA Breaches Predicted' });
 
-        // D. Final Staff Stats Calculation & Global Ranking
-        // Find Max Solved for normalization
-        const maxSolved = Math.max(...Object.values(staffMap).map(s => s.solved), 1);
-
-        const finalStaffStats = Object.values(staffMap).map(s => {
-            // 1. Avg Rating
-            const totalStars = s.ratings.reduce((a, b) => a + b, 0);
-            const avgRating = s.ratings.length ? (totalStars / s.ratings.length) : 0;
-
-            // 2. Avg Speed
-            const totalSpeedHours = s.speedHours.reduce((a, b) => a + b, 0);
-            const avgSpeed = s.speedHours.length ? (totalSpeedHours / s.speedHours.length) : 0;
-
-            // 3. Efficiency Calculation
-            // Rating Score (40%): (Avg / 5) * 100
-            const ratingScore = (avgRating / 5) * 100;
-
-            // Speed Score (30%): Linear 0-100. 1hr = 100, 48hr = 0.
-            // Formula: 100 - ((AvgHours - 1) * (100/47)). Clamped 0-100.
-            // Simpler: If < 1hr -> 100. If > 48hr -> 0.
-            let speedScore = 0;
-            if (s.speedHours.length > 0) {
-                speedScore = Math.max(0, Math.min(100, 100 - ((avgSpeed - 1) * 2.1))); // Approx slope
-            }
-
-            // Solved Score (30%): Relative to max performer
-            const solvedScore = (s.solved / maxSolved) * 100;
-
-            // Final Weighted Score
-            const efficiency = (ratingScore * 0.4) + (speedScore * 0.3) + (solvedScore * 0.3);
-
-            return {
-                name: s.username, // Display Name
-                Username: s.username, // For matching
-                Department: s.dept,
-
-                // Metrics
-                resolved: s.solved,
-                solved: s.solved, // Alias
-                delayed: s.delayed,
-
-                avgRating: avgRating.toFixed(1),
-                ratingCount: s.ratings.length,
-
-                avgSpeed: avgSpeed.toFixed(1),
-                speedScore: speedScore.toFixed(0),
-
-                efficiency: efficiency.toFixed(0),
-                rawEfficiency: efficiency, // For internal sorting
-
-                // Star Breakdown
-                R5: s.breakdown[5],
-                R4: s.breakdown[4],
-                R3: s.breakdown[3],
-                R2: s.breakdown[2],
-                R1: s.breakdown[1]
-            };
-        }).sort((a, b) => b.rawEfficiency - a.rawEfficiency); // Rank High to Low
-
-        // E. State Updates
-        setHospitalHealth(Math.max(0, Math.min(100, health)));
-        setStressIndex(Math.min(100, stress));
+        // Update State
+        setHospitalHealth(health);
+        setStressIndex(stress);
         setPredictedDelays(predictions);
+        setDeptRisks(depts);
         setFlowStats(flow);
-        setStaffStats(finalStaffStats); // This now contains ALL required data for Work Report
         setDetailedDelayRisks(detailedRisks);
-
-        // Dept Risks & Alerts Construction (Legacy)
-        const risks = {};
-        Object.keys(depts).forEach(d => {
-            const data = depts[d];
-            let level = 'Stable';
-            let params = [];
-
-            if (data.delayed > 0) { level = 'Critical'; params.push('Active Delays'); }
-            else if (data.open > 10) { level = 'High Load'; params.push('High Volume'); }
-            else if (predictions.find(p => p.dept === d)) { level = 'Risk'; params.push('Potential Delay'); }
-
-            risks[d] = { level, params, counts: data };
-            if (data.open > 15) alertList.push({ type: 'overload', msg: `High Load: ${d} (${data.open} Active)` });
-            if (data.delayed > 5) alertList.push({ type: 'delay', msg: `Delay Spike: ${d}` });
-        });
-
-        if (predictions.length > 5) alertList.push({ type: 'risk', msg: `${predictions.length} Tickets at Risk` });
-
-        setDeptRisks(risks);
         setAlerts(alertList);
     };
+
 
     // ------------------------------------------------------------------
     // 3. EXPOSED HELPERS
