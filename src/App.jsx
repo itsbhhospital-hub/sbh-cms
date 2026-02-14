@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import AssetsLayout from './components/AssetsLayout';
 
 // Lazy Load Heavy Pages
 const UserManagement = lazy(() => import('./pages/UserManagement'));
@@ -27,6 +28,8 @@ const AssetsPanel = lazy(() => import('./pages/AssetsPanel'));
 const AddAsset = lazy(() => import('./pages/AddAsset'));
 const AssetDetails = lazy(() => import('./pages/AssetDetails'));
 const PublicAssetView = lazy(() => import('./pages/PublicAssetView'));
+const DirectorDashboard = lazy(() => import('./pages/DirectorDashboard'));
+const ServiceTeamPanel = lazy(() => import('./pages/ServiceTeamPanel'));
 
 const ProtectedRoute = ({ children }) => {
   const auth = useAuth();
@@ -144,26 +147,43 @@ function App() {
                 </ProtectedRoute>
               } />
 
+
               {/* ASSETS MODULE ROUTES */}
               <Route path="/assets" element={
                 <ProtectedRoute>
-                  <Layout>
+                  <AssetsLayout>
                     <AssetsPanel />
-                  </Layout>
+                  </AssetsLayout>
                 </ProtectedRoute>
               } />
               <Route path="/assets/add" element={
                 <ProtectedRoute>
-                  <Layout>
+                  <AssetsLayout>
                     <AddAsset />
-                  </Layout>
+                  </AssetsLayout>
                 </ProtectedRoute>
               } />
               <Route path="/assets/:id" element={
                 <ProtectedRoute>
-                  <Layout>
+                  <AssetsLayout>
                     <AssetDetails />
-                  </Layout>
+                  </AssetsLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/director" element={
+                <ProtectedRoute>
+                  <AssetsLayout>
+                    <DirectorDashboard />
+                  </AssetsLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/service-team" element={
+                <ProtectedRoute>
+                  <AssetsLayout>
+                    <ServiceTeamPanel />
+                  </AssetsLayout>
                 </ProtectedRoute>
               } />
 

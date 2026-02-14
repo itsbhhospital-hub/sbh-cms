@@ -21,7 +21,10 @@ export const assetsService = {
             const result = await response.json();
 
             if (result.status === 'success') {
-                return result.data;
+                return result.data.map(asset => ({
+                    ...asset,
+                    id: asset.id || asset.assetId || asset.AssetID || asset.assetID
+                }));
             } else {
                 throw new Error(result.message || 'Failed to fetch assets');
             }
@@ -93,18 +96,58 @@ export const assetsService = {
      * @param {Object} data - { id, serviceDate, nextServiceDate, remark }
      * @param {string} fileBase64 
      * @param {string} fileName 
-     * @param {string} fileType 
      */
-    addServiceRecord: async (data, fileBase64, fileName, fileType) => {
+    async addServiceRecord(data, file, fileName, fileType) {
+        let fileBase64 = "";
+        if (file) {
+            fileBase64 = await this.fileToBase64(file);
+        }
+
         const payload = {
             action: 'addServiceRecord',
-            ...data,
+            id: data.id,
+            serviceDate: data.serviceDate,
+            nextServiceDate: data.nextServiceDate,
+            remark: data.remark,
             serviceFile: fileBase64,
             serviceFileName: fileName,
-            serviceFileType: fileType
+            serviceFileType: fileType,
+            cost: data.cost // [NEW]
         };
 
-        return sendPost(payload);
+        return await sendPost(payload);
+    },
+
+    async editAsset(data) {
+        // data: { id, machineName, purchaseCost, ... }
+        const payload = {
+            action: 'editAsset',
+            ...data
+        };
+        return await sendPost(payload);
+    },
+
+    async markAsReplaced(data) {
+        // data: { id, reason, remark, newMachineData }
+        // newMachineData should contain invoiceFile etc if available
+
+        let invoiceBase64 = "";
+        if (data.newMachineData.invoiceFile) {
+            invoiceBase64 = await this.fileToBase64(data.newMachineData.invoiceFile);
+        }
+
+        const payload = {
+            action: 'markAsReplaced',
+            id: data.id,
+            reason: data.reason,
+            remark: data.remark,
+            createdBy: data.createdBy,
+            newMachineData: {
+                ...data.newMachineData,
+                invoiceFile: invoiceBase64
+            }
+        };
+        return await sendPost(payload);
     },
 
     /**
@@ -115,12 +158,10 @@ export const assetsService = {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => {
-                // Remove "data:*/*;base64," prefix for Apps Script compatibility if needed
-                // But usually helpful to keep it or strip it depending on backend.
-                // Our backend uses Utilities.newBlob(Utilities.base64Decode(data))
-                // Utilities.base64Decode expects pure base64.
                 const result = reader.result;
-                const base64 = result.split(',')[1];
+                // backend expects just base64 data without prefix if using Utilities.base64Decode
+                // But let's split just in case
+                const base64 = result.includes(',') ? result.split(',')[1] : result;
                 resolve(base64);
             };
             reader.onerror = error => reject(error);

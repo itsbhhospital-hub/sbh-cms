@@ -2,11 +2,10 @@ import React, { useState, useEffect, memo } from 'react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
-import { useLoading } from '../context/LoadingContext';
 import {
     LayoutDashboard, Plus, ClipboardList, CheckCircle,
-    Clock, LogOut, ChevronLeft, ChevronRight, Menu,
-    Users, BarChart3, ShieldCheck, Key, FileText, Share2, Hospital, X, Zap, Wrench, Building2
+    Clock, LogOut, Menu,
+    Building2, Wrench, TrendingUp, Search
 } from 'lucide-react';
 
 const SessionTimer = memo(({ collapsed }) => {
@@ -52,24 +51,15 @@ const SessionTimer = memo(({ collapsed }) => {
     );
 });
 
-const Sidebar = () => {
+const AssetsSidebar = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
-    const { mobileOpen, setMobileOpen, collapsed, setCollapsed } = useLayout();
-    const { showLoader } = useLoading();
+    const { mobileOpen, setMobileOpen, collapsed } = useLayout();
     const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
         setMobileOpen(false);
     }, [location, setMobileOpen]);
-
-    const adminMenuItems = [
-        { path: '/service-team', name: 'Services', icon: Wrench },
-        { path: '/assets', name: 'Assets', icon: Building2 },
-        { path: '/user-management', name: 'User Management', icon: Users },
-        { path: '/work-report', name: 'User Work Report', icon: BarChart3 },
-        { path: '/change-password', name: 'Change Password', icon: Key },
-    ];
 
     const NavItem = ({ to, icon: Icon, label }) => (
         <NavLink
@@ -128,11 +118,11 @@ const Sidebar = () => {
                 <div className="h-20 flex items-center justify-start px-6 border-b border-[#2e7d32]/10 mb-4 relative shrink-0 bg-white/30">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-10 bg-white rounded-xl flex items-center justify-center shadow-none p-1.5 border border-[#dcdcdc]">
-                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+                            <Building2 className="text-[#2e7d32]" size={24} />
                         </div>
                         {(!collapsed || mobileOpen || isHovered) && (
                             <span className="font-black text-xl text-[#1f2d2a] tracking-tighter uppercase">
-                                SBH <span className="text-[#2e7d32]">CMS</span>
+                                Assets <span className="text-[#2e7d32]">Panel</span>
                             </span>
                         )}
                     </div>
@@ -141,30 +131,18 @@ const Sidebar = () => {
                 {/* Navigation Section */}
                 <nav className="px-2 py-2 overflow-y-auto custom-scrollbar flex-1">
                     <div className="mb-4 px-4 text-[9px] font-black text-[#2e7d32] uppercase tracking-[0.2em] leading-none opacity-60">
-                        {(!collapsed || mobileOpen || isHovered) && 'Standard Services'}
+                        {(!collapsed || mobileOpen || isHovered) && 'Assets Management'}
                     </div>
 
-                    <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                    <NavItem to="/new-complaint" icon={Plus} label="New Ticket" />
-                    <NavItem to="/my-complaints" icon={ClipboardList} label="Complaint Desk" />
-                    <NavItem to="/case-transfer" icon={Share2} label="Case Transfer" />
-                    <NavItem to="/extended-cases" icon={Clock} label="Extended Cases" />
-                    <NavItem to="/solved-by-me" icon={CheckCircle} label="Solved By Me" />
+                    <NavItem to="/director" icon={TrendingUp} label="Director Dashboard" />
+                    <NavItem to="/assets" icon={LayoutDashboard} label="Asset List" />
+                    <NavItem to="/assets/add" icon={Plus} label="Register Asset" />
 
-                    {(user.Username === 'AM Sir' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
-                        <NavItem to="/ai-command-center" icon={Zap} label="AI Command Center" />
-                    )}
-
-                    {(user.Role?.toLowerCase() === 'admin' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
-                        <>
-                            <div className="mt-6 mb-2 px-4 text-[11px] font-bold text-[#2e7d32] uppercase tracking-wider leading-none opacity-80">
-                                {(!collapsed || mobileOpen || isHovered) && 'System Management'}
-                            </div>
-                            {adminMenuItems.map((item) => (
-                                <NavItem key={item.path} to={item.path} icon={item.icon} label={item.name} />
-                            ))}
-                        </>
-                    )}
+                    <div className="mt-6 mb-2 px-4 text-[9px] font-black text-[#2e7d32] uppercase tracking-[0.2em] leading-none opacity-60">
+                        {(!collapsed || mobileOpen || isHovered) && 'Operations'}
+                    </div>
+                    <NavItem to="/service-team" icon={Wrench} label="Services" />
+                    <NavItem to="/" icon={LogOut} label="Exit to Main CMS" />
                 </nav>
 
                 {/* Footer Section */}
@@ -199,4 +177,4 @@ const Sidebar = () => {
     );
 };
 
-export default memo(Sidebar);
+export default memo(AssetsSidebar);

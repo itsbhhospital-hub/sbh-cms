@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle, Calendar, Star } from 'lucide-react';
+import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle, Calendar, Star, TrendingUp, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -532,14 +532,11 @@ const Navbar = () => {
                         {/* CENTER: Navigation Links (Desktop) */}
                         <div className="hidden md:flex items-center gap-4">
                             {/* Existing links if any, or just add Assets here */}
+                            {/* Existing links if any */}
                             {['ADMIN', 'SUPER_ADMIN'].includes(user?.Role?.toUpperCase()) && (
-                                <button
-                                    onClick={() => navigate('/assets')}
-                                    className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:text-[#2e7d32] hover:bg-[#cfead6] transition-all flex items-center gap-2"
-                                >
-                                    <Building2 size={18} />
-                                    <span>Assets</span>
-                                </button>
+                                <>
+                                    {/* Assets Module Moved to Sidebar */}
+                                </>
                             )}
                         </div>
 
