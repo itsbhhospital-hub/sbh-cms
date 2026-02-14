@@ -23,6 +23,10 @@ const CaseTransfer = lazy(() => import('./pages/CaseTransfer'));
 const ExtendedCases = lazy(() => import('./pages/ExtendedCases'));
 const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const AICommandCenter = lazy(() => import('./pages/AICommandCenter'));
+const AssetsPanel = lazy(() => import('./pages/AssetsPanel'));
+const AddAsset = lazy(() => import('./pages/AddAsset'));
+const AssetDetails = lazy(() => import('./pages/AssetDetails'));
+const PublicAssetView = lazy(() => import('./pages/PublicAssetView'));
 
 const ProtectedRoute = ({ children }) => {
   const auth = useAuth();
@@ -139,6 +143,32 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
+
+              {/* ASSETS MODULE ROUTES */}
+              <Route path="/assets" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AssetsPanel />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/assets/add" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AddAsset />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/assets/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AssetDetails />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Public Route (No Auth) */}
+              <Route path="/asset-view/:id" element={<PublicAssetView />} />
             </Routes>
           </IntelligenceProvider>
 

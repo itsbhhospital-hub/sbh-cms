@@ -528,6 +528,21 @@ const Navbar = () => {
                             </div>
                         </div>
 
+
+                        {/* CENTER: Navigation Links (Desktop) */}
+                        <div className="hidden md:flex items-center gap-4">
+                            {/* Existing links if any, or just add Assets here */}
+                            {['ADMIN', 'SUPER_ADMIN'].includes(user?.Role?.toUpperCase()) && (
+                                <button
+                                    onClick={() => navigate('/assets')}
+                                    className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:text-[#2e7d32] hover:bg-[#cfead6] transition-all flex items-center gap-2"
+                                >
+                                    <Building2 size={18} />
+                                    <span>Assets</span>
+                                </button>
+                            )}
+                        </div>
+
                         {/* RIGHT SIDE: Icons */}
                         <div className="flex items-center gap-3 md:gap-4">
 
@@ -591,23 +606,26 @@ const Navbar = () => {
                             </div>
                         </div>
                     </div >
-                </div >
+
+                </div>
             </nav >
 
             {/* Profile Side Panel */}
-            {showProfilePanel && (
-                <>
-                    <div
-                        className="fixed inset-0 bg-slate-900/20 z-[140]"
-                        onClick={() => setShowProfilePanel(false)}
-                    />
-                    <UserProfilePanel
-                        user={user}
-                        onClose={() => setShowProfilePanel(false)}
-                        onUpdate={handleUpdateProfile}
-                    />
-                </>
-            )}
+            {
+                showProfilePanel && (
+                    <>
+                        <div
+                            className="fixed inset-0 bg-slate-900/20 z-[140]"
+                            onClick={() => setShowProfilePanel(false)}
+                        />
+                        <UserProfilePanel
+                            user={user}
+                            onClose={() => setShowProfilePanel(false)}
+                            onUpdate={handleUpdateProfile}
+                        />
+                    </>
+                )
+            }
         </>
     );
 };
