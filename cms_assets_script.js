@@ -1,11 +1,10 @@
 /*
  * SBH Enterprise Assets Management System
- * Backend Script (Google Apps Script) - Phase 2: Financial & Lifecycle Intelligence
+ * Backend Script (Google Apps Script) - Phase 8: Master Repair & Sync Refinement
  * 
  * INSTRUCTIONS:
- * 1. If updating: Run `updateAssetsSheetStructure` to add new columns.
- * 2. If new: Run `setupAssetsSheet`.
- * 3. Deploy as Web App.
+ * 1. If updating: Run `setupMasterRepair` to create new sheets.
+ * 2. Deploy as Web App.
  */
 
 const CONFIG = {
@@ -124,8 +123,23 @@ function handleRequest(e) {
 /* --- CORE FUNCTIONS --- */
 
 function generateAssetId(sheet) {
-    const lastRow = sheet.getLastRow();
-    return "SBH" + lastRow;
+    const map = getHeaderMap(sheet);
+    const assetIdColIndex = map["Asset ID"] - 1;
+    const data = sheet.getDataRange().getValues();
+
+    let maxId = 0;
+    // Skip header (row 0)
+    for (let i = 1; i < data.length; i++) {
+        const idStr = data[i][assetIdColIndex]; // e.g., "SBH15"
+        if (idStr && typeof idStr === 'string' && idStr.startsWith('SBH')) {
+            const numPart = parseInt(idStr.replace('SBH', ''), 10);
+            if (!isNaN(numPart) && numPart > maxId) {
+                maxId = numPart;
+            }
+        }
+    }
+
+    return "SBH" + (maxId + 1);
 }
 
 function addAsset(data) {
@@ -200,35 +214,52 @@ function addAsset(data) {
     return { status: "success", message: "Asset Created", assetId: id, folderUrl: assetFolder.getUrl() };
 }
 
+/* --- HELPER: DYNAMIC COLUMN MAPPING --- */
+function getHeaderMap(sheet) {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const map = {};
+    headers.forEach((h, i) => { map[h] = i + 1; }); // Store 1-based index
+    return map;
+}
+
 function editAsset(data) {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    const map = getHeaderMap(sheet); // Get dynamic map
+
     const allData = sheet.getDataRange().getValues();
+    const assetIdColIndex = map["Asset ID"] - 1; // 0-based for array
 
     // Find Row
-    const rowIndex = allData.findIndex(r => r[0] == data.id);
+    const rowIndex = allData.findIndex(r => r[assetIdColIndex] == data.id);
     if (rowIndex === -1) return { status: "error", message: "Asset Not Found" };
     const realRowIndex = rowIndex + 1;
 
-    // Update allowable fields
-    if (data.machineName) sheet.getRange(realRowIndex, 2).setValue(data.machineName);
-    if (data.serialNumber) sheet.getRange(realRowIndex, 3).setValue(data.serialNumber);
-    if (data.purchaseDate) sheet.getRange(realRowIndex, 4).setValue(data.purchaseDate);
-    if (data.nextServiceDate) sheet.getRange(realRowIndex, 7).setValue(data.nextServiceDate);
-    if (data.remark) sheet.getRange(realRowIndex, 8).setValue(data.remark);
-    if (data.vendorName) sheet.getRange(realRowIndex, 14).setValue(data.vendorName);
-    if (data.vendorContact) sheet.getRange(realRowIndex, 15).setValue(data.vendorContact);
-    if (data.purchaseCost) sheet.getRange(realRowIndex, 16).setValue(data.purchaseCost);
-    if (data.warrantyExpiry) sheet.getRange(realRowIndex, 17).setValue(data.warrantyExpiry);
-    if (data.amcStart) sheet.getRange(realRowIndex, 18).setValue(data.amcStart);
-    if (data.amcExpiry) sheet.getRange(realRowIndex, 19).setValue(data.amcExpiry);
+    // Helper to update cell
+    const update = (headerName, val) => {
+        if (map[headerName] && val !== undefined && val !== null) {
+            sheet.getRange(realRowIndex, map[headerName]).setValue(val);
+        }
+    };
 
-    // New Fields Editing
-    if (data.warrantyType) sheet.getRange(realRowIndex, 23).setValue(data.warrantyType);
-    if (data.amcTaken) sheet.getRange(realRowIndex, 24).setValue(data.amcTaken);
-    if (data.amcAmount) sheet.getRange(realRowIndex, 25).setValue(data.amcAmount);
-    if (data.location) sheet.getRange(realRowIndex, 26).setValue(data.location);
-    if (data.department) sheet.getRange(realRowIndex, 27).setValue(data.department);
+    // Update allowable fields
+    update("Machine Name", data.machineName);
+    update("Serial Number", data.serialNumber);
+    update("Purchase Date", data.purchaseDate);
+    update("Current Service Date", data.currentServiceDate); // Last Service Date
+    update("Next Service Date", data.nextServiceDate);
+    update("Remark", data.remark);
+    update("Vendor Name", data.vendorName);
+    update("Vendor Contact", data.vendorContact);
+    update("Purchase Cost", data.purchaseCost);
+    update("Warranty Expiry", data.warrantyExpiry);
+    update("AMC Start", data.amcStart);
+    update("AMC Expiry", data.amcExpiry);
+    update("Warranty Type", data.warrantyType);
+    update("AMC Taken", data.amcTaken);
+    update("AMC Amount", data.amcAmount);
+    update("Location", data.location);
+    update("Department", data.department);
 
     return { status: "success", message: "Asset Updated Successfully" };
 }
@@ -549,40 +580,75 @@ function getAssets(filters) {
 function getAssetDetails(id) {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    const data = sheet.getDataRange().getValues();
-    const row = data.find(r => r[0] == id);
+    const map = getHeaderMap(sheet);
+    const allData = sheet.getDataRange().getValues();
+    const assetIdColIndex = map["Asset ID"] - 1;
+
+    const row = allData.find(r => r[assetIdColIndex] == id);
     if (!row) return { status: "error", message: "Asset Not Found" };
 
-    // Fetch History from Drive
+    // Helper to safely get value from row
+    const getVal = (header) => {
+        const idx = map[header];
+        return idx ? row[idx - 1] : "";
+    };
+
+    // Fetch History from Drive AND Service Logs Sheet
     let history = [];
 
     // 1. Creation Event
     history.push({
         type: "event",
         name: "Asset Acquired",
-        date: row[3] || row[11], // Purchase Date or Created Date
-        details: `Purchased for ₹${row[15] || 0} from ${row[13] || "Unknown Vendor"}`
+        date: formatDate(new Date(getVal("Purchase Date") || getVal("Created Timestamp"))),
+        details: `Purchased for ₹${getVal("Purchase Cost") || 0} from ${getVal("Vendor Name") || "Unknown Vendor"}`
     });
 
-    // 2. Drive Service Records
+    // 2. Fetch from service_logs Sheet (NEW SYNC SOURCE)
+    const logsSheet = ss.getSheetByName("service_logs");
+    if (logsSheet) {
+        const logs = logsSheet.getDataRange().getValues();
+        // logs[0] = headers (Asset ID, Date, Type, Cost, Remark, File URL)
+        for (let i = 1; i < logs.length; i++) {
+            if (logs[i][0] == id) {
+                history.push({
+                    type: "service",
+                    name: logs[i][2], // Type (Paid/AMC/Warranty)
+                    date: formatDate(new Date(logs[i][1])),
+                    details: logs[i][4] + (logs[i][3] ? ` (Cost: ₹${logs[i][3]})` : ""),
+                    cost: logs[i][3],
+                    fileUrl: logs[i][5] || ""
+                });
+            }
+        }
+    }
+
+    // 3. Drive Service Records (Support for legacy files not in logs)
+    // Note: detailed drive scanning might be slow, so we rely on logs for new stuff.
+    // Keeping this lightweight or relying on logs is better. 
+    // For now, let's keep it but catch errors.
     try {
-        const folderUrl = row[9];
-        const folderId = folderUrl.match(/[-\w]{25,}/);
-        if (folderId) {
-            const folder = DriveApp.getFolderById(folderId[0]);
-            const serviceFolders = folder.getFoldersByName("Service History");
-            if (serviceFolders.hasNext()) {
-                const hFolder = serviceFolders.next();
-                const files = hFolder.getFiles();
-                while (files.hasNext()) {
-                    const file = files.next();
-                    history.push({
-                        type: "service",
-                        name: file.getName(),
-                        url: file.getUrl(),
-                        date: file.getDateCreated(),
-                        fileType: file.getMimeType()
-                    });
+        const folderUrl = getVal("Folder Link");
+        if (folderUrl) {
+            const folderId = folderUrl.match(/[-\w]{25,}/);
+            if (folderId) {
+                const folder = DriveApp.getFolderById(folderId[0]);
+                const serviceFolders = folder.getFoldersByName("Service History");
+                if (serviceFolders.hasNext()) {
+                    const hFolder = serviceFolders.next();
+                    const files = hFolder.getFiles();
+                    while (files.hasNext()) {
+                        const file = files.next();
+                        // Deduplication logic could go here, but for now we list them.
+                        history.push({
+                            type: "file",
+                            name: "File Attachment",
+                            url: file.getUrl(),
+                            date: formatDate(file.getDateCreated()),
+                            fileType: file.getMimeType(),
+                            details: file.getName()
+                        });
+                    }
                 }
             }
         }
@@ -590,66 +656,132 @@ function getAssetDetails(id) {
         console.log("Drive Error: " + e);
     }
 
-    // 3. Replacement Event (if applicable)
-    if (row[12] === "Replaced" && row[20]) {
+    // 4. Replacement Events
+    if (getVal("Status") === "Replaced" && getVal("Replaced By ID")) {
         history.push({
             type: "alert",
             name: "Asset Replaced",
-            date: new Date(), // Approximation if not tracked separately, or fetch from log if possible.
-            details: `Replaced by Asset ID: ${row[20]}`
+            date: formatDate(new Date()), // Approximation
+            details: `Replaced by Asset ID: ${getVal("Replaced By ID")}`
         });
     }
-
-    // 4. Origin Event (if it's a replacement)
-    if (row[19]) {
+    if (getVal("Parent ID")) {
         history.push({
             type: "info",
             name: "Replacement Origin",
-            date: row[3] || row[11],
-            details: `This asset replaced Asset ID: ${row[19]}`
+            date: formatDate(new Date(getVal("Purchase Date"))),
+            details: `This asset replaced Asset ID: ${getVal("Parent ID")}`
         });
     }
 
     // Sort by Date Descending
     history.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+    // Return Data Object
     return {
         status: "success",
         data: {
-            id: row[0], machineName: row[1], serialNumber: row[2],
-            purchaseDate: row[3], invoiceLink: row[4],
-            currentServiceDate: row[5], nextServiceDate: row[6],
-            remark: row[7], folderLink: row[9], status: row[12],
-            vendorName: row[13], vendorContact: row[14],
-            purchaseCost: row[15], warrantyExpiry: row[16],
-            amcStart: row[17], amcExpiry: row[18],
-            parentId: row[19], replacedById: row[20],
-            totalServiceCost: row[21] || 0,
-            history: history
+            id: row[assetIdColIndex],
+            machineName: getVal("Machine Name"),
+            serialNumber: getVal("Serial Number"),
+            purchaseDate: formatDate(new Date(getVal("Purchase Date"))),
+            invoiceLink: getVal("Invoice Link"),
+            currentServiceDate: formatDate(new Date(getVal("Current Service Date"))),
+            nextServiceDate: formatDate(new Date(getVal("Next Service Date"))),
+            remark: getVal("Remark"),
+            folderLink: getVal("Folder Link"),
+            status: getVal("Status"),
+            vendorName: getVal("Vendor Name"),
+            vendorContact: getVal("Vendor Contact"),
+            purchaseCost: getVal("Purchase Cost"),
+            warrantyExpiry: formatDate(new Date(getVal("Warranty Expiry"))),
+            amcStart: formatDate(new Date(getVal("AMC Start"))),
+            amcExpiry: formatDate(new Date(getVal("AMC Expiry"))),
+            parentId: getVal("Parent ID"),
+            replacedById: getVal("Replaced By ID"),
+            totalServiceCost: getVal("Total Service Cost") || 0,
+            history: history,
+            warrantyType: getVal("Warranty Type"),
+            amcTaken: getVal("AMC Taken") || "No",
+            amcAmount: getVal("AMC Amount") || 0,
+            location: getVal("Location"),
+            department: getVal("Department")
         }
     };
 }
 
 function getPublicAssetDetails(id) {
-    const details = getAssetDetails(id);
-    if (details.status === "error") return details;
-    const d = details.data;
-    // Check if replaced
-    let publicStatus = d.status;
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    const map = getHeaderMap(sheet);
+    const allData = sheet.getDataRange().getValues();
+    const assetIdColIndex = map["Asset ID"] - 1;
+
+    const row = allData.find(r => r[assetIdColIndex] == id);
+    if (!row) return { status: "error", message: "Asset Not Found" };
+
+    const getVal = (header) => {
+        const idx = map[header];
+        return idx ? row[idx - 1] : "";
+    };
+
+    // Calculate Statuses
+    const today = new Date();
+
+    // Warranty Status
+    let warrantyStatus = "Expired";
+    let warrantyColor = "red";
+    const wExpiryStr = getVal("Warranty Expiry");
+    if (wExpiryStr) {
+        const wExpiry = new Date(wExpiryStr);
+        if (wExpiry > today) {
+            const daysLeft = (wExpiry - today) / (1000 * 60 * 60 * 24);
+            if (daysLeft < 30) { warrantyStatus = "Expiring Soon"; warrantyColor = "orange"; }
+            else { warrantyStatus = "Active"; warrantyColor = "green"; }
+        }
+    } else {
+        warrantyStatus = "Not Applicable";
+        warrantyColor = "gray";
+    }
+
+    // AMC Status
+    let amcStatus = "Not Taken";
+    let amcColor = "gray";
+    if (getVal("AMC Taken") === "Yes") {
+        const aExpiryStr = getVal("AMC Expiry");
+        if (aExpiryStr) {
+            const aExpiry = new Date(aExpiryStr);
+            if (aExpiry < today) { amcStatus = "Expired"; amcColor = "red"; }
+            else {
+                const daysLeft = (aExpiry - today) / (1000 * 60 * 60 * 24);
+                if (daysLeft < 30) { amcStatus = "Expiring Soon"; amcColor = "orange"; }
+                else { amcStatus = "Active"; amcColor = "green"; }
+            }
+        }
+    }
+
+    // Replacement Info
     let replacementInfo = null;
-    if (d.status === "Replaced" && d.replacedById) {
-        replacementInfo = { newAssetId: d.replacedById };
+    if (getVal("Status") === "Replaced" && getVal("Replaced By ID")) {
+        replacementInfo = { newAssetId: getVal("Replaced By ID") };
     }
 
     return {
         status: "success",
         data: {
-            id: d.id,
-            machineName: d.machineName,
-            purchaseDate: d.purchaseDate,
-            nextServiceDate: d.nextServiceDate,
-            lastRemark: d.remark,
-            status: publicStatus,
+            id: row[assetIdColIndex],
+            machineName: getVal("Machine Name"),
+            serialNumber: getVal("Serial Number"),
+            department: getVal("Department"), // NEW
+            location: getVal("Location"),     // NEW
+            status: getVal("Status"),
+            installDate: formatDate(new Date(getVal("Purchase Date"))),
+            warrantyStatus: warrantyStatus,
+            warrantyColor: warrantyColor,
+            amcStatus: amcStatus,
+            amcColor: amcColor,
+            nextService: formatDate(new Date(getVal("Next Service Date"))),
+            replacedById: getVal("Replaced By ID"),
             replacementInfo: replacementInfo
         }
     };
@@ -658,16 +790,20 @@ function getPublicAssetDetails(id) {
 function addServiceRecord(data) {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    const map = getHeaderMap(sheet); // Dynamic Map
     const allData = sheet.getDataRange().getValues();
-    const rowIndex = allData.findIndex(r => r[0] == data.id);
+    const assetIdColIndex = map["Asset ID"] - 1;
+
+    // Find Row
+    const rowIndex = allData.findIndex(r => r[assetIdColIndex] == data.id);
     if (rowIndex === -1) return { status: "error", message: "Asset Not Found" };
     const realRowIndex = rowIndex + 1;
 
-    // Upload Logic
+    // 1. Upload Logic (Existing - Unchanged mostly)
     let fileUrl = "";
     if (data.serviceFile && data.serviceFileName) {
         try {
-            const assetFolderUrl = allData[rowIndex][9];
+            const assetFolderUrl = allData[rowIndex][map["Folder Link"] - 1];
             const assetFolderId = assetFolderUrl.match(/[-\w]{25,}/)[0];
             const assetFolder = DriveApp.getFolderById(assetFolderId);
             let serviceHistoryFolder;
@@ -675,8 +811,6 @@ function addServiceRecord(data) {
             if (historyFolders.hasNext()) serviceHistoryFolder = historyFolders.next();
             else serviceHistoryFolder = assetFolder.createFolder("Service History");
 
-            // Create folder for year/month? Or just file. 
-            // Phase 2: Create Date Folder: "14-Feb-2026 Service"
             const dateStr = formatDate(new Date(data.serviceDate));
             let cycleFolder = serviceHistoryFolder.createFolder(dateStr + (data.cost ? ` - ₹${data.cost}` : ""));
 
@@ -687,33 +821,51 @@ function addServiceRecord(data) {
         } catch (e) { console.log(e); }
     }
 
-    // 2. Update Sheet (Next Service Date, Last Service Date, Remark, Status, Total Cost)
-    // Columns: 
-    // Current Service Date (5) -> Index 6
-    // Next Service Date (6) -> Index 7
-    // Remark (7) -> Index 8
-    // Status (12) -> Index 13
-    // Total Cost (21) -> Index 22
+    // 2. Update Asset Sheet using Map
+    const update = (headerName, val) => {
+        if (map[headerName] && val !== undefined && val !== null && val !== "") {
+            sheet.getRange(realRowIndex, map[headerName]).setValue(val);
+        }
+    };
 
-    sheet.getRange(realRowIndex, 6).setValue(data.serviceDate);
-    sheet.getRange(realRowIndex, 7).setValue(data.nextServiceDate);
-    sheet.getRange(realRowIndex, 8).setValue(data.remark);
+    update("Current Service Date", data.serviceDate);
+    update("Next Service Date", data.nextServiceDate);
+    update("Remark", data.remark); // Update last remark
 
     // Status Update
     if (data.statusOverride) {
-        sheet.getRange(realRowIndex, 13).setValue(data.statusOverride);
+        update("Status", data.statusOverride);
     } else {
-        sheet.getRange(realRowIndex, 13).setValue("Active");
+        update("Status", "Active");
     }
 
-    // Cost Update
+    // Cost Update (Total Service Cost)
     if (data.cost) {
-        let currentTotal = allData[rowIndex][21] || 0; // Index 21 is Column 22 (0-based array)
+        const totalCostColIdx = map["Total Service Cost"] - 1;
+        let currentTotal = allData[rowIndex][totalCostColIdx] || 0;
         let newTotal = parseFloat(currentTotal) + parseFloat(data.cost);
-        sheet.getRange(realRowIndex, 22).setValue(newTotal);
+        sheet.getRange(realRowIndex, map["Total Service Cost"]).setValue(newTotal);
     }
 
-    sendWhatsAppAlert(`🛠 Service/Update:\nAsset: ${data.id}\nRemark: ${data.remark}\nCost: ₹${data.cost || 0}`);
+    // 3. LOG TO 'service_logs' SHEET (Mapped)
+    let logsSheet = ss.getSheetByName("service_logs");
+    if (!logsSheet) {
+        logsSheet = ss.insertSheet("service_logs");
+        logsSheet.appendRow(["Asset ID", "Service Date", "Type", "Cost", "Remark", "File URL"]);
+        logsSheet.setFrozenRows(1);
+        logsSheet.getRange(1, 1, 1, 6).setFontWeight("bold");
+    }
+
+    logsSheet.appendRow([
+        data.id,
+        data.serviceDate,
+        data.serviceType || "Paid", // Default to Paid if not provided
+        data.cost || 0,
+        data.remark,
+        fileUrl
+    ]);
+
+    sendWhatsAppAlert(`🛠 Service/Update:\nAsset: ${data.id}\nType: ${data.serviceType || "Paid"}\nCost: ₹${data.cost || 0}`);
     return { status: "success", message: "Service Record Added" };
 }
 
@@ -731,8 +883,21 @@ function sendWhatsAppAlert(message, specificNumber) {
 }
 
 /****************************************************************
- * 🚀 PHASE 7: MASTER UPGRADE - NOTIFICATIONS & LOGIC ENGINE
+ * 🚀 PHASE 8: MASTER REPAIR SETUP
  ****************************************************************/
+
+function setupMasterRepair() {
+    setupMasterUpgrade(); // Dept Master
+    // Ensure Service Logs Sheet
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    let logsSheet = ss.getSheetByName("service_logs");
+    if (!logsSheet) {
+        logsSheet = ss.insertSheet("service_logs");
+        logsSheet.appendRow(["Asset ID", "Service Date", "Type", "Cost", "Remark", "File URL"]);
+        logsSheet.setFrozenRows(1);
+        logsSheet.getRange(1, 1, 1, 6).setFontWeight("bold");
+    }
+}
 
 function setupMasterUpgrade() {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -771,6 +936,21 @@ function setupMasterUpgrade() {
         ];
         deptSheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
     }
+}
+
+// 5. SETUP DAILY TRIGGER (Run manually once)
+function setupDailyTrigger() {
+    var triggers = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === 'checkDailyReminders') {
+            ScriptApp.deleteTrigger(triggers[i]);
+        }
+    }
+    ScriptApp.newTrigger('checkDailyReminders')
+        .timeBased()
+        .everyDays(1)
+        .atHour(9) // Run at 9 AM
+        .create();
 }
 
 // Daily Trigger Logic
@@ -877,4 +1057,3 @@ function formatDate(date) {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
 }
-

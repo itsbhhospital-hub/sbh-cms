@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { ShieldCheck, AlertTriangle, Clock, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Clock, Calendar, CheckCircle, XCircle, AlertCircle, Download, ExternalLink, MapPin, Building, Activity, FileText } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const PublicAssetView = () => {
     const { id } = useParams();
@@ -9,6 +11,7 @@ const PublicAssetView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [age, setAge] = useState('');
+    const qrRef = useRef(null);
 
     useEffect(() => {
         fetchPublicDetails();
@@ -49,7 +52,19 @@ const PublicAssetView = () => {
             years--;
             months += 12;
         }
-        return `${years} Years ${months} Months ${days} Days Old`;
+        return `${years} Years, ${months} Months`;
+    };
+
+    const downloadPDF = () => {
+        const input = qrRef.current;
+        html2canvas(input, { scale: 2 }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Asset_${asset.id}.pdf`);
+        });
     };
 
     // --- LOGIC ENGINES ---
@@ -99,104 +114,147 @@ const PublicAssetView = () => {
         </div>
     );
 
-    const isReplaced = asset.checkStatus === 'Replaced' || asset.status === 'Replaced' || asset.status === 'Retired';
+    const isReplaced = asset.status === 'Replaced' || asset.status === 'Retired';
+
+    // Status Logic (Use Backend Data if available, fallback to frontend)
+    // Backend returns: warrantyStatus, warrantyColor, amcStatus, amcColor
     const serviceStat = getServiceStatus(asset.nextServiceDate);
-    const amcStat = getExpiryStatus(asset.amcExpiry);
-    const warrantyStat = getExpiryStatus(asset.warrantyExpiry);
 
     return (
-        <div className="min-h-screen bg-[#f8faf9] py-8 px-4 flex justify-center">
-            <div className={`w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative ${isReplaced ? 'grayscale' : ''}`}>
+        <div className="min-h-screen bg-[#f8faf9] py-8 px-4 flex flex-col items-center">
+
+            <div ref={qrRef} className={`w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative ${isReplaced ? 'grayscale' : ''}`}>
 
                 {/* HEADLINE */}
-                <div className="bg-[#1f2d2a] p-6 text-center pt-8 pb-10 relative overflow-hidden">
-                    <div className="relative z-10">
-                        <img src="/sbh_wide.jpg" alt="SBH" className="h-8 mx-auto mb-4 object-contain brightness-0 invert" />
-                        <h1 className="text-xl font-black text-white tracking-wide">{asset.machineName}</h1>
-                        <p className="text-emerald-400 font-bold text-sm mt-1 tracking-widest uppercase">ID: {asset.id}</p>
+                <div className="bg-[#1f2d2a] p-8 text-center pt-10 pb-12 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 mb-4 border-b border-white/10 pb-2">Property of SBH Group of Hospitals</p>
+                        <img src="/sbh_wide.jpg" alt="SBH" className="h-12 mx-auto mb-4 object-contain brightness-0 invert opacity-90" />
+                        <h1 className="text-2xl font-black text-white tracking-wide leading-tight px-4">{asset.machineName}</h1>
+                        <div className="mt-3 inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-sm shadow-sm">
+                            <span className={`w-2 h-2 rounded-full ${isReplaced ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}`}></span>
+                            <p className="text-emerald-50 font-black text-sm tracking-widest uppercase">{asset.id}</p>
+                        </div>
                     </div>
                 </div>
 
                 <div className="px-6 pb-8 -mt-6 relative z-10 space-y-6">
 
-                    {/* MACHINE AGE CARD */}
-                    <div className="bg-white p-5 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Machine Age</p>
-                        <p className="text-[#1f2d2a] font-black text-lg">{age || 'N/A'}</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-1">Since {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'Unknown'}</p>
-                    </div>
-
-                    {/* BASIC INFO GRID */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-black uppercase">Model</p>
-                            <p className="text-xs font-bold text-slate-700 truncate">{asset.machineName}</p>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-black uppercase">Serial No</p>
-                            <p className="text-xs font-bold text-slate-700 truncate">{asset.serialNumber || 'N/A'}</p>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-black uppercase">Department</p>
-                            <p className="text-xs font-bold text-slate-700 truncate">{asset.department || 'N/A'}</p>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-black uppercase">Location</p>
-                            <p className="text-xs font-bold text-slate-700 truncate">{asset.location || 'N/A'}</p>
-                        </div>
-                    </div>
-
-                    {/* SERVICE STATUS */}
-                    <div className={`p-4 rounded-xl border-2 ${serviceStat.bg} ${serviceStat.border} flex items-center justify-between`}>
-                        <div>
-                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">Service Status</p>
-                            <div className={`flex items-center gap-2 font-black text-lg ${serviceStat.color}`}>
-                                <serviceStat.icon size={20} />
-                                {serviceStat.text}
+                    {/* STATUS BANNER */}
+                    {isReplaced && (
+                        <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl flex items-start gap-3 text-rose-800">
+                            <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+                            <div>
+                                <h3 className="font-black text-sm uppercase tracking-wide">Asset Replaced</h3>
+                                <div className="text-xs mt-1 font-medium opacity-80">
+                                    <p>This asset is no longer in active service.</p>
+                                    {asset.replacementInfo && (
+                                        <p className="mt-1 font-bold">Replaced by: {asset.replacementInfo.newAssetId}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest">Next Due</p>
-                            <p className="font-bold text-slate-700 text-sm">{asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : 'N/A'}</p>
+                    )}
+
+                    {/* KEY METRICS GRID */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                            <Activity size={20} className="text-[#2e7d32] mb-2" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Machine Age</p>
+                            <p className="text-[#1f2d2a] font-black text-lg mt-1">{age || 'N/A'}</p>
+                        </div>
+                        <div className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center ${serviceStat.bg}`}>
+                            <serviceStat.icon size={20} className={serviceStat.color} />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{serviceStat.text === 'OK' ? 'Service Status' : 'Attention Needed'}</p>
+                            <p className={`font-black text-lg mt-1 ${serviceStat.color}`}>{serviceStat.text}</p>
                         </div>
                     </div>
 
-                    {/* WARRANTY & AMC */}
-                    <div className="space-y-3">
+                    {/* DETAILS LIST */}
+                    <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100/50">
+                        <div className="flex justify-between p-4 bg-white/50 first:rounded-t-2xl">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-white rounded-md text-slate-400 border border-slate-100 shadow-sm"><ShieldCheck size={14} /></div>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Serial No</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-700">{asset.serialNumber || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between p-4 bg-white/50">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-white rounded-md text-slate-400 border border-slate-100 shadow-sm"><Building size={14} /></div>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Department</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-700">{asset.department || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between p-4 bg-white/50">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-white rounded-md text-slate-400 border border-slate-100 shadow-sm"><MapPin size={14} /></div>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Location</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-700">{asset.location || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between p-4 bg-white/50 last:rounded-b-2xl">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-white rounded-md text-slate-400 border border-slate-100 shadow-sm"><Calendar size={14} /></div>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Install Date</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-700">{asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                    </div>
+
+                    {/* AMC & WARRANTY STATUS (Using Backend Data) */}
+                    <div className="grid grid-cols-1 gap-3">
                         {/* Warranty */}
-                        <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                        <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${asset.warrantyColor === 'green' ? 'bg-emerald-500' : asset.warrantyColor === 'orange' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
                             <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Warranty</p>
-                                <p className={`text-xs font-black mt-0.5 ${warrantyStat.color}`}>{warrantyStat.text}</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Warranty Status</p>
+                                <p className={`text-sm font-black mt-0.5 ${asset.warrantyColor === 'green' ? 'text-emerald-600' : asset.warrantyColor === 'orange' ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {asset.warrantyStatus}
+                                </p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-400">Valid Till</p>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Expires</span>
                                 <p className="text-xs font-bold text-slate-700">{asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toLocaleDateString() : 'N/A'}</p>
                             </div>
                         </div>
 
                         {/* AMC */}
-                        <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                        <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${asset.amcColor === 'green' ? 'bg-indigo-500' : asset.amcColor === 'orange' ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
                             <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase">AMC Subscription</p>
-                                <p className={`text-xs font-black mt-0.5 ${amcStat.color}`}>
-                                    {asset.amcTaken === 'Yes' ? amcStat.text : 'NOT SUBSCRIBED'}
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AMC Subscription</p>
+                                <p className={`text-sm font-black mt-0.5 ${asset.amcColor === 'green' ? 'text-indigo-600' : asset.amcColor === 'orange' ? 'text-amber-600' : 'text-slate-500'}`}>
+                                    {asset.amcStatus}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-400">Valid Till</p>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Expires</span>
                                 <p className="text-xs font-bold text-slate-700">{asset.amcExpiry ? new Date(asset.amcExpiry).toLocaleDateString() : 'N/A'}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* FOOTER */}
-                    <div className="pt-8 text-center opacity-40">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1f2d2a]">SBH Group Of Hospitals</p>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-[#1f2d2a] mt-1">Automated Generated System</p>
+                    <div className="pt-6 text-center">
+                        <div className="w-12 h-1 bg-slate-100 mx-auto rounded-full mb-4"></div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">SBH Group Of Hospitals</p>
+                        <p className="text-[8px] font-bold uppercase tracking-widest text-[#2e7d32]/40 mt-1">Official Asset Verification System</p>
                     </div>
 
                 </div>
+            </div>
+
+            {/* ACTION BUTTONS (Outside PDF Capture) */}
+            <div className="mt-8 flex gap-4 w-full max-w-lg px-2">
+                <button
+                    onClick={downloadPDF}
+                    className="flex-1 bg-[#1f2d2a] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#1f2d2a]/20 active:scale-95 transition-transform"
+                >
+                    <Download size={20} />
+                    Download Record
+                </button>
             </div>
         </div>
     );

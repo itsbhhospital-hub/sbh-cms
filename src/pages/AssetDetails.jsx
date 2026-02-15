@@ -41,9 +41,20 @@ const AssetDetails = () => {
         serviceDate: new Date().toISOString().split('T')[0],
         nextServiceDate: '',
         remark: '',
+        cost: '',
         file: null,
         fileName: ''
     });
+
+    // Success Popup State
+    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const triggerSuccess = (msg) => {
+        setSuccessMessage(msg);
+        setShowSuccessPopup(true);
+        setTimeout(() => setShowSuccessPopup(false), 3000);
+    };
 
     // Fetch Details
     const fetchDetails = async () => {
@@ -118,7 +129,9 @@ const AssetDetails = () => {
             amcStart: asset.amcStart ? new Date(asset.amcStart).toISOString().split('T')[0] : '',
             amcExpiry: asset.amcExpiry ? new Date(asset.amcExpiry).toISOString().split('T')[0] : '',
             amcAmount: asset.amcAmount || '',
-            purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : ''
+            purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+            currentServiceDate: asset.currentServiceDate ? new Date(asset.currentServiceDate).toISOString().split('T')[0] : '',
+            nextServiceDate: asset.nextServiceDate ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : ''
         });
         setShowEditModal(true);
     };
@@ -130,6 +143,7 @@ const AssetDetails = () => {
             await assetsService.editAsset(editForm);
             await fetchDetails();
             setShowEditModal(false);
+            triggerSuccess("Asset Updated Successfully!");
         } catch (error) {
             console.error("Edit failed", error);
             alert("Failed to update asset.");
@@ -158,6 +172,7 @@ const AssetDetails = () => {
             });
             await fetchDetails();
             setShowReplaceModal(false);
+            triggerSuccess("Asset Replaced Successfully!");
         } catch (error) {
             console.error("Replacement failed", error);
             alert("Failed to process replacement.");
@@ -175,7 +190,8 @@ const AssetDetails = () => {
                     id: asset.id,
                     serviceDate: serviceForm.serviceDate,
                     nextServiceDate: serviceForm.nextServiceDate,
-                    remark: serviceForm.remark
+                    remark: serviceForm.remark,
+                    cost: serviceForm.cost // Ensure cost is passed if added to form
                 },
                 serviceForm.file,
                 serviceForm.fileName,
@@ -183,6 +199,7 @@ const AssetDetails = () => {
             );
             await fetchDetails();
             setShowServiceModal(false);
+            triggerSuccess("Service Record Added!");
         } catch (error) {
             console.error("Service record failed", error);
             alert("Failed to add service record.");
@@ -199,6 +216,21 @@ const AssetDetails = () => {
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
+            {/* Success Popup */}
+            {showSuccessPopup && (
+                <div className="fixed top-6 right-6 z-[100] animate-slide-in">
+                    <div className="bg-[#1f2d2a] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-[#2e7d32]/20">
+                        <div className="bg-[#2e7d32] p-2 rounded-full text-white">
+                            <CheckCircle size={24} />
+                        </div>
+                        <div>
+                            <h4 className="font-black text-sm uppercase tracking-wider text-[#4ade80]">Success</h4>
+                            <p className="font-bold text-sm">{successMessage}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <button
                 onClick={() => navigate('/assets')}
                 className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#2e7d32] transition-colors"
@@ -556,6 +588,17 @@ const AssetDetails = () => {
                                 </div>
 
                                 <div>
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Cost (₹)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                        value={serviceForm.cost}
+                                        onChange={e => setServiceForm({ ...serviceForm, cost: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
                                     <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Remarks</label>
                                     <textarea
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium"
@@ -660,6 +703,22 @@ const AssetDetails = () => {
                                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Purchase Date</label>
                                         <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
                                             value={editForm.purchaseDate || ''} onChange={e => setEditForm({ ...editForm, purchaseDate: e.target.value })} />
+                                    </div>
+                                </div>
+
+                                {/* New Field: Last Service Date */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Last Service Date</label>
+                                        <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                            value={editForm.currentServiceDate ? new Date(editForm.currentServiceDate).toISOString().split('T')[0] : ''}
+                                            onChange={e => setEditForm({ ...editForm, currentServiceDate: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Next Service Date</label>
+                                        <input type="date" className="w-full bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 font-bold text-emerald-800"
+                                            value={editForm.nextServiceDate ? new Date(editForm.nextServiceDate).toISOString().split('T')[0] : ''}
+                                            onChange={e => setEditForm({ ...editForm, nextServiceDate: e.target.value })} />
                                     </div>
                                 </div>
 
