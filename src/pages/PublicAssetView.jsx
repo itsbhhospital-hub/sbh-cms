@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ShieldCheck, AlertTriangle, Clock, Calendar } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Clock, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 
 const PublicAssetView = () => {
@@ -8,6 +8,7 @@ const PublicAssetView = () => {
     const [asset, setAsset] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [age, setAge] = useState('');
 
     useEffect(() => {
         fetchPublicDetails();
@@ -19,6 +20,9 @@ const PublicAssetView = () => {
             const data = await assetsService.getPublicAssetDetails(id);
             if (data) {
                 setAsset(data);
+                if (data.purchaseDate) {
+                    setAge(calculateAge(data.purchaseDate));
+                }
             } else {
                 setError("Asset details not found.");
             }
@@ -28,6 +32,55 @@ const PublicAssetView = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const calculateAge = (dateString) => {
+        const today = new Date();
+        const birthDate = new Date(dateString);
+        let years = today.getFullYear() - birthDate.getFullYear();
+        let months = today.getMonth() - birthDate.getMonth();
+        let days = today.getDate() - birthDate.getDate();
+
+        if (days < 0) {
+            months--;
+            days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        }
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+        return `${years} Years ${months} Months ${days} Days Old`;
+    };
+
+    // --- LOGIC ENGINES ---
+    const getServiceStatus = (nextDate) => {
+        if (!nextDate) return { text: 'N/A', color: 'text-slate-400', bg: 'bg-slate-100', icon: Clock };
+        const today = new Date();
+        const next = new Date(nextDate);
+        next.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        const diffTime = next - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return { text: 'OVERDUE', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', icon: XCircle };
+        if (diffDays <= 20) return { text: 'DUE SOON', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: AlertCircle };
+        return { text: 'OK', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle };
+    };
+
+    const getExpiryStatus = (expiryDate) => {
+        if (!expiryDate) return { text: 'Not Active', color: 'text-slate-400', bg: 'bg-slate-50' };
+        const today = new Date();
+        const exp = new Date(expiryDate);
+        exp.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        const diffTime = exp - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return { text: 'EXPIRED', color: 'text-rose-600', bg: 'bg-rose-50', title: 'Expired' };
+        if (diffDays <= 30) return { text: 'EXPIRING SOON', color: 'text-amber-600', bg: 'bg-amber-50', title: 'Expiring' };
+        return { text: 'ACTIVE', color: 'text-emerald-600', bg: 'bg-emerald-50', title: 'Active' };
     };
 
     if (loading) return (
@@ -46,127 +99,101 @@ const PublicAssetView = () => {
         </div>
     );
 
-    const isOverdue = asset.status === 'Service Due';
-    const isReplaced = asset.status === 'Replaced' || asset.status === 'Retired';
+    const isReplaced = asset.checkStatus === 'Replaced' || asset.status === 'Replaced' || asset.status === 'Retired';
+    const serviceStat = getServiceStatus(asset.nextServiceDate);
+    const amcStat = getExpiryStatus(asset.amcExpiry);
+    const warrantyStat = getExpiryStatus(asset.warrantyExpiry);
 
     return (
-        <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center p-4 md:p-8">
-            <div className={`w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative ${isReplaced ? 'grayscale' : ''}`}>
+        <div className="min-h-screen bg-[#f8faf9] py-8 px-4 flex justify-center">
+            <div className={`w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative ${isReplaced ? 'grayscale' : ''}`}>
 
-                {/* Header Banner */}
-                <div className={`h-32 ${isReplaced ? 'bg-slate-700' : isOverdue ? 'bg-amber-500' : 'bg-[#2e7d32]'} relative flex items-center justify-center overflow-hidden`}>
-                    <div className="absolute inset-0 bg-black/10"></div>
-                    {/* Background Pattern */}
-                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
-
-                    <div className="bg-white p-4 rounded-full shadow-lg relative z-10 -mb-16">
-                        <img src="/sbh_wide.jpg" alt="Logo" className="h-8 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x40?text=SBH'; }} />
+                {/* HEADLINE */}
+                <div className="bg-[#1f2d2a] p-6 text-center pt-8 pb-10 relative overflow-hidden">
+                    <div className="relative z-10">
+                        <img src="/sbh_wide.jpg" alt="SBH" className="h-8 mx-auto mb-4 object-contain brightness-0 invert" />
+                        <h1 className="text-xl font-black text-white tracking-wide">{asset.machineName}</h1>
+                        <p className="text-emerald-400 font-bold text-sm mt-1 tracking-widest uppercase">ID: {asset.id}</p>
                     </div>
                 </div>
 
-                <div className="pt-20 px-8 pb-8 text-center">
+                <div className="px-6 pb-8 -mt-6 relative z-10 space-y-6">
 
-                    <h1 className="text-2xl font-black text-[#1f2d2a] mb-1">{asset.machineName}</h1>
-                    <span className="inline-block bg-slate-100 text-slate-500 font-bold px-3 py-1 text-xs rounded-lg uppercase tracking-widest mb-2">
-                        ID: {asset.id}
-                    </span>
-                    {asset.serialNumber && (
-                        <p className="text-sm font-medium text-slate-500 mb-6">SN: {asset.serialNumber}</p>
-                    )}
+                    {/* MACHINE AGE CARD */}
+                    <div className="bg-white p-5 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Machine Age</p>
+                        <p className="text-[#1f2d2a] font-black text-lg">{age || 'N/A'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1">Since {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'Unknown'}</p>
+                    </div>
 
-                    {/* Replaced Warning */}
-                    {isReplaced && (
-                        <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex flex-col items-center gap-2">
-                            <div className="px-3 py-1 bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                                <AlertTriangle size={12} />
-                                Asset Decommissioned
-                            </div>
-                            <p className="text-xs text-rose-800 font-bold">
-                                This asset has been {asset.status.toLowerCase()}.
-                            </p>
-                            {asset.replacedById && (
-                                <div className="mt-2 w-full p-3 bg-white border border-rose-100 rounded-xl space-y-1">
-                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Replaced By</p>
-                                    <a href={`/asset-view/${asset.replacedById}`} className="block text-rose-600 font-black text-lg hover:underline">
-                                        {asset.replacedById}
-                                    </a>
-                                </div>
-                            )}
+                    {/* BASIC INFO GRID */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Model</p>
+                            <p className="text-xs font-bold text-slate-700 truncate">{asset.machineName}</p>
                         </div>
-                    )}
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Serial No</p>
+                            <p className="text-xs font-bold text-slate-700 truncate">{asset.serialNumber || 'N/A'}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Department</p>
+                            <p className="text-xs font-bold text-slate-700 truncate">{asset.department || 'N/A'}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-black uppercase">Location</p>
+                            <p className="text-xs font-bold text-slate-700 truncate">{asset.location || 'N/A'}</p>
+                        </div>
+                    </div>
 
-                    {!isReplaced && (
-                        <div className="space-y-4 text-left">
-                            {/* Status Card */}
-                            <div className={`p-4 rounded-2xl border flex items-center gap-4 ${isOverdue ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isOverdue ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                    {isOverdue ? <Clock size={20} /> : <ShieldCheck size={20} />}
-                                </div>
-                                <div>
-                                    <p className="text-xs font-black uppercase tracking-widest opacity-60">System Status</p>
-                                    <p className={`text-lg font-black ${isOverdue ? 'text-amber-700' : 'text-emerald-700'}`}>
-                                        {asset.status || 'Active'}
-                                    </p>
-                                </div>
+                    {/* SERVICE STATUS */}
+                    <div className={`p-4 rounded-xl border-2 ${serviceStat.bg} ${serviceStat.border} flex items-center justify-between`}>
+                        <div>
+                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">Service Status</p>
+                            <div className={`flex items-center gap-2 font-black text-lg ${serviceStat.color}`}>
+                                <serviceStat.icon size={20} />
+                                {serviceStat.text}
                             </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest">Next Due</p>
+                            <p className="font-bold text-slate-700 text-sm">{asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                    </div>
 
-                            {/* Location & Department */}
-                            {(asset.location || asset.department) && (
-                                <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm grid grid-cols-2 gap-4">
-                                    {asset.department && (
-                                        <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</p>
-                                            <p className="font-bold text-[#1f2d2a] text-sm">{asset.department}</p>
-                                        </div>
-                                    )}
-                                    {asset.location && (
-                                        <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
-                                            <p className="font-bold text-[#1f2d2a] text-sm">{asset.location}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Warranty & AMC */}
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Warranty</p>
-                                    <p className="font-bold text-slate-700 text-sm">
-                                        {asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toLocaleDateString() : 'N/A'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AMC Status</p>
-                                    <p className="font-bold text-slate-700 text-sm">
-                                        {asset.amcTaken === 'Yes' ? 'Active' : 'None'}
-                                    </p>
-                                </div>
+                    {/* WARRANTY & AMC */}
+                    <div className="space-y-3">
+                        {/* Warranty */}
+                        <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">Warranty</p>
+                                <p className={`text-xs font-black mt-0.5 ${warrantyStat.color}`}>{warrantyStat.text}</p>
                             </div>
-
-                            {/* Next Service */}
-                            <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Calendar className="text-slate-400" size={20} />
-                                    <div>
-                                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Next Service</p>
-                                        <p className="font-bold text-[#1f2d2a]">{asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : 'N/A'}</p>
-                                    </div>
-                                </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-slate-400">Valid Till</p>
+                                <p className="text-xs font-bold text-slate-700">{asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toLocaleDateString() : 'N/A'}</p>
                             </div>
+                        </div>
 
-                            {/* Last Remark */}
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Last Maintenance Note</p>
-                                <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                                    {asset.lastRemark || 'No recent remarks.'}
+                        {/* AMC */}
+                        <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">AMC Subscription</p>
+                                <p className={`text-xs font-black mt-0.5 ${amcStat.color}`}>
+                                    {asset.amcTaken === 'Yes' ? amcStat.text : 'NOT SUBSCRIBED'}
                                 </p>
                             </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-slate-400">Valid Till</p>
+                                <p className="text-xs font-bold text-slate-700">{asset.amcExpiry ? new Date(asset.amcExpiry).toLocaleDateString() : 'N/A'}</p>
+                            </div>
                         </div>
-                    )}
+                    </div>
 
-                    <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-                        <p className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em]">SBH Assets System • Verified Identity</p>
+                    {/* FOOTER */}
+                    <div className="pt-8 text-center opacity-40">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1f2d2a]">SBH Group Of Hospitals</p>
+                        <p className="text-[8px] font-bold uppercase tracking-widest text-[#1f2d2a] mt-1">Automated Generated System</p>
                     </div>
 
                 </div>

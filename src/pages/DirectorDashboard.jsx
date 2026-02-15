@@ -91,8 +91,8 @@ const DirectorDashboard = () => {
                     <h3 className="text-lg font-black text-[#1f2d2a] mb-6 flex items-center gap-2">
                         <Activity className="text-slate-400" /> Asset Health Distribution
                     </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-64" style={{ minHeight: '250px' }}>
+                        <ResponsiveContainer width="99%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={healthData}

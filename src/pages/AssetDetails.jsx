@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Calendar, FileText,
     Clock, Wrench, Download, CheckCircle, UploadCloud,
-    Banknote, RefreshCw, Edit, AlertTriangle, Sparkles, ShieldCheck, MapPin, Building
+    Banknote, RefreshCw, Edit, AlertTriangle, Sparkles, ShieldCheck, MapPin, Building,
+    Activity, History
 } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 import QRCode from 'react-qr-code';
@@ -17,6 +18,7 @@ const AssetDetails = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('details'); // 'details' or 'ai'
     const [submitting, setSubmitting] = useState(false);
+    const [age, setAge] = useState('');
 
     // Modals State
     const [showEditModal, setShowEditModal] = useState(false);
@@ -49,6 +51,9 @@ const AssetDetails = () => {
             setLoading(true);
             const data = await assetsService.getAssetDetails(id);
             setAsset(data);
+            if (data && data.purchaseDate) {
+                setAge(calculateAge(data.purchaseDate));
+            }
         } catch (error) {
             console.error("Error fetching asset details", error);
         } finally {
@@ -60,11 +65,51 @@ const AssetDetails = () => {
         if (id) fetchDetails();
     }, [id]);
 
+    const calculateAge = (dateString) => {
+        const today = new Date();
+        const birthDate = new Date(dateString);
+        let years = today.getFullYear() - birthDate.getFullYear();
+        let months = today.getMonth() - birthDate.getMonth();
+        let days = today.getDate() - birthDate.getDate();
+
+        if (days < 0) {
+            months--;
+            days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        }
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+        return `${years} Years, ${months} Months`;
+    };
+
+    // --- SMART STATUS LOGIC (Matching Dashboard) ---
+    const getSmartStatus = () => {
+        if (!asset) return { text: 'Loading...', color: 'bg-slate-100 text-slate-500' };
+        if (asset.status === 'Replaced') return { text: 'Replaced', color: 'bg-slate-200 text-slate-600 border-slate-300' };
+        if (asset.status === 'Retired') return { text: 'Retired', color: 'bg-slate-100 text-slate-500 border-slate-200' };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextService = asset.nextServiceDate ? new Date(asset.nextServiceDate) : null;
+
+        // Service Status
+        if (nextService) {
+            const diffTime = nextService - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return { text: 'Service Overdue', color: 'bg-rose-100 text-rose-700 border-rose-200' };
+            if (diffDays <= 20) return { text: 'Service Due Soon', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+        }
+
+        // Fallback to Active
+        return { text: 'Active', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+    };
+
     // Handlers
     const openEditModal = () => {
         setEditForm({
             ...asset,
-            // Ensure fields exist
             location: asset.location || '',
             department: asset.department || '',
             warrantyType: asset.warrantyType || 'None',
@@ -99,8 +144,17 @@ const AssetDetails = () => {
         try {
             await assetsService.markAsReplaced({
                 id: asset.id,
-                ...replaceForm,
-                createdBy: 'Admin' // Should use auth context
+                reason: replaceForm.reason,
+                remark: replaceForm.remark,
+                createdBy: 'Admin',
+                newMachineData: {
+                    machineName: replaceForm.newMachineName,
+                    serialNumber: replaceForm.newSerialNumber,
+                    purchaseCost: replaceForm.newPurchaseCost,
+                    purchaseDate: replaceForm.newPurchaseDate,
+                    invoiceFile: replaceForm.newInvoiceFile,
+                    invoiceName: replaceForm.newInvoiceName
+                }
             });
             await fetchDetails();
             setShowReplaceModal(false);
@@ -137,10 +191,11 @@ const AssetDetails = () => {
         }
     };
 
-    if (loading) return <div className="p-12 text-center text-slate-400 font-black uppercase tracking-widest">Loading Asset Details...</div>;
+    if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-[#2e7d32] border-t-transparent rounded-full animate-spin"></div></div>;
     if (!asset) return <div className="p-12 text-center text-rose-500 font-black uppercase tracking-widest">Asset Not Found</div>;
 
     const publicLink = `${window.location.origin}/asset-view/${asset.id}`;
+    const statusBadge = getSmartStatus();
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -224,23 +279,51 @@ const AssetDetails = () => {
 
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <span className="bg-[#1f2d2a] text-white px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest">
-                                        {asset.id}
-                                    </span>
-                                    <h1 className="text-3xl font-black text-[#1f2d2a] mt-3">{asset.machineName}</h1>
-                                    <p className="text-slate-500 font-bold mt-1">Serial: {asset.serialNumber}</p>
-                                    {asset.location && (
-                                        <div className="flex items-center gap-2 mt-2 text-slate-600 font-bold text-sm">
-                                            <MapPin size={16} className="text-[#2e7d32]" />
-                                            {asset.location}
-                                            {asset.department && <span className="opacity-50">| {asset.department}</span>}
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-[#1f2d2a] text-white px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest">
+                                            {asset.id}
+                                        </span>
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${statusBadge.color}`}>
+                                            {statusBadge.text}
+                                        </span>
+                                    </div>
+                                    <h1 className="text-3xl font-black text-[#1f2d2a]">{asset.machineName}</h1>
+                                    <p className="text-slate-500 font-bold mt-1">Serial: {asset.serialNumber || 'N/A'}</p>
+
+                                    <div className="mt-4 flex flex-wrap gap-4">
+                                        {asset.location && (
+                                            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                <MapPin size={16} className="text-[#2e7d32]" />
+                                                <div className="text-xs">
+                                                    <p className="font-black text-slate-400 uppercase tracking-wider text-[10px]">Location</p>
+                                                    <p className="font-bold text-slate-700">{asset.location}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {asset.department && (
+                                            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                <Building size={16} className="text-[#2e7d32]" />
+                                                <div className="text-xs">
+                                                    <p className="font-black text-slate-400 uppercase tracking-wider text-[10px]">Department</p>
+                                                    <p className="font-bold text-slate-700">{asset.department}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {age && (
+                                            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                <Activity size={16} className="text-[#2e7d32]" />
+                                                <div className="text-xs">
+                                                    <p className="font-black text-slate-400 uppercase tracking-wider text-[10px]">Machine Age</p>
+                                                    <p className="font-bold text-slate-700">{age}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 relative z-10">
                                     <button
                                         onClick={openEditModal}
-                                        className="p-2 text-slate-400 hover:text-[#1f2d2a] hover:bg-slate-100 rounded-lg transition-colors"
+                                        className="p-2.5 text-slate-400 hover:text-[#1f2d2a] hover:bg-slate-100 rounded-xl transition-colors border border-transparent hover:border-slate-200"
                                         title="Edit Asset"
                                     >
                                         <Edit size={20} />
@@ -248,15 +331,12 @@ const AssetDetails = () => {
                                     {asset.status !== 'Replaced' && (
                                         <button
                                             onClick={() => setShowReplaceModal(true)}
-                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100"
                                             title="Mark as Replaced"
                                         >
                                             <RefreshCw size={20} />
                                         </button>
                                     )}
-                                    <div className={`px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider border ${asset.status === 'Service Due' ? 'bg-amber-100 text-amber-700 border-amber-200' : asset.status === 'Replaced' ? 'bg-slate-200 text-slate-600 border-slate-300' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
-                                        {asset.status}
-                                    </div>
                                 </div>
                             </div>
 
@@ -265,7 +345,7 @@ const AssetDetails = () => {
                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Purchase Date</p>
                                     <div className="flex items-center gap-2 text-slate-700 font-bold">
                                         <Calendar size={18} className="text-[#2e7d32]" />
-                                        {new Date(asset.purchaseDate).toLocaleDateString()}
+                                        {asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'N/A'}
                                     </div>
                                 </div>
                                 <div>
@@ -322,7 +402,7 @@ const AssetDetails = () => {
                                 <div className="mt-4 p-3 bg-amber-500/20 rounded-xl border border-amber-500/30 text-amber-200 text-xs text-left">
                                     <strong>⚠️ Developer Note:</strong><br />
                                     You are on <code>localhost</code>. This QR code will not work on mobile.<br />
-                                    Access this page via your <strong>Network IP</strong> (check terminal) to test on phone.
+                                    Access via Network IP to test.
                                 </div>
                             )}
                         </div>
@@ -369,15 +449,19 @@ const AssetDetails = () => {
 
                     {/* Lifecycle Timeline */}
                     <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-xl font-black text-[#1f2d2a] uppercase tracking-wide flex items-center gap-2">
-                                <Clock className="text-[#2e7d32]" size={24} /> Lifecycle Timeline
-                            </h2>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                            <div>
+                                <h2 className="text-xl font-black text-[#1f2d2a] uppercase tracking-wide flex items-center gap-2">
+                                    <History className="text-[#2e7d32]" size={24} /> Service & Event Timeline
+                                </h2>
+                                <p className="text-sm text-slate-500 font-medium mt-1">Complete history of services, repairs, and updates.</p>
+                            </div>
                             <button
                                 onClick={() => setShowServiceModal(true)}
-                                className="flex items-center gap-2 bg-[#2e7d32] text-white px-4 py-2 rounded-xl font-bold hover:bg-[#1b5e20] transition-colors shadow-lg shadow-[#2e7d32]/20 text-sm"
+                                className="flex items-center gap-2 bg-[#2e7d32] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#1b5e20] transition-colors shadow-lg shadow-[#2e7d32]/20 text-sm"
                             >
-                                + Add Service Record
+                                <span className="bg-white/20 p-1 rounded-lg"><Wrench size={14} /></span>
+                                Add Service Record
                             </button>
                         </div>
 
@@ -405,23 +489,23 @@ const AssetDetails = () => {
                                     }
 
                                     return (
-                                        <div key={idx} className="relative pl-8">
-                                            <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 ${record.type === 'alert' ? 'border-rose-500' : record.type === 'event' ? 'border-blue-500' : 'border-[#2e7d32]'}`}></div>
-                                            <div className={`${bgColor} p-6 rounded-2xl border ${borderColor}`}>
+                                        <div key={idx} className="relative pl-8 group">
+                                            <div className={`absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-white border-4 ${record.type === 'alert' ? 'border-rose-500' : record.type === 'event' ? 'border-blue-500' : 'border-[#2e7d32]'} group-hover:scale-110 transition-transform`}></div>
+                                            <div className={`${bgColor} p-6 rounded-2xl border ${borderColor} hover:shadow-md transition-shadow`}>
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`p-1.5 rounded-lg bg-white/50 ${titleColor}`}>{icon}</div>
-                                                        <h4 className={`font-bold ${titleColor}`}>{record.name}</h4>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`p-2 rounded-lg bg-white/60 ${titleColor}`}>{icon}</div>
+                                                        <h4 className={`font-black text-sm uppercase tracking-wide ${titleColor}`}>{record.name}</h4>
                                                     </div>
-                                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{new Date(record.date).toLocaleDateString()}</span>
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/60 px-2 py-1 rounded-lg border border-slate-200/50">{new Date(record.date).toLocaleDateString()}</span>
                                                 </div>
                                                 {record.details && (
-                                                    <p className="text-sm text-slate-600 mt-2 font-medium">{record.details}</p>
+                                                    <p className="text-sm text-slate-600 mt-2 font-medium leading-relaxed">{record.details}</p>
                                                 )}
                                                 {record.url && (
-                                                    <div className="flex gap-2 mt-4">
+                                                    <div className="flex gap-2 mt-4 pt-4 border-t border-slate-200/50">
                                                         <a href={record.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#2e7d32] hover:bg-emerald-50 transition-colors">
-                                                            <Download size={14} /> View Document
+                                                            <Download size={14} /> View Service Report
                                                         </a>
                                                     </div>
                                                 )}
@@ -430,7 +514,11 @@ const AssetDetails = () => {
                                     );
                                 })
                             ) : (
-                                <div className="p-8 text-center text-slate-400 italic">No history records yet.</div>
+                                <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                                    <Clock className="mx-auto text-slate-300 mb-2" size={32} />
+                                    <p className="text-slate-400 font-bold">No history records found.</p>
+                                    <p className="text-xs text-slate-300 mt-1">Service records and events will appear here.</p>
+                                </div>
                             )}
                         </div>
                     </div>

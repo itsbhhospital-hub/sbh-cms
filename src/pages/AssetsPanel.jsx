@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
     Building2, Search, Plus, Filter,
     AlertTriangle, CheckCircle, Clock,
-    FileText, QrCode, LayoutDashboard, List, Download, ArrowRight
+    FileText, QrCode, LayoutDashboard, List, Download, ArrowRight, XCircle, ShieldAlert
 } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 import { useAuth } from '../context/AuthContext';
@@ -17,7 +17,7 @@ const AssetsPanel = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
-    const [activeTab, setActiveTab] = useState('list'); // 'list' or 'analytics'
+    const [activeTab, setActiveTab] = useState('list');
 
     useEffect(() => {
         fetchAssets();
@@ -35,40 +35,101 @@ const AssetsPanel = () => {
         }
     };
 
-    // Derived State for Analytics
-    const totalAssets = assets.length;
-    const serviceDue = assets.filter(a => a.status === 'Service Due' || a.status === 'Overdue').length;
-    const activeAssets = assets.filter(a => a.status === 'Active').length;
+    // --- LOGIC ENGINE FOR COUNTS & FILTERING ---
+    const getAssetCategory = (asset) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Date Parsing Helper
+        const parseDate = (d) => d ? new Date(d) : null;
+
+        const nextService = parseDate(asset.nextServiceDate);
+        const amcExpiry = parseDate(asset.amcExpiry);
+
+        let categories = ['All'];
+        if (asset.status === 'Active') categories.push('Active');
+        if (asset.status === 'Replaced') categories.push('Replaced');
+
+        // Service Logic
+        if (nextService) {
+            const diffTime = nextService - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) categories.push('Service Expired');
+            else if (diffDays <= 20) categories.push('Service Due');
+        }
+
+        // AMC Logic
+        if (amcExpiry) {
+            const diffTime = amcExpiry - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) categories.push('AMC Expired');
+            else if (diffDays <= 30) categories.push('AMC Expiring');
+        }
+
+        return categories;
+    };
+
+    // Derived Metrics
+    const metrics = {
+        total: assets.length,
+        serviceDue: assets.filter(a => getAssetCategory(a).includes('Service Due')).length,
+        serviceExpired: assets.filter(a => getAssetCategory(a).includes('Service Expired')).length,
+        amcExpiring: assets.filter(a => getAssetCategory(a).includes('AMC Expiring')).length,
+        amcExpired: assets.filter(a => getAssetCategory(a).includes('AMC Expired')).length,
+    };
 
     const filteredAssets = assets.filter(asset => {
+        const categories = getAssetCategory(asset);
+        const matchesFilter = filterStatus === 'All' || categories.includes(filterStatus);
         const matchesSearch =
             asset.machineName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             asset.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             asset.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             asset.department?.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesFilter = filterStatus === 'All' || asset.status === filterStatus;
-        return matchesSearch && matchesFilter;
+        return matchesFilter && matchesSearch;
     });
 
     const getStatusColor = (status) => {
         switch (status) {
             case 'Active': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'Service Due': return 'bg-amber-100 text-amber-700 border-amber-200';
-            case 'Overdue': return 'bg-rose-100 text-rose-700 border-rose-200';
+            case 'Service Expired': return 'bg-rose-100 text-rose-700 border-rose-200';
+            case 'AMC Expiring': return 'bg-orange-100 text-orange-700 border-orange-200';
+            case 'AMC Expired': return 'bg-purple-100 text-purple-700 border-purple-200';
             case 'Replaced': return 'bg-slate-200 text-slate-600 border-slate-300';
-            case 'Retired': return 'bg-slate-100 text-slate-600 border-slate-200';
             default: return 'bg-slate-100 text-slate-600 border-slate-200';
         }
     };
 
+    const StatusCard = ({ title, count, icon: Icon, colorClass, filterKey }) => (
+        <button
+            onClick={() => setFilterStatus(filterKey)}
+            className={`p-5 rounded-2xl border transition-all duration-300 flex items-center gap-4 text-left group
+                ${filterStatus === filterKey
+                    ? `bg-white border-${colorClass.split('-')[1]}-500 ring-2 ring-${colorClass.split('-')[1]}-500/20 shadow-lg`
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
+                }`}
+        >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${colorClass}`}>
+                <Icon size={24} />
+            </div>
+            <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight mb-1">{title}</p>
+                <p className="text-2xl font-black text-[#1f2d2a]">{count}</p>
+            </div>
+        </button>
+    );
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            {/* Header Section */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-[#1f2d2a] tracking-tight">Enterprise Assets</h1>
-                    <p className="text-slate-500 font-medium mt-1">Manage infrastructure, track service history & QR identities</p>
+                    <h1 className="text-3xl font-black text-[#1f2d2a] tracking-tight">Master Asset Command</h1>
+                    <p className="text-slate-500 font-medium mt-1">Live Tracking • Service Protocols • AMC Intelligence</p>
                 </div>
                 <button
                     onClick={() => navigate('/assets/add')}
@@ -79,7 +140,7 @@ const AssetsPanel = () => {
                 </button>
             </div>
 
-            {/* Tab Navigation */}
+            {/* Tabs */}
             <div className="flex gap-2 border-b border-slate-200">
                 <button
                     onClick={() => setActiveTab('list')}
@@ -96,168 +157,168 @@ const AssetsPanel = () => {
             </div>
 
             {loading ? (
-                <div className="p-12 text-center text-slate-400 font-black uppercase tracking-widest">Loading assets data...</div>
+                <div className="min-h-[400px] flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-[#2e7d32] border-t-transparent rounded-full animate-spin"></div>
+                </div>
             ) : activeTab === 'analytics' ? (
                 <AssetFinancialAnalytics assets={assets} />
             ) : (
                 <>
-                    {/* Analytics Cards (Mini) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                                <Building2 size={24} />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Assets</p>
-                                <p className="text-2xl font-black text-[#1f2d2a]">{totalAssets}</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                                <Clock size={24} />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Service Due</p>
-                                <p className="text-2xl font-black text-[#1f2d2a]">{serviceDue}</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                                <CheckCircle size={24} />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Active & Healthy</p>
-                                <p className="text-2xl font-black text-[#1f2d2a]">{activeAssets}</p>
-                            </div>
-                        </div>
+                    {/* MASTER KPI CARDS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <StatusCard
+                            title="Total Assets"
+                            count={metrics.total}
+                            icon={Building2}
+                            colorClass="bg-slate-100 text-slate-600"
+                            filterKey="All"
+                        />
+                        <StatusCard
+                            title="Service Due"
+                            count={metrics.serviceDue}
+                            icon={Clock}
+                            colorClass="bg-amber-50 text-amber-600"
+                            filterKey="Service Due"
+                        />
+                        <StatusCard
+                            title="Service Expired"
+                            count={metrics.serviceExpired}
+                            icon={AlertTriangle}
+                            colorClass="bg-rose-50 text-rose-600"
+                            filterKey="Service Expired"
+                        />
+                        <StatusCard
+                            title="AMC Expiring"
+                            count={metrics.amcExpiring}
+                            icon={ShieldAlert}
+                            colorClass="bg-orange-50 text-orange-600"
+                            filterKey="AMC Expiring"
+                        />
+                        <StatusCard
+                            title="AMC Expired"
+                            count={metrics.amcExpired}
+                            icon={XCircle}
+                            colorClass="bg-purple-50 text-purple-600"
+                            filterKey="AMC Expired"
+                        />
                     </div>
 
-                    {/* Filters & Search */}
+                    {/* Filter Bar */}
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search by Asset ID, Name, Dept, or Location..."
+                                placeholder="Search by Asset ID, Name, Dept... (e.g. 'Ventilator' or 'ICU')"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#2e7d32]/20 focus:border-[#2e7d32] outline-none transition-all font-medium"
                             />
                         </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 items-center">
-                            {['All', 'Active', 'Service Due', 'Replaced'].map(status => (
+                        <div className="flex gap-2 items-center">
+                            {filterStatus !== 'All' && (
                                 <button
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${filterStatus === status
-                                        ? 'bg-[#2e7d32] text-white border-[#2e7d32]'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                                        }`}
+                                    onClick={() => setFilterStatus('All')}
+                                    className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
                                 >
-                                    {status}
+                                    Clear Filter
                                 </button>
-                            ))}
+                            )}
                             <button
                                 onClick={() => {
                                     if (filteredAssets.length === 0) return alert("No assets to export.");
-                                    const headers = ["Asset ID", "Machine Name", "Department", "Location", "Status", "Next Service", "Purchase Cost", "Total Service Cost", "Vendor", "Serial Number"];
+                                    const headers = ["Asset ID", "Machine Name", "Department", "Location", "Next Service", "AMC Expiry", "Cost"];
                                     const csvContent = [
                                         headers.join(","),
                                         ...filteredAssets.map(asset => [
                                             asset.id,
                                             `"${asset.machineName}"`,
-                                            `"${asset.department || ''}"`,
-                                            `"${asset.location || ''}"`,
-                                            asset.status,
+                                            `"${asset.department}"`,
+                                            `"${asset.location}"`,
                                             asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : 'N/A',
-                                            asset.purchaseCost || 0,
-                                            asset.totalServiceCost || 0,
-                                            `"${asset.vendorName || ''}"`,
-                                            `"${asset.serialNumber || ''}"`
+                                            asset.amcExpiry ? new Date(asset.amcExpiry).toLocaleDateString() : 'N/A',
+                                            asset.purchaseCost
                                         ].join(","))
                                     ].join("\n");
-
                                     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                                     const link = document.createElement("a");
-                                    if (link.download !== undefined) {
-                                        const url = URL.createObjectURL(blob);
-                                        link.setAttribute("href", url);
-                                        link.setAttribute("download", `sbh_assets_export_${new Date().toISOString().split('T')[0]}.csv`);
-                                        link.style.visibility = 'hidden';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    }
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `assets_export_${new Date().toISOString().split('T')[0]}.csv`;
+                                    link.click();
                                 }}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 whitespace-nowrap"
-                                title="Export filtered list to CSV"
+                                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 whitespace-nowrap"
                             >
-                                <Download size={18} /> Export
+                                <Download size={18} /> Export CSV
                             </button>
                         </div>
                     </div>
 
-                    {/* Assets List */}
+                    {/* Table View */}
                     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                        {/* Desktop Table View */}
                         <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead className="bg-slate-50 border-b border-slate-200">
+                                <thead className="bg-[#f8faf9] border-b border-slate-200">
                                     <tr>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">ID</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Machine Name</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Dept / Location</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Status</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Health</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Next Service</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Cost (₹)</th>
-                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider text-right">Action</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Asset Details</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Location</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Service Status</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">AMC Status</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Next Service</th>
+                                        <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredAssets.length === 0 ? (
                                         <tr>
-                                            <td colSpan="8" className="p-12 text-center text-slate-400 font-medium">No assets found matching your criteria.</td>
+                                            <td colSpan="6" className="p-12 text-center text-slate-400 font-medium">No assets found matching your criteria.</td>
                                         </tr>
                                     ) : (
                                         filteredAssets.map((asset, index) => {
-                                            const health = asset.aiHealthScore ?? 100;
+                                            const categories = getAssetCategory(asset);
+                                            const isServiceExpired = categories.includes('Service Expired');
+                                            const isServiceDue = categories.includes('Service Due');
+
+                                            // Determine Row Status Color
+                                            let statusBadge = { text: 'Active', class: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
+                                            if (asset.status === 'Replaced') statusBadge = { text: 'Replaced', class: 'bg-slate-100 text-slate-500 border-slate-200' };
+                                            else if (isServiceExpired) statusBadge = { text: 'Service Expired', class: 'bg-rose-50 text-rose-700 border-rose-100' };
+                                            else if (isServiceDue) statusBadge = { text: 'Service Due', class: 'bg-amber-50 text-amber-700 border-amber-100' };
+
                                             return (
                                                 <tr key={asset.id || index} className="group hover:bg-slate-50 transition-colors">
-                                                    <td className="p-4 font-black text-[#1f2d2a]">{asset.id}</td>
-                                                    <td className="p-4 font-bold text-slate-700">
-                                                        {asset.machineName}
-                                                        {asset.parentId && <span className="block text-xs text-slate-400 font-normal">Rep. of {asset.parentId}</span>}
-                                                    </td>
-                                                    <td className="p-4 text-sm font-medium text-slate-600">
-                                                        <div className="font-bold text-[#1f2d2a]">{asset.department || '-'}</div>
-                                                        <div className="text-xs text-slate-400">{asset.location}</div>
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-[#1f2d2a] text-sm">{asset.machineName}</span>
+                                                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">#{asset.id}</span>
+                                                        </div>
                                                     </td>
                                                     <td className="p-4">
-                                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusColor(asset.status)}`}>
-                                                            {asset.status || 'Active'}
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-700 text-sm">{asset.department}</span>
+                                                            <span className="text-xs text-slate-400">{asset.location}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${statusBadge.class}`}>
+                                                            {statusBadge.text}
                                                         </span>
                                                     </td>
                                                     <td className="p-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${health > 80 ? 'bg-emerald-500' : health > 50 ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
-                                                            <span className="font-bold text-slate-700">{health}%</span>
-                                                        </div>
+                                                        {asset.amcTaken === 'Yes' ? (
+                                                            <div className="text-xs font-bold text-emerald-600">Active</div>
+                                                        ) : (
+                                                            <div className="text-xs font-bold text-slate-400">None</div>
+                                                        )}
                                                     </td>
-                                                    <td className="p-4 text-sm font-medium text-slate-600">
+                                                    <td className="p-4 text-sm font-bold text-slate-600">
                                                         {asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : '-'}
-                                                    </td>
-                                                    <td className="p-4 text-sm font-bold text-slate-800">
-                                                        {asset.purchaseCost ? `₹${Number(asset.purchaseCost).toLocaleString()}` : '-'}
                                                     </td>
                                                     <td className="p-4 text-right">
                                                         <button
                                                             onClick={() => navigate(`/assets/${asset.id}`)}
-                                                            className="text-[#2e7d32] font-bold text-sm bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition-all"
+                                                            className="text-[#2e7d32] font-black text-xs bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition-all uppercase tracking-wide"
                                                         >
-                                                            Details
+                                                            View
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -268,57 +329,34 @@ const AssetsPanel = () => {
                             </table>
                         </div>
 
-                        {/* Mobile Card View */}
+                        {/* Mobile List View */}
                         <div className="md:hidden divide-y divide-slate-100">
                             {filteredAssets.length === 0 ? (
-                                <div className="p-8 text-center text-slate-400 font-medium">No assets found.</div>
+                                <div className="p-8 text-center text-slate-400">No assets found.</div>
                             ) : (
-                                filteredAssets.map((asset, index) => {
-                                    const health = asset.aiHealthScore ?? 100;
-                                    const urgency = asset.aiUrgencyScore ?? 0;
-                                    return (
-                                        <div key={asset.id || index} className="p-4 flex flex-col gap-3">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">#{asset.id}</span>
-                                                        {urgency > 50 && <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-1.5 rounded">High Urgency</span>}
-                                                    </div>
-                                                    <h3 className="font-bold text-[#1f2d2a] text-lg">{asset.machineName}</h3>
-                                                    {asset.parentId && <p className="text-xs text-slate-400">Rep. of {asset.parentId}</p>}
-                                                </div>
-                                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${getStatusColor(asset.status)}`}>
-                                                    {asset.status || 'Active'}
-                                                </span>
+                                filteredAssets.map((asset, index) => (
+                                    <div key={asset.id || index} className="p-4 space-y-3" onClick={() => navigate(`/assets/${asset.id}`)}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-bold text-[#1f2d2a]">{asset.machineName}</h3>
+                                                <p className="text-xs text-slate-400 font-bold">#{asset.id}</p>
                                             </div>
-
-                                            <div className="flex items-center gap-4 mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${health > 80 ? 'bg-emerald-500' : health > 50 ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
-                                                    <span className="text-xs font-bold text-slate-600">Health: {health}%</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Next Service</p>
-                                                    <p className="font-medium text-slate-700">{asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : '-'}</p>
-                                                </div>
-                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Cost</p>
-                                                    <p className="font-medium text-slate-700">{asset.purchaseCost ? `₹${Number(asset.purchaseCost).toLocaleString()}` : '-'}</p>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={() => navigate(`/assets/${asset.id}`)}
-                                                className="w-full text-[#2e7d32] font-bold text-sm bg-emerald-50 py-2.5 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
-                                            >
-                                                View Details <ArrowRight size={16} />
-                                            </button>
+                                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${getStatusColor(asset.status)}`}>
+                                                {asset.status || 'Active'}
+                                            </span>
                                         </div>
-                                    )
-                                })
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="bg-slate-50 p-2 rounded-lg">
+                                                <p className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Next Service</p>
+                                                <p className="font-bold text-slate-700">{asset.nextServiceDate ? new Date(asset.nextServiceDate).toLocaleDateString() : '-'}</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-2 rounded-lg">
+                                                <p className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Department</p>
+                                                <p className="font-bold text-slate-700 truncate">{asset.department}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
                             )}
                         </div>
                     </div>

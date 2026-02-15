@@ -730,9 +730,151 @@ function sendWhatsAppAlert(message, specificNumber) {
     }
 }
 
+/****************************************************************
+ * 🚀 PHASE 7: MASTER UPGRADE - NOTIFICATIONS & LOGIC ENGINE
+ ****************************************************************/
+
+function setupMasterUpgrade() {
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+
+    // 1. Create Department Master Sheet
+    let deptSheet = ss.getSheetByName("department_master");
+    if (!deptSheet) {
+        deptSheet = ss.insertSheet("department_master");
+        const headers = ["Department Name", "Person Name", "Mobile Number"];
+        deptSheet.appendRow(headers);
+        deptSheet.setFrozenRows(1);
+        deptSheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+
+        // Default Entries
+        const defaults = [
+            ["Accounts", "abc", "9644404741"],
+            ["HR", "abc", "9644404741"],
+            ["Admin", "abc", "9644404741"],
+            ["IT", "abc", "9644404741"],
+            ["Operations", "abc", "9644404741"],
+            ["Sonography", "abc", "9644404741"],
+            ["Doctors", "abc", "9644404741"],
+            ["Director Sir", "abc", "9644404741"],
+            ["La vista", "abc", "9644404741"],
+            ["Reception", "abc", "9644404741"],
+            ["Housekeeping", "abc", "9644404741"],
+            ["Maintenance", "abc", "9644404741"],
+            ["Nursing", "abc", "9644404741"],
+            ["CRM", "abc", "9644404741"],
+            ["ICU", "abc", "9644404741"],
+            ["NICU", "abc", "9644404741"],
+            ["OT", "abc", "9644404741"],
+            ["Emergency", "abc", "9644404741"],
+            ["IPD", "abc", "9644404741"],
+            ["OPD", "abc", "9644404741"]
+        ];
+        deptSheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
+    }
+}
+
+// Daily Trigger Logic
+function checkDailyReminders() {
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    const assetSheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    const deptSheet = ss.getSheetByName("department_master");
+
+    const assets = getData(assetSheet);
+    const departments = deptSheet.getDataRange().getValues();
+    // Create Map: DeptName -> Mobile
+    const deptMap = {};
+    for (let i = 1; i < departments.length; i++) {
+        if (departments[i][0]) deptMap[departments[i][0].toLowerCase()] = departments[i][2];
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const L1_PHONE = "9425616267"; // Director
+    const L2_PHONE = "9644404741"; // Officer
+
+    assets.forEach(asset => {
+        if (asset.status === "Retired" || asset.status === "Replaced" || asset.status === "Dead") return;
+
+        // --- SERVICE LOGIC ---
+        // Rule: Due if 6 months passed since last service
+        // Logic: specific date check.
+        let lastService = asset.currentServiceDate ? new Date(asset.currentServiceDate) : (asset.purchaseDate ? new Date(asset.purchaseDate) : null);
+        let nextServiceDue = null;
+
+        if (lastService) {
+            nextServiceDue = new Date(lastService);
+            nextServiceDue.setMonth(nextServiceDue.getMonth() + 6);
+        } else {
+            // Fallback if no dates: maybe use created date?
+            // If completely empty, skip service checks
+        }
+
+        if (nextServiceDue) {
+            nextServiceDue.setHours(0, 0, 0, 0);
+            const diffTime = nextServiceDue - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // 1. Service Due Soon (20 days before)
+            if (diffDays <= 20 && diffDays >= 0) {
+                // Determine Phone
+                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const msg = `⚠️ SERVICE REMINDER\nAsset: ${asset.id}\nMachine: ${asset.machineName}\nDept: ${asset.department}\nDue Date: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
+
+                // Send Daily? Yes.
+                sendWhatsAppAlert(msg, deptPhone);
+            }
+
+            // 2. Service Overdue (Expired)
+            if (diffDays < 0) {
+                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const msg = `🚨 SERVICE OVERDUE ALERT\nAsset: ${asset.id}\nImmediate Action Required.\nDue was: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
+                sendWhatsAppAlert(msg, deptPhone);
+
+                // ESCALATION
+                const overdueDays = Math.abs(diffDays);
+                if (overdueDays === 10) {
+                    sendWhatsAppAlert(`escalation: L2 Officer Alert\nService Overdue 10 Days\nAsset: ${asset.id}`, L2_PHONE);
+                }
+                if (overdueDays === 15) {
+                    sendWhatsAppAlert(`CRITICAL ESCALATION: L1 Director Alert\nService Overdue 15 Days\nAsset: ${asset.id}`, L1_PHONE);
+                }
+            }
+        }
+
+        // --- AMC LOGIC ---
+        if (asset.amcTaken === "Yes" && asset.amcExpiry) {
+            const amcExpiry = new Date(asset.amcExpiry);
+            amcExpiry.setHours(0, 0, 0, 0);
+            const diffTime = amcExpiry - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // 1. Expiring Soon (30 days)
+            if (diffDays <= 30 && diffDays >= 0) {
+                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const msg = `⏳ AMC RENEWAL REMINDER\nAsset: ${asset.id}\nAMC Expire Date: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
+                sendWhatsAppAlert(msg, deptPhone);
+            }
+
+            // 2. Expired
+            if (diffDays < 0) {
+                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const msg = `⛔ AMC EXPIRED ALERT\nAsset: ${asset.id}\nExpired on: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals`;
+                sendWhatsAppAlert(msg, deptPhone);
+
+                // Escalation
+                const overdueDays = Math.abs(diffDays);
+                if (overdueDays === 10) sendWhatsAppAlert(`Escalation L2: AMC Expired 10 Days\nAsset: ${asset.id}`, L2_PHONE);
+                if (overdueDays === 15) sendWhatsAppAlert(`CRITICAL L1: AMC Expired 15 Days\nAsset: ${asset.id}`, L1_PHONE);
+            }
+        }
+    });
+}
+
 function formatDate(date) {
     if (!date) return "";
     const d = new Date(date);
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
 }
+
