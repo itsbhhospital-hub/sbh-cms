@@ -15,7 +15,8 @@ const CONFIG = {
         API_URL: "https://app.ceoitbox.com/message/new",
         USERNAME: "SBH HOSPITAL",
         PASS: "123456789",
-        ADMIN_PHONE: "" // TODO: Enter Admin Phone Number for Alerts
+        ADMIN_PHONE: "9644404741", // Admin Name: SBH Admin
+        ADMIN_NAME: "SBH Admin"
     }
 };
 
