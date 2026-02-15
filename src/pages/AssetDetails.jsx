@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Calendar, FileText,
-    Clock, Wrench, Download, CheckCircle, UploadCloud,
+    Clock, Wrench, Download, CheckCircle, UploadCloud, ExternalLink,
     Banknote, RefreshCw, Edit, AlertTriangle, Sparkles, ShieldCheck, MapPin, Building,
-    Activity, History
+    Activity, History, XCircle
 } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 import QRCode from 'react-qr-code';
-
 import AIIntelligencePanel from '../components/AIIntelligencePanel';
+import html2canvas from 'html2canvas';
 
 const AssetDetails = () => {
     const { id } = useParams();
@@ -43,7 +43,8 @@ const AssetDetails = () => {
         remark: '',
         cost: '',
         file: null,
-        fileName: ''
+        fileName: '',
+        serviceType: 'Paid' // Default
     });
 
     // Success Popup State
@@ -131,7 +132,9 @@ const AssetDetails = () => {
             amcAmount: asset.amcAmount || '',
             purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
             currentServiceDate: asset.currentServiceDate ? new Date(asset.currentServiceDate).toISOString().split('T')[0] : '',
-            nextServiceDate: asset.nextServiceDate ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : ''
+            nextServiceDate: asset.nextServiceDate ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : '',
+            vendorName: asset.vendorName || '',
+            vendorContact: asset.vendorContact || ''
         });
         setShowEditModal(true);
     };
@@ -191,11 +194,12 @@ const AssetDetails = () => {
                     serviceDate: serviceForm.serviceDate,
                     nextServiceDate: serviceForm.nextServiceDate,
                     remark: serviceForm.remark,
-                    cost: serviceForm.cost // Ensure cost is passed if added to form
+                    cost: serviceForm.serviceType === 'Paid' ? serviceForm.cost : 0, // Ensure strictly handled
+                    serviceType: serviceForm.serviceType
                 },
                 serviceForm.file,
                 serviceForm.fileName,
-                serviceForm.file?.type
+                serviceForm.file ? serviceForm.file.type : ''
             );
             await fetchDetails();
             setShowServiceModal(false);
@@ -205,6 +209,25 @@ const AssetDetails = () => {
             alert("Failed to add service record.");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    // QR Download Handler
+    const handleDownloadQR = async () => {
+        const element = document.getElementById('print-qr-card');
+        if (!element) return;
+
+        try {
+            // Unhide temporarily if needed (but absolute -z-50 should work if visible in DOM)
+            // html2canvas needs the element to be rendered.
+            const canvas = await html2canvas(element, { scale: 3, useCORS: true });
+            const link = document.createElement('a');
+            link.download = `${asset.id}_QR_Identity.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            console.error("QR Download failed", err);
+            alert("Failed to download QR.");
         }
     };
 
@@ -417,26 +440,98 @@ const AssetDetails = () => {
                             </div>
                         </div>
 
-                        {/* QR Code Card */}
-                        <div className="bg-[#1f2d2a] rounded-3xl p-8 border border-slate-800 shadow-xl text-white flex flex-col items-center justify-center text-center">
-                            <div className="bg-white p-4 rounded-2xl mb-4">
+                        {/* QR Code Card - ADMIN VIEW */}
+                        <div className="bg-[#1f2d2a] rounded-3xl p-8 border border-slate-800 shadow-xl text-white flex flex-col items-center justify-center text-center relative overflow-hidden">
+
+                            {/* Hidden Print Template for High Quality Download */}
+                            <div id="print-qr-card"
+                                style={{
+                                    position: 'absolute',
+                                    zIndex: -50,
+                                    top: 0,
+                                    left: 0,
+                                    backgroundColor: '#ffffff',
+                                    padding: '32px',
+                                    width: '400px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    textAlign: 'center',
+                                    border: '4px solid #1f2d2a'
+                                }}
+                            >
+                                <h2 style={{ color: '#1f2d2a', fontWeight: 900, fontSize: '24px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>SBH Group</h2>
+                                <p style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '24px' }}>Asset Verification</p>
+
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                                    <QRCode
+                                        value={publicLink}
+                                        size={250}
+                                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                        viewBox={`0 0 256 256`}
+                                        level="H"
+                                    />
+                                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                                        <div style={{
+                                            backgroundColor: '#ffffff',
+                                            padding: '14px 28px',
+                                            minWidth: '140px',
+                                            borderRadius: '14px',
+                                            border: '5px solid #1f2d2a',
+                                            boxShadow: '0 0 0 4px #ffffff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            textAlign: 'center'
+                                        }}>
+                                            <span style={{
+                                                fontSize: '32px',
+                                                fontWeight: 700,
+                                                color: '#1f2d2a',
+                                                letterSpacing: '-0.02em',
+                                                whiteSpace: 'nowrap',
+                                                lineHeight: '1'
+                                            }}>{asset.id}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p style={{ color: '#1f2d2a', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '16px' }}>Property Of SBH Group Of Hospitals</p>
+                            </div>
+
+                            {/* Visible Card */}
+                            <div className="bg-white p-4 rounded-2xl mb-4 relative" id="qr-code-view">
                                 <QRCode
                                     value={publicLink}
-                                    size={128}
+                                    size={140}
                                     style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                                     viewBox={`0 0 256 256`}
                                 />
-                            </div>
-                            <h3 className="font-black text-xl tracking-tight">Digital Identity</h3>
-                            <p className="text-slate-400 text-sm mt-2">Scan to view public service history and machine details.</p>
-
-                            {window.location.hostname === 'localhost' && (
-                                <div className="mt-4 p-3 bg-amber-500/20 rounded-xl border border-amber-500/30 text-amber-200 text-xs text-left">
-                                    <strong>⚠️ Developer Note:</strong><br />
-                                    You are on <code>localhost</code>. This QR code will not work on mobile.<br />
-                                    Access via Network IP to test.
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="bg-white px-2 py-1 rounded border border-[#1f2d2a] shadow-sm">
+                                        <span className="text-xs font-black text-[#1f2d2a] tracking-tight">{asset.id}</span>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
+
+                            <h3 className="font-black text-xl tracking-tight">Digital Identity</h3>
+                            <p className="text-slate-400 text-sm mt-2">Scan to view details.</p>
+
+                            <div className="flex flex-col gap-3 w-full mt-6">
+                                <button
+                                    onClick={handleDownloadQR}
+                                    className="flex items-center gap-2 bg-white text-[#1f2d2a] hover:bg-slate-100 px-6 py-3 rounded-xl font-black uppercase tracking-wide text-xs transition-colors shadow-lg w-full justify-center"
+                                >
+                                    <Download size={16} /> Download QR (High Quality)
+                                </button>
+
+                                <button
+                                    onClick={() => window.open(publicLink, '_blank')}
+                                    className="flex items-center gap-2 bg-[#2e7d32] hover:bg-[#1b5e20] text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-[#2e7d32]/20 w-full justify-center"
+                                >
+                                    <ExternalLink size={18} /> Open Public Page
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -560,8 +655,9 @@ const AssetDetails = () => {
             {/* Add Service Modal */}
             {
                 showServiceModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl">
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pt-[60px]">
+                        <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto relative animate-slide-in">
+                            <button onClick={() => setShowServiceModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><XCircle size={20} className="text-slate-500" /></button>
                             <h2 className="text-xl font-black text-[#1f2d2a] mb-6">Add Service Record</h2>
                             <form onSubmit={handleServiceSubmit} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -588,15 +684,43 @@ const AssetDetails = () => {
                                 </div>
 
                                 <div>
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Cost (₹)</label>
-                                    <input
-                                        type="number"
-                                        placeholder="0"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
-                                        value={serviceForm.cost}
-                                        onChange={e => setServiceForm({ ...serviceForm, cost: e.target.value })}
-                                    />
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Service Type</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold appearance-none"
+                                            value={serviceForm.serviceType}
+                                            onChange={e => {
+                                                const type = e.target.value;
+                                                setServiceForm(prev => ({
+                                                    ...prev,
+                                                    serviceType: type,
+                                                    cost: (type === 'Warranty' || type === 'AMC') ? '' : prev.cost
+                                                }));
+                                            }}
+                                        >
+                                            <option value="Paid">Paid Service</option>
+                                            <option value="Warranty">Warranty Service</option>
+                                            <option value="AMC">AMC Service</option>
+                                        </select>
+                                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {serviceForm.serviceType === 'Paid' && (
+                                    <div>
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Cost (₹)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                            value={serviceForm.cost}
+                                            onChange={e => setServiceForm({ ...serviceForm, cost: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Remarks</label>
@@ -654,8 +778,9 @@ const AssetDetails = () => {
             {/* Edit Asset Modal */}
             {
                 showEditModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[60px] pb-4 px-4 bg-black/60 backdrop-blur-sm overflow-hidden">
+                        <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-in relative">
+                            <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><XCircle size={20} className="text-slate-500" /></button>
                             <h2 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2"><Edit className="text-[#2e7d32]" size={24} /> Edit Asset Details</h2>
                             <form onSubmit={handleEditSubmit} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -795,8 +920,9 @@ const AssetDetails = () => {
             {/* Replace Asset Modal */}
             {
                 showReplaceModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[60px] pb-4 px-4 bg-black/60 backdrop-blur-sm overflow-hidden">
+                        <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-in relative">
+                            <button onClick={() => setShowReplaceModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><XCircle size={20} className="text-slate-500" /></button>
                             <h2 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2"><RefreshCw className="text-rose-600" size={24} /> Mark as Replaced</h2>
                             <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl mb-6 text-sm text-rose-800">
                                 <strong>⚠️ Important:</strong> This asset will be marked as "Replaced". A new asset ID will be created for the replacement machine. The history will be linked.

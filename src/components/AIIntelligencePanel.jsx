@@ -61,7 +61,7 @@ const AIIntelligencePanel = ({ asset }) => {
                 {/* Health Score Card */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest self-start mb-4">Machine Health Score</h3>
-                    <div className="w-48 h-48 relative">
+                    <div className="w-48 h-48 relative" style={{ minWidth: "192px", minHeight: "192px" }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -164,19 +164,19 @@ const AIIntelligencePanel = ({ asset }) => {
                         <div className="space-y-3">
                             {recommendations.map((rec, idx) => (
                                 <div key={idx} className={`p-4 rounded-xl border flex items-start gap-4 ${rec.type === 'CRITICAL' ? 'bg-rose-50 border-rose-100' :
-                                        rec.type === 'ACTION' ? 'bg-amber-50 border-amber-100' :
-                                            'bg-indigo-50 border-indigo-100'
+                                    rec.type === 'ACTION' ? 'bg-amber-50 border-amber-100' :
+                                        'bg-indigo-50 border-indigo-100'
                                     }`}>
                                     <div className={`p-2 rounded-lg shrink-0 ${rec.type === 'CRITICAL' ? 'bg-rose-100 text-rose-600' :
-                                            rec.type === 'ACTION' ? 'bg-amber-100 text-amber-600' :
-                                                'bg-indigo-100 text-indigo-600'
+                                        rec.type === 'ACTION' ? 'bg-amber-100 text-amber-600' :
+                                            'bg-indigo-100 text-indigo-600'
                                         }`}>
                                         {rec.type === 'CRITICAL' ? <AlertOctagon size={20} /> : rec.type === 'ACTION' ? <Wrench size={20} /> : <Shield size={20} />}
                                     </div>
                                     <div>
                                         <h4 className={`font-black text-sm uppercase tracking-wider mb-1 ${rec.type === 'CRITICAL' ? 'text-rose-800' :
-                                                rec.type === 'ACTION' ? 'text-amber-800' :
-                                                    'text-indigo-800'
+                                            rec.type === 'ACTION' ? 'text-amber-800' :
+                                                'text-indigo-800'
                                             }`}>
                                             {rec.type}
                                         </h4>

@@ -69,17 +69,16 @@ function updateAssetsSheetStructure() {
     // Run this if you already have the sheet and need to add new columns
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    const headers = [
-        "Vendor Name", "Vendor Contact", "Purchase Cost",
-        "Warranty Expiry", "AMC Start", "AMC Expiry",
-        "Parent ID", "Replaced By ID", "Total Service Cost",
-        "Warranty Type", "AMC Taken", "AMC Amount", // NEW
-        "Location", "Department" // NEW
-    ];
-    // Append these headers at column 14 (index 13+1) if they don't exist
-    // flexible check needed in real deployment, but here just appending for update
-    sheet.getRange(1, 14, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 14, 1, headers.length).setFontWeight("bold");
+    // Phase 10 Update: Add QR PDF Link
+    const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (!currentHeaders.includes("QR PDF Link")) {
+        sheet.getRange(1, currentHeaders.length + 1).setValue("QR PDF Link").setFontWeight("bold");
+    }
+}
+
+function setupPhase10() {
+    updateAssetsSheetStructure();
+    return "Phase 10 Setup Complete: QR PDF Link column added.";
 }
 
 /* --- API HANDLER --- */
@@ -171,6 +170,21 @@ function addAsset(data) {
 
     const qrData = id;
 
+    // 3. GENERATE QR PDF (Phase 10)
+    let qrPdfLink = "";
+    try {
+        const publicUrl = "https://sbhcms.vercel.app/asset-view/" + id;
+        qrPdfLink = createQRPDF(assetFolder, {
+            id: id,
+            machineName: data.machineName,
+            serialNumber: data.serialNumber,
+            department: data.department,
+            location: data.location
+        }, publicUrl);
+    } catch (e) {
+        console.log("Error generating QR PDF: " + e);
+    }
+
     const row = [
         id,
         data.machineName,
@@ -199,7 +213,8 @@ function addAsset(data) {
         data.amcTaken || "No", // NEW
         data.amcAmount || 0, // NEW
         data.location || "", // NEW
-        data.department || "" // NEW
+        data.department || "", // NEW
+        qrPdfLink || "" // QR PDF Link Key
     ];
 
     sheet.appendRow(row);
@@ -281,22 +296,28 @@ function markAsReplaced(data) {
     const addResult = addAsset(newAssetData);
     if (addResult.status !== "success") return addResult;
 
-    const newAssetId = addResult.assetId;
+    // 3. Mark Old as Replaced
+    // Find Dynamic Map
+    const map = getHeaderMap(sheet);
+    const realRowIndex = oldRowIndex + 1;
 
-    // 3. Update Old Asset Status
-    sheet.getRange(realOldRowIndex, 13).setValue("Replaced"); // Status -> Replaced
-    sheet.getRange(realOldRowIndex, 21).setValue(newAssetId); // Replaced By ID
+    // Update Fields
+    if (map["Status"]) sheet.getRange(realRowIndex, map["Status"]).setValue("Replaced");
+    if (map["Remark"]) {
+        const oldRemark = sheet.getRange(realRowIndex, map["Remark"]).getValue();
+        sheet.getRange(realRowIndex, map["Remark"]).setValue(oldRemark + "\n[Replaced]: " + data.reason + " - " + data.remark);
+    }
+    if (map["Replaced By ID"]) sheet.getRange(realRowIndex, map["Replaced By ID"]).setValue(addResult.assetId);
 
     // 4. Add "Replacement" Record to Service History of Old Asset
     addServiceRecord({
         id: data.id,
         serviceDate: new Date(),
         nextServiceDate: "", // No more service
-        remark: `REPLACED by ${newAssetId}. Reason: ${data.reason}. ${data.remark}`,
+        remark: `REPLACED by ${addResult.assetId}. Reason: ${data.reason}. ${data.remark}`,
         statusOverride: "Replaced" // Special flag
     });
 
-    sendWhatsAppAlert(`⚠ ASSET REPLACED:\nOld: ${data.id} (Now Dead)\nNew: ${newAssetId} (Active)\nReason: ${data.reason}`);
 
     return { status: "success", message: "Replacement Processed", newAssetId: newAssetId };
 }
@@ -732,9 +753,12 @@ function getPublicAssetDetails(id) {
     // Warranty Status
     let warrantyStatus = "Expired";
     let warrantyColor = "red";
+    // FIX: Return Raw Data for Frontend Logic
     const wExpiryStr = getVal("Warranty Expiry");
+    let warrantyExpiryRaw = null;
     if (wExpiryStr) {
         const wExpiry = new Date(wExpiryStr);
+        warrantyExpiryRaw = formatDate(wExpiry); // YYYY-MM-DD
         if (wExpiry > today) {
             const daysLeft = (wExpiry - today) / (1000 * 60 * 60 * 24);
             if (daysLeft < 30) { warrantyStatus = "Expiring Soon"; warrantyColor = "orange"; }
@@ -748,10 +772,14 @@ function getPublicAssetDetails(id) {
     // AMC Status
     let amcStatus = "Not Taken";
     let amcColor = "gray";
-    if (getVal("AMC Taken") === "Yes") {
-        const aExpiryStr = getVal("AMC Expiry");
+    const amcTakenVal = getVal("AMC Taken");
+    const aExpiryStr = getVal("AMC Expiry");
+    let amcExpiryRaw = null;
+
+    if (amcTakenVal === "Yes") {
         if (aExpiryStr) {
             const aExpiry = new Date(aExpiryStr);
+            amcExpiryRaw = formatDate(aExpiry);
             if (aExpiry < today) { amcStatus = "Expired"; amcColor = "red"; }
             else {
                 const daysLeft = (aExpiry - today) / (1000 * 60 * 60 * 24);
@@ -760,6 +788,12 @@ function getPublicAssetDetails(id) {
             }
         }
     }
+
+    // Install Date Logic (Purchase Date as fallback)
+    const purchaseDateVal = getVal("Purchase Date");
+    const installDateVal = getVal("Install Date"); // Try to get if exists
+    // Use Install Date if valid, else Purchase Date
+    const finalInstallDate = installDateVal ? formatDate(new Date(installDateVal)) : (purchaseDateVal ? formatDate(new Date(purchaseDateVal)) : null);
 
     // Replacement Info
     let replacementInfo = null;
@@ -773,14 +807,22 @@ function getPublicAssetDetails(id) {
             id: row[assetIdColIndex],
             machineName: getVal("Machine Name"),
             serialNumber: getVal("Serial Number"),
-            department: getVal("Department"), // NEW
-            location: getVal("Location"),     // NEW
+            department: getVal("Department"),
+            location: getVal("Location"),
             status: getVal("Status"),
-            installDate: formatDate(new Date(getVal("Purchase Date"))),
+            installDate: finalInstallDate, // RAW YYYY-MM-DD
+            purchaseDate: purchaseDateVal ? formatDate(new Date(purchaseDateVal)) : null, // RAW for Age Calc
+
+            // Warranty
             warrantyStatus: warrantyStatus,
             warrantyColor: warrantyColor,
+            warrantyExpiry: warrantyExpiryRaw, // RAW
+
+            // AMC
             amcStatus: amcStatus,
             amcColor: amcColor,
+            amcExpiry: amcExpiryRaw, // RAW
+
             nextService: formatDate(new Date(getVal("Next Service Date"))),
             replacedById: getVal("Replaced By ID"),
             replacementInfo: replacementInfo
@@ -840,8 +882,8 @@ function addServiceRecord(data) {
         update("Status", "Active");
     }
 
-    // Cost Update (Total Service Cost)
-    if (data.cost) {
+    // Cost Update (Total Service Cost) - ONLY IF PAID
+    if (data.serviceType === 'Paid' && data.cost) {
         const totalCostColIdx = map["Total Service Cost"] - 1;
         let currentTotal = allData[rowIndex][totalCostColIdx] || 0;
         let newTotal = parseFloat(currentTotal) + parseFloat(data.cost);

@@ -109,10 +109,11 @@ export const assetsService = {
             serviceDate: data.serviceDate,
             nextServiceDate: data.nextServiceDate,
             remark: data.remark,
+            serviceType: data.serviceType, // [NEW] - Warranty, AMC, Paid
             serviceFile: fileBase64,
             serviceFileName: fileName,
             serviceFileType: fileType,
-            cost: data.cost // [NEW]
+            cost: data.cost // Only if Paid
         };
 
         return await sendPost(payload);
