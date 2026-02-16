@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ComplaintList from '../components/ComplaintList';
 import ActiveUsersModal from '../components/ActiveUsersModal';
@@ -53,6 +53,61 @@ const Dashboard = () => {
     // ------------------------------------------------------------------
     // AUTOMATED CHECKS (Run when Data Updates)
     // ------------------------------------------------------------------
+
+    // 🟢 FIX: FRONTEND STATE BINDING - Calculate Counts from Fetched Data
+    // Use useMemo ensures we recalculate ONLY when allTickets changes.
+    // This solves the issue of panels showing 0 while data exists.
+    const dashboardStats = useMemo(() => {
+        // Initial 0 state
+        const initial = { open: 0, pending: 0, solved: 0, transferred: 0, delayed: 0, extended: 0 };
+
+        if (!allTickets || allTickets.length === 0) return initial;
+
+        const uDept = normalize(user.Department);
+        const uName = normalize(user.Username);
+        const uRole = String(user.Role || '').toUpperCase().trim();
+        const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
+
+        allTickets.forEach(t => {
+            // Permission Filter (Match Popup Logic)
+            const rowDept = normalize(t.Department);
+            const rowBy = normalize(t.ReportedBy);
+            const rowReporter = normalize(t.Reporter || t.Username);
+            const rowResolver = normalize(t.ResolvedBy);
+
+            const isVisible = isAdminView || rowDept === uDept || rowBy === uName || rowReporter === uName || rowResolver === uName;
+            if (!isVisible) return;
+
+            const status = String(t.Status || '').toLowerCase().trim();
+            const delayVal = String(t.Delay || '').toLowerCase().trim();
+
+            const isClosed = ['solved', 'closed', 'resolved', 'force close'].includes(status);
+            const isDelayed = delayVal === 'yes' || status === 'delayed';
+
+            // 1. SOLVED
+            if (isClosed) {
+                initial.solved++;
+                return; // Stop processing if closed
+            }
+
+            // 2. ACTIVE FLOW (Open, Pending, Delayed, etc.)
+            // "Open" Panel = All Active tickets (Active = Not Closed)
+            initial.open++;
+
+            // Breakdown
+            if (status === 'pending' || status === 'in-progress') initial.pending++;
+            if (status === 'transferred') initial.transferred++;
+            if (status === 'extended') initial.extended++;
+
+            // 3. DELAYED (Can be active)
+            if (isDelayed) {
+                initial.delayed++;
+            }
+        });
+
+        return initial;
+    }, [allTickets, user]);
+
     useEffect(() => {
         if (intelligenceLoading || !allTickets.length) return;
 
@@ -68,7 +123,8 @@ const Dashboard = () => {
             let delayCount = 0;
 
             allTickets.forEach(t => {
-                if (String(t.Status).toLowerCase() === 'delayed') {
+                const isDelayed = String(t.Delay).toLowerCase() === 'yes' || String(t.Status).toLowerCase() === 'delayed';
+                if (isDelayed) {
                     if (isAdmin) {
                         delayCount++;
                     } else {
@@ -175,23 +231,28 @@ const Dashboard = () => {
 
                 if (type === 'All') return true;
 
+                if (type === 'Open') {
+                    // Logic: Count from 'Open' property 
+                    // Open Panel shows ALL tickets where Status != Closed (as per Master Prompt)
+                    // It should include Delayed tickets too, as they are still "Open" in nature until closed.
+                    if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
+                    return true;
+                }
+
                 if (type === 'Delayed') {
-                    // Logic: Must be Open/Pending AND Delayed Logic
-                    // Or if Status is explicitly 'delayed'
-                    if (status === 'delayed') return true; // Explicit status match
+                    // Logic: Count from 'Delay' property (Dual Visibility)
+                    // If marked 'yes' OR status is 'delayed'
+                    const isDelayed = String(t.Delay).toLowerCase() === 'yes' || status === 'delayed';
 
-                    // Fallback for visual delay calculation if backend hasn't marked it yet (shouldn't happen with new script)
-                    if (!['open', 'transferred', 'pending', 're-open'].includes(status)) return false;
-                    const effectiveDateStr = targetDateStr || regDate;
-                    if (!effectiveDateStr) return false;
-                    const isNextDay = effectiveDateStr && effectiveDateStr !== todayStr; // Simplified Next Day
+                    if (!isDelayed) return false;
+                    if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false; // Safety check
 
-                    // Delay Routing Rule
+                    // Delay Routing Rule for non-admins
                     const isMyDept = rowDept === uDept;
                     const isReporter = rowBy === uname || rowReporter === uname;
                     if (!isAdminView && (isReporter || !isMyDept)) return false;
 
-                    return isNextDay;
+                    return true;
                 }
 
                 if (type === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
@@ -465,24 +526,25 @@ const Dashboard = () => {
 
                 {/* Stats Grid - Standardized Green Palette */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                    <StatCard icon={AlertCircle} title="Open" value={stats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
+                    {/* 🟢 FIX: Bind to Calculated Dashboard Stats */}
+                    <StatCard icon={AlertCircle} title="Open" value={dashboardStats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
 
-                    <StatCard icon={Timer} title="Pending" value={stats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
+                    <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
 
-                    <StatCard icon={CheckCircle} title="Solved" value={stats.solved} bgClass="bg-[#d6f5e3]" colorClass="text-[#2e7d32]" filterType="Solved" />
+                    <StatCard icon={CheckCircle} title="Solved" value={dashboardStats.solved} bgClass="bg-[#d6f5e3]" colorClass="text-[#2e7d32]" filterType="Solved" />
 
-                    <StatCard icon={Share2} title="Transferred" value={stats.transferred} bgClass="bg-[#eadcff]/40" colorClass="text-[#6d28d9]" filterType="Transferred" />
+                    <StatCard icon={Share2} title="Transferred" value={dashboardStats.transferred} bgClass="bg-[#eadcff]/40" colorClass="text-[#6d28d9]" filterType="Transferred" />
 
                     {isAdmin ? (
                         <>
                             <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
                             {/* Delayed Card now visible for ALL Admins */}
-                            <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
+                            <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
                         </>
                     ) : (
                         <>
-                            <StatCard icon={History} title="Extended" value={stats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
-                            <StatCard icon={Clock} title="Delayed" value={stats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
+                            <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
+                            <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
                         </>
                     )}
                 </div>

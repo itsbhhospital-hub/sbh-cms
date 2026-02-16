@@ -31,9 +31,9 @@ const StaffRankingCard = ({ staff }) => {
                         <div className="text-right">
                             <div className="flex items-center gap-1 justify-end">
                                 <Star size={12} className="text-amber-400 fill-amber-400" />
-                                <span className="text-[11px] font-black text-[#1f2d2a]">{s.avgRating}</span>
+                                <span className="text-[11px] font-black text-[#1f2d2a]">{Number(s.avgRating) || 0}</span>
                             </div>
-                            <div className="text-[9px] font-black text-[#2e7d32] uppercase tracking-widest mt-1">Score: {s.efficiency}</div>
+                            <div className="text-[9px] font-black text-[#2e7d32] uppercase tracking-widest mt-1">Score: {Number(s.efficiency) || 0}</div>
                         </div>
                     </div>
                 ))}

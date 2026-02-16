@@ -10,7 +10,7 @@ const DepartmentLoadTable = ({ data }) => {
 
             <div className="space-y-6">
                 {sortedProps.map((d, i) => {
-                    const active = d.open + d.pending;
+                    const active = (Number(d.open) || 0) + (Number(d.pending) || 0);
                     const loadPercent = Math.min(100, (active / 20) * 100);
                     const color = active > 15 ? 'bg-rose-500' : active > 8 ? 'bg-[#2e7d32]' : 'bg-[#cfead6]';
 

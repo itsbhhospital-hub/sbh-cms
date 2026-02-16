@@ -1,6 +1,6 @@
 const fs = require('fs');
 const vm = require('vm');
-const code = fs.readFileSync('google_script_update.js', 'utf8');
+const code = fs.readFileSync('google_script_update_fixed.js', 'utf8');
 try {
     new vm.Script(code);
     console.log('Syntax OK');

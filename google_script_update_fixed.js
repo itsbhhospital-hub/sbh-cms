@@ -13,6 +13,46 @@ function getISTTimestamp() {
     return Utilities.formatDate(new Date(), IST_TIMEZONE, "dd MMM yyyy • hh:mm:ss a");
 }
 
+function setupDelayTrigger() {
+    // Legacy cleanup
+    const triggers = ScriptApp.getProjectTriggers();
+    for (const trigger of triggers) {
+        if (trigger.getHandlerFunction() === 'checkDelayedCases') {
+            ScriptApp.deleteTrigger(trigger);
+        }
+    }
+    return "Legacy Trigger Removed.";
+}
+
+function setupDailyTrigger() {
+    const triggers = ScriptApp.getProjectTriggers();
+    // Clear all existing triggers to avoid duplicates
+    for (const trigger of triggers) {
+        const handler = trigger.getHandlerFunction();
+        if (handler === 'checkDailyAlerts' || handler === 'checkDelayedCases' || handler === 'checkAndMoveToDelay' || handler === 'sendDelayReminder') {
+            ScriptApp.deleteTrigger(trigger);
+        }
+    }
+
+    // 1. MIDNIGHT TRIGGER (00:02 AM) - Marks cases as Delayed
+    ScriptApp.newTrigger('checkAndMoveToDelay')
+        .timeBased()
+        .everyDays(1)
+        .atHour(0)
+        .nearMinute(2)
+        .create();
+
+    // 2. MORNING TRIGGER (09:15 AM) - Sends Reminders
+    ScriptApp.newTrigger('sendDelayReminder')
+        .timeBased()
+        .everyDays(1)
+        .atHour(9)
+        .nearMinute(15)
+        .create();
+
+    return "✅ Triggers Set: Midnight (00:02) & Morning (09:15)";
+}
+
 // --- MASTER HELPERS (NEW) ---
 
 function parseCustomDate(dateStr) {
@@ -325,13 +365,14 @@ function findCol(headers, target) {
         if (t === 'lastlogindate' && (h === 'lastlogindate')) return i + 1;
         if (t === 'lastlogintime' && (h === 'lastlogintime')) return i + 1;
         if (t === 'lastlogin' && (h === 'lastlogin')) return i + 1;
+        if (t === 'delay' && (h === 'delay')) return i + 1;
     }
     return -1;
 }
 
 function getColMap(headers) {
     const map = {};
-    const keys = ['ID', 'Date', 'Time', 'Department', 'Description', 'Status', 'ReportedBy', 'ResolvedBy', 'Remark', 'Username', 'Password', 'Role', 'Mobile', 'Resolved Date', 'Unit', 'History', 'TargetDate', 'Reopened Date', 'Rating', 'ProfilePhoto', 'LastLogin', 'LastLoginIP', 'LastLoginDate', 'LastLoginTime'];
+    const keys = ['ID', 'Date', 'Time', 'Department', 'Description', 'Status', 'ReportedBy', 'ResolvedBy', 'Remark', 'Username', 'Password', 'Role', 'Mobile', 'Resolved Date', 'Unit', 'History', 'TargetDate', 'Reopened Date', 'Rating', 'ProfilePhoto', 'LastLogin', 'LastLoginIP', 'LastLoginDate', 'LastLoginTime', 'Delay'];
     keys.forEach(k => {
         const idx = findCol(headers, k);
         if (idx !== -1) map[k] = idx;
@@ -429,7 +470,7 @@ function createComplaint(payload) {
     let colMap = getColMap(headers);
 
     // Self Healing
-    const essentialCols = ['Unit', 'History', 'TargetDate', 'Resolved Date', 'Rating', 'Time'];
+    const essentialCols = ['Unit', 'History', 'TargetDate', 'Resolved Date', 'Rating', 'Time', 'Delay'];
     let mappingUpdated = false;
     essentialCols.forEach(colName => {
         if (!colMap[colName]) {
@@ -473,7 +514,8 @@ function createComplaint(payload) {
         'ReportedBy': payload.ReportedBy,
         'Unit': payload.Unit || '',
         'History': historyLog,
-        'TargetDate': payload.TargetDate || ''
+        'TargetDate': payload.TargetDate || '',
+        'Delay': 'No'
     };
 
     Object.keys(fields).forEach(f => {
@@ -553,8 +595,11 @@ function updateComplaintStatus(payload) {
         const oldTarget = colMap.TargetDate ? String(data[rowIndex - 1][colMap.TargetDate - 1] || '') : 'None';
         const diff = oldTarget ? Math.ceil((new Date(payload.TargetDate) - new Date(oldTarget)) / (1000 * 60 * 60 * 24)) : 0;
 
-        actionLog = '[' + timestamp + '] Extended by ' + payload.ResolvedBy + ' to ' + (payload.TargetDate || 'N/A') + '. Reason: ' + (payload.Remark || 'No reason provided');
+        actionLog = '[' + timestamp + '] Extended by ' + payload.ResolvedBy + ' to ' + (payload.TargetDate || 'N/A') + '. Remark: ' + (payload.Remark || 'No reason provided');
         if (colMap.TargetDate) sheet.getRange(rowIndex, colMap.TargetDate).setValue("'" + (payload.TargetDate || ''));
+
+        // Reset Delay status on extension
+        if (colMap.Delay) sheet.getRange(rowIndex, colMap.Delay).setValue('No');
 
         logCaseExtend({
             complaint_id: payload.ID,
@@ -612,6 +657,7 @@ function updateComplaintStatus(payload) {
         // Fix: Always update ResolvedBy to the actual person closing the ticket (Final Resolver)
         if (colMap.ResolvedBy && (payload.Status === 'Closed' || payload.Status === 'Resolved')) {
             sheet.getRange(rowIndex, colMap.ResolvedBy).setValue(payload.ResolvedBy);
+            if (colMap.Delay) sheet.getRange(rowIndex, colMap.Delay).setValue('No'); // Reset Delay flag when solved
         }
 
         // History Log
@@ -930,7 +976,8 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
 }
 
 // PART 2 & 3: AUTOMATIC DELAY ENGINE (Runs on Login + Trigger)
-function checkPendingStatus() {
+// 🟢 PART 2: MIDNIGHT AUTO TRANSFER ENGINE (Run at 12:02 AM)
+function checkAndMoveToDelay() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('data');
     if (!sheet) return;
@@ -955,9 +1002,6 @@ function checkPendingStatus() {
     for (let d = 1; d < delayedData.length; d++) {
         loggedDelayedIds.add(String(delayedData[d][0]));
     }
-
-    const L1 = getEscalationContact('L1');
-    const L2 = getEscalationContact('L2');
 
     let updatesMade = false;
 
@@ -984,61 +1028,84 @@ function checkPendingStatus() {
 
         const regDate = new Date(regDateStr);
 
-        // LOGIC: IF Registered Date < TodayDate (Strictly Yesterday or Older)
-        if (regDate < todayDate) {
+        // 🟢 STRICT DELAY LOGIC:
+        // IF Today > RegisteredDate (i.e., Registered Yesterday or Before)
+        if (todayDate > regDate) {
+
             const ticketId = row[colMap.ID - 1];
             const dept = row[colMap.Department - 1];
 
-            // A) UPDATE MAIN SHEET STATUS TO 'Delayed' (If not already)
-            // This fixes the Dashboard Count = 0 issue.
-            if (normStatus !== 'delayed') {
-                if (colMap.Status) {
-                    sheet.getRange(i + 1, colMap.Status).setValue('Delayed');
+            // A) UPDATE DELAY COLUMN IN DATA SHEET -> 'Yes'
+            if (colMap.Delay) {
+                const currentDelay = String(row[colMap.Delay - 1] || '').trim().toLowerCase();
+                if (currentDelay !== 'yes') {
+                    sheet.getRange(i + 1, colMap.Delay).setValue('Yes');
                     updatesMade = true;
 
-                    // Log to History
+                    // 🟢 PART 7: JOURNEY ENTRY AUTO LOG
                     if (colMap.History) {
                         const hist = row[colMap.History - 1];
-                        const msg = `[${getISTTimestamp()}] SYSTEM AUTO-UPDATE: Status changed to Delayed (Pending since ${regDateStr}).`;
+                        const msg = `[${getISTTimestamp()}] ⚠ Case Delayed\nReason: Not solved on same day\nSystem Auto Marked`;
                         sheet.getRange(i + 1, colMap.History).setValue(hist ? hist + '\n' + msg : msg);
                     }
                 }
             }
 
-            // B) LOG TO DELAY SHEET & SEND REMINDER (If not already logged)
+            // B) LOG TO DELAYED_CASES SHEET (Master Sync)
             if (!loggedDelayedIds.has(String(ticketId))) {
                 delayedSheet.appendRow([
                     ticketId,
                     dept,
                     regDateStr,
                     row[colMap.Time - 1] || '',
-                    getISTTimestamp(),
+                    todayStr, // Delayed Date = Today (Action Date)
                     'Delayed',
-                    'TRUE' // Notified Flag
+                    'FALSE' // Notified Flag
                 ]);
                 loggedDelayedIds.add(String(ticketId));
-
-                // TRIGGER REMINDER (First Time Only)
-                sendDeptReminder(ticketId, dept, regDateStr, "DELAY_ALERT");
-            }
-
-            // C) ESCALATION CHECK (Day 3, Day 5)
-            // Calc days passed
-            const diffTime = Math.abs(todayDate - regDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays === 3) {
-                // L2 Escalation
-                if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", ticketId, dept, diffDays, regDateStr);
-            } else if (diffDays >= 5) {
-                // L1 Escalation (Every day after 5? Or just once? Assuming once at 5 for now to avoid spam)
-                if (diffDays === 5 && L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", ticketId, dept, diffDays, regDateStr);
             }
         }
     }
 
     if (updatesMade) {
         SpreadsheetApp.flush();
+    }
+}
+
+// 🟢 PART 6: DELAY MESSAGE TRIGGER SYSTEM (Run at 9:15 AM)
+function sendDelayReminder() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const delayedSheet = ss.getSheetByName('Delayed_Cases');
+    if (!delayedSheet) return;
+
+    const data = delayedSheet.getDataRange().getValues();
+    if (data.length <= 1) return;
+
+    const headers = data[0];
+    const colMap = {};
+    headers.forEach((h, idx) => colMap[h] = idx + 1);
+
+    const notifiedIdx = (colMap['Notified'] || 0) - 1;
+    if (notifiedIdx < 0) return;
+
+    for (let r = 1; r < data.length; r++) {
+        const row = data[r];
+        const notified = String(row[notifiedIdx] || '').toUpperCase();
+
+        // 🟢 SEND ONLY IF NOT NOTIFIED 'TRUE'
+        if (notified === 'FALSE') {
+            const ticketId = row[(colMap['Ticket ID'] || 0) - 1];
+            const dept = row[(colMap['Department'] || 0) - 1];
+            const regDate = row[(colMap['Registered Date'] || 0) - 1];
+
+            if (ticketId && dept) {
+                // Send Alert
+                sendDeptReminder(ticketId, dept, regDate, "DELAY_ALERT");
+
+                // Mark as Notified
+                delayedSheet.getRange(r + 1, notifiedIdx + 1).setValue('TRUE');
+            }
+        }
     }
 }
 
@@ -1575,9 +1642,10 @@ function getComplaintsPaginated(page, limit, deptFilter, statusFilter, search, r
             } else if (statusFilter === 'Open') {
                 if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close') match = false;
             } else if (statusFilter === 'Delayed') {
-                const targetStr = row[colMap.TargetDate - 1];
+                // 🟢 STRICT DELAY FILTER: Use 'Delay' column = 'Yes'
+                const delayVal = String(row[colMap.Delay - 1] || '').trim().toLowerCase();
                 if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close') match = false;
-                else if (!targetStr || new Date(targetStr) >= new Date()) match = false;
+                else if (delayVal !== 'yes') match = false;
             } else if (statusFilter === 'Extended') {
                 if (s !== 'extended' && s !== 'extend') match = false;
             } else {
@@ -1743,7 +1811,7 @@ function getDashboardStats(username, userDept, role) {
 
     // 🔴 AUTO-RUN DELAY CHECK ON DASHBOARD LOAD
     // This ensures that even if triggers are missed, the dashboard is always accurate.
-    checkPendingStatus();
+    // checkDelayedCases(); // COMMENTED OUT: Function undefined and too heavy for frequent polling
 
     const sheet = ss.getSheetByName('data');
     if (!sheet) return response('error', 'Data sheet missing');
@@ -1779,22 +1847,29 @@ function getDashboardStats(username, userDept, role) {
         }
 
         var s = normalize(row[colMap.Status - 1]);
+        const isSolved = ['solved', 'resolved', 'closed', 'force close'].includes(s);
 
         // Status-based counts
-        if (s === 'open') {
+        // Open Count = Status != Closed (Logic 15)
+        if (!isSolved) {
             stats.open++;
+        }
+
+        if (isSolved) {
+            stats.solved++;
         }
         else if (s === 'pending' || s === 'in-progress' || s === 're-open') {
             stats.pending++;
         }
-        else if (s === 'solved' || s === 'resolved' || s === 'closed' || s === 'force close') {
-            stats.solved++;
-        }
         else if (s === 'transferred') {
             stats.transferred++;
         }
-        else if (s === 'delayed') {
-            stats.delayed++;
+
+        // Delay Count = Today > RegDate AND Status != Closed (Logic 15)
+        if (colMap.Delay && !isSolved) {
+            if (String(row[colMap.Delay - 1] || '').trim().toLowerCase() === 'yes') {
+                stats.delayed++;
+            }
         }
 
         if (s === 'extended' || s === 'extend') stats.extended++;

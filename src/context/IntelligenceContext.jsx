@@ -41,6 +41,8 @@ export const IntelligenceProvider = ({ children }) => {
     const [staffStats, setStaffStats] = useState([]);
     const [detailedDelayRisks, setDetailedDelayRisks] = useState([]);
     const [alerts, setAlerts] = useState([]);
+    // AI Auto System Recommendations
+    const [aiRecommendations, setAiRecommendations] = useState({ booster: null, delayWarning: null });
 
     // ------------------------------------------------------------------
     // 1. DATA SYNC ENGINE (20s Cycle)
@@ -158,24 +160,62 @@ export const IntelligenceProvider = ({ children }) => {
             const dept = t.Department || 'General';
             const date = t.Date ? new Date(t.Date) : null;
             const solvedDate = t.ResolvedDate ? new Date(t.ResolvedDate) : null;
-            const regTime = date ? date.getTime() : 0;
-            const closeTime = solvedDate ? solvedDate.getTime() : 0;
-            const isActive = !['solved', 'closed'].includes(status);
-            const isSolved = ['solved', 'closed'].includes(status);
+
+            // Safe Date Parsing for Speed Calc
+            const regTime = (date && !isNaN(date.getTime())) ? date.getTime() : 0;
+            const closeTime = (solvedDate && !isNaN(solvedDate.getTime())) ? solvedDate.getTime() : 0;
+
+            const isActive = !['solved', 'closed', 'resolved', 'force close'].includes(status);
+            const isSolved = ['solved', 'closed', 'resolved', 'force close'].includes(status);
             const resolver = normalize(t.ResolvedBy);
-            const isDelayed = t.Delay === 'Yes' || status === 'delayed';
+
+            // NEW DELAY LOGIC: Dual Visibility
+            // Is it overdue by TargetDate? 
+            let isOverdue = false;
+            if (t.TargetDate) {
+                const targetDate = new Date(t.TargetDate);
+                if (!isNaN(targetDate.getTime()) && new Date() > targetDate && isActive) {
+                    isOverdue = true;
+                }
+            }
+
+            // A case is Delayed if:
+            // 1. Explicitly marked as Delay='Yes' by backend schedule
+            // 2. Breached TargetDate
+            // 3. Status is 'delayed' (Legacy support)
+            // 🟢 FIX: Check 'Delay' column robustly
+            const delayVal = String(t.Delay || '').toLowerCase().trim();
+            const isDelayed = delayVal === 'yes' || status === 'delayed' || isOverdue;
 
             // Dept Init
             if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, transfers: 0 };
 
             if (isActive) {
-                if (status === 'open') { depts[dept].open++; flow.open++; }
-                if (['pending', 'in-progress', 're-open'].includes(status)) { depts[dept].pending++; flow.open++; }
+                // 🟢 FIX: Count ALL active as Open Flow
+                flow.open++;
+
+                // Breakdown by specific status for Dept Stats
+                if (status === 'open') {
+                    depts[dept].open++;
+                } else if (['pending', 'in-progress', 're-open'].includes(status)) {
+                    depts[dept].pending++;
+                } else {
+                    // For other active statuses (like 'delayed' or unmapped), count as open in dept too?
+                    // User said "Open panel should count: status != Closed".
+                    // So let's count them as open if not pending/transferred
+                    if (status !== 'transferred') depts[dept].open++;
+                }
+
+                // 🟢 FIX: Delayed Logic INSIDE Active Block
+                if (isDelayed) {
+                    depts[dept].delayed++;
+                    flow.delayed++; // Global Delay Count
+                }
 
                 // Risk Predictions
-                if (date && !isNaN(date.getTime())) {
-                    const hrsOpen = (now - date) / (1000 * 60 * 60);
-                    if (hrsOpen > 18 && status !== 'delayed') {
+                if (regTime > 0) {
+                    const hrsOpen = (now.getTime() - regTime) / (1000 * 60 * 60);
+                    if (hrsOpen > 18 && !isDelayed) { // Don't double count if already delayed?
                         predictions.push({ id: t.ID, dept: dept, reason: 'Open > 18hrs', chance: 'High' });
                         stress += 2;
                         detailedRisks.push({ ...t, riskLevel: 'HIGH', hours: hrsOpen.toFixed(1) });
@@ -201,6 +241,7 @@ export const IntelligenceProvider = ({ children }) => {
                     }
                 }
 
+                // Track if it WAS delayed
                 if (isDelayed && resolver) {
                     const s = initStaff(resolver);
                     if (s) s.delayCount++;
@@ -209,12 +250,8 @@ export const IntelligenceProvider = ({ children }) => {
             } else if (status === 'transferred') {
                 depts[dept].transfers++;
                 flow.transferred++;
-            } else if (status === 'delayed') {
-                depts[dept].delayed++;
-                health -= 5;
-                stress += 5;
-                flow.delayed++;
             }
+            // Removed redundant 'delayed' check since it's handled in isActive
         });
 
         // D. Ratings Integration
@@ -284,6 +321,52 @@ export const IntelligenceProvider = ({ children }) => {
         if (health < 60) alertList.push({ type: 'critical', msg: 'System Stress Level High' });
         if (predictions.length > 5) alertList.push({ type: 'warning', msg: 'Multiple SLA Breaches Predicted' });
 
+        // H. AI AUTOMATION (Master Prompt Part 11)
+        // 1. Smart Priority Booster (Pending > 6hrs)
+        // Find best candidate: Oldest pending ticket > 6hrs, not yet regular delay
+        let bestBooster = null;
+        const boosterCandidates = tickets.filter(t => {
+            if (!t.Date || ['solved', 'closed', 'delayed'].includes(String(t.Status).toLowerCase())) return false;
+            const tDate = new Date(t.Date);
+            if (isNaN(tDate.getTime())) return false;
+            const diffHrs = (now - tDate) / (1000 * 60 * 60);
+            return diffHrs > 6;
+        });
+
+        if (boosterCandidates.length > 0) {
+            // Sort by oldest first
+            boosterCandidates.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+            const top = boosterCandidates[0];
+            bestBooster = {
+                TicketID: top.ID,
+                Reason: 'Pending > 6 hours. Boost required to prevent delay.',
+                Admin: 'AI Auto-System'
+            };
+        }
+
+        // 2. Delay Prevention Alert (Pre-Midnight Warning)
+        // Warn if a ticket registered TODAY is still open and it's late (e.g. > 8 PM)
+        let delayWarn = null;
+        const currentHour = now.getHours();
+        if (currentHour >= 20) { // After 8 PM
+            const potentialDelays = tickets.filter(t => {
+                const status = String(t.Status).toLowerCase();
+                if (['solved', 'closed', 'delayed'].includes(status)) return false;
+                if (!t.Date) return false;
+                // Check if registered today
+                const tDate = new Date(t.Date);
+                const isToday = tDate.toDateString() === now.toDateString();
+                return isToday;
+            });
+
+            if (potentialDelays.length > 0) {
+                delayWarn = {
+                    count: potentialDelays.length,
+                    msg: `⚠ ${potentialDelays.length} cases may become delayed tomorrow. Resolve ASAP.`
+                };
+            }
+        }
+
         // G. Update State
         setHospitalHealth(health);
         setStressIndex(stress);
@@ -291,8 +374,9 @@ export const IntelligenceProvider = ({ children }) => {
         setDeptRisks(depts);
         setFlowStats(flow);
         setDetailedDelayRisks(detailedRisks);
-        setStaffStats(finalStaffStats); // LIVE CALCULATION OVERRIDE
+        setStaffStats(finalStaffStats);
         setAlerts(alertList);
+        setAiRecommendations({ booster: bestBooster, delayWarning: delayWarn });
     };
 
 
@@ -311,8 +395,9 @@ export const IntelligenceProvider = ({ children }) => {
 
         const hrsOpen = (new Date() - regDate) / (1000 * 60 * 60);
         const status = String(ticket.Status).toLowerCase();
+        const isDelayed = String(ticket.Delay).toLowerCase() === 'yes' || status === 'delayed';
 
-        if (status === 'delayed') {
+        if (isDelayed) {
             priority = { label: 'Delayed', color: 'bg-rose-100 text-rose-600' };
             delayRisk = true;
         } else if (hrsOpen > 18) {
@@ -400,7 +485,10 @@ export const IntelligenceProvider = ({ children }) => {
             flowStats,
             staffStats,
             detailedDelayRisks,
-            alerts
+            staffStats,
+            detailedDelayRisks,
+            alerts,
+            aiRecommendations // Expose AI Logic
         }}>
             {children}
         </IntelligenceContext.Provider>

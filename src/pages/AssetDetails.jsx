@@ -4,7 +4,7 @@ import {
     ArrowLeft, Calendar, FileText,
     Clock, Wrench, Download, CheckCircle, UploadCloud, ExternalLink,
     Banknote, RefreshCw, Edit, AlertTriangle, Sparkles, ShieldCheck, MapPin, Building,
-    Activity, History, XCircle
+    Activity, History, XCircle, X
 } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 import QRCode from 'react-qr-code';
@@ -37,6 +37,7 @@ const AssetDetails = () => {
     });
 
     const [showServiceModal, setShowServiceModal] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null); // For history details
     const [serviceForm, setServiceForm] = useState({
         serviceDate: new Date().toISOString().split('T')[0],
         nextServiceDate: '',
@@ -150,7 +151,7 @@ const AssetDetails = () => {
             await assetsService.editAsset(editForm);
             await fetchDetails();
             setShowEditModal(false);
-            triggerSuccess("Asset Updated Successfully!");
+            triggerSuccess("✔ Asset Updated Successfully");
         } catch (error) {
             console.error("Edit failed", error);
             alert("Failed to update asset.");
@@ -222,7 +223,7 @@ const AssetDetails = () => {
             );
             await fetchDetails();
             setShowServiceModal(false);
-            triggerSuccess("Service Record Added!");
+            triggerSuccess("✔ Service Record Added");
         } catch (error) {
             console.error("Service record failed", error);
             alert("Failed to add service record.");

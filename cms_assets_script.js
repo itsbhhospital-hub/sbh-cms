@@ -284,7 +284,15 @@ function editAsset(data) {
     update("Purchase Date", data.purchaseDate);
     update("Current Service Date", data.currentServiceDate); // Last Service Date
     update("Next Service Date", data.nextServiceDate);
-    update("Remark", data.remark);
+    update("Next Service Date", data.nextServiceDate);
+
+    // SAFEGUARD: Fix "Extended to undefined" error
+    let safeRemark = data.remark || "";
+    if (safeRemark && safeRemark.includes("undefined")) {
+        safeRemark = safeRemark.replace(/Extended to undefined/g, "Extended").replace(/undefined/g, "");
+    }
+    update("Remark", safeRemark);
+
     update("Vendor Name", data.vendorName);
     update("Vendor Contact", data.vendorContact);
     update("Purchase Cost", data.purchaseCost);
@@ -927,7 +935,13 @@ function addServiceRecord(data) {
 
     update("Current Service Date", data.serviceDate);
     update("Next Service Date", data.nextServiceDate);
-    update("Remark", data.remark); // Update last remark
+
+    // SAFEGUARD: Fix "Extended to undefined" error
+    let safeRemark = data.remark || "";
+    if (safeRemark && safeRemark.includes("undefined")) {
+        safeRemark = safeRemark.replace(/Extended to undefined/g, "Extended").replace(/undefined/g, "");
+    }
+    update("Remark", safeRemark); // Update last remark
 
     // Status Update
     if (data.statusOverride) {
@@ -1171,6 +1185,7 @@ function checkDailyReminders() {
 function formatDate(date) {
     if (!date) return "";
     const d = new Date(date);
+    if (isNaN(d.getTime())) return ""; // Handle invalid date
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
 }

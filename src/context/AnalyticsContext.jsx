@@ -125,7 +125,8 @@ export const AnalyticsProvider = ({ children }) => {
         users.forEach(u => initStaff(u.Username));
 
         allTickets.forEach(c => {
-            const status = String(c.Status || '').toLowerCase();
+            // 🟢 FIX: Status Normalization
+            const status = String(c.Status || '').toLowerCase().trim();
             const dept = c.Department || 'Unknown';
             const resolver = normalize(c.ResolvedBy);
             const reporter = normalize(c.ReportedBy);
@@ -134,8 +135,10 @@ export const AnalyticsProvider = ({ children }) => {
 
             const date = c.Date ? new Date(c.Date) : null;
             const solvedDate = c.ResolvedDate ? new Date(c.ResolvedDate) : null;
-            const regTime = c.Date ? new Date(c.Date).getTime() : 0;
-            const closeTime = c.ResolvedDate ? new Date(c.ResolvedDate).getTime() : 0;
+
+            // 🟢 FIX: Safe Date Parsing (prevent NaN)
+            const regTime = (date && !isNaN(date.getTime())) ? date.getTime() : 0;
+            const closeTime = (solvedDate && !isNaN(solvedDate.getTime())) ? solvedDate.getTime() : 0;
 
             // Init Dept
             if (!depts[dept]) depts[dept] = { open: 0, pending: 0, delayed: 0, total: 0, solved: 0, extended: 0, transferred: 0 };
@@ -145,7 +148,9 @@ export const AnalyticsProvider = ({ children }) => {
 
             const isClosed = ['solved', 'resolve', 'closed', 'force close'].includes(status);
             const isTransfer = status === 'transferred';
-            const isDelayed = c.Delay === 'Yes' || status === 'delayed'; // Master Rule: Trust 'Delay' column or Status
+            // 🟢 FIX: DELAY LOGIC (Robust)
+            const delayVal = String(c.Delay || '').toLowerCase().trim();
+            const isDelayed = delayVal === 'yes' || status === 'delayed';
 
             if (isClosed) {
                 depts[dept].solved++;
@@ -175,15 +180,20 @@ export const AnalyticsProvider = ({ children }) => {
                 flow.transferred++;
                 depts[dept].transferred++;
             } else {
-                // Active (Open, Pending, etc)
+                // 🟢 FIX: Active Flow (All non-closed/transferred)
+                flow.open++;
+
+                // Breakdown by specific status for Dept Stats
                 if (status === 'open') {
                     depts[dept].open++;
-                    flow.open++;
                 } else if (['pending', 'in-progress', 're-open'].includes(status)) {
                     depts[dept].pending++;
-                    flow.open++; // Count as active flow
+                } else {
+                    // Fallback active count
+                    if (status !== 'transferred') depts[dept].open++;
                 }
 
+                // 🟢 FIX: Delay Logic (Inside Active Block)
                 if (isDelayed) {
                     depts[dept].delayed++;
                     flow.delayed++;

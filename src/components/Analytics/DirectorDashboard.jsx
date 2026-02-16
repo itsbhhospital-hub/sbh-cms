@@ -4,6 +4,7 @@ import TicketFlowMap from './TicketFlowMap';
 import DepartmentLoadTable from './DepartmentLoadTable';
 import StaffRankingCard from './StaffRankingCard';
 import { AlertTriangle, Zap } from 'lucide-react';
+import { normalize } from '../../utils/dataUtils';
 
 const DirectorDashboard = () => {
     // Consume Unified Intelligence Layer
