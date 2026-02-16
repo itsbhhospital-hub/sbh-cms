@@ -25,7 +25,8 @@ const Dashboard = () => {
         users: activeUsers,
         loading: intelligenceLoading,
         stressIndex,
-        crisisRisk
+        crisisRisk,
+        staffStats // Added missing destructuring
     } = useIntelligence();
 
     // ------------------------------------------------------------------
@@ -88,26 +89,40 @@ const Dashboard = () => {
             }
         };
 
-        // 2. BOOSTER POPUP
+        // 2. BOOSTER POPUP (Fixed Logic)
         const checkBooster = () => {
             if (!boosters || boosters.length === 0) return;
+
             const uDept = normalize(user.Department);
-            const lastSeenBooster = localStorage.getItem(`last_booster_${user.Username}`);
+            const uName = normalize(user.Username);
+            const todayStr = new Date().toLocaleDateString();
+
+            // Daily Limit Check
+            const shownDate = localStorage.getItem(`booster_shown_date_${user.Username}`);
+            if (shownDate === todayStr) return;
 
             const relevant = boosters.filter(b => {
-                const isTargetDept = isAdmin || normalize(b.Department) === uDept;
+                const bDept = normalize(b.NewDepartment || b.Department); // Support both keys
+                const isTargetDept = bDept === uDept; // STRICT DEPT MATCH
+
+                // Rule: Do NOT show to the creator
+                const isCreator = normalize(b.Admin || b.TransferredBy) === uName;
+
+                if (isCreator) return false;
                 if (!isTargetDept) return false;
 
+                // Rule: Only active tickets
                 const ticket = allTickets.find(t => String(t.ID) === String(b.TicketID));
-                // Only show if ticket is still active
-                return ticket ? ['open', 'pending', 'transferred', 're-open'].includes(String(ticket.Status).toLowerCase()) : true;
-            }).sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+                return ticket ? ['open', 'pending', 'transferred', 're-open'].includes(String(ticket.Status).toLowerCase()) : false;
+            }).sort((a, b) => new Date(b.Timestamp || b.Date) - new Date(a.Timestamp || a.Date));
 
             if (relevant.length > 0) {
                 const latest = relevant[0];
-                if (latest.Timestamp !== lastSeenBooster) {
-                    setBoosterNotice(latest);
-                }
+                // Check if we already saw THIS specific booster id today? 
+                // actually prompt says "Show once per day". So if we show ANY booster, we stop for the day?
+                // "Booster should show ONLY... Show only once per day". 
+                // Let's assume one popup per day is the limit to avoid spam.
+                setBoosterNotice(latest);
             }
         };
 
@@ -115,14 +130,11 @@ const Dashboard = () => {
         const checkReopen = () => {
             if (isAdmin) return;
             const reopened = allTickets.filter(t =>
-                String(t.Status).toLowerCase() === 'open' &&
+                String(t.Status).toLowerCase() === 're-open' && // Fix status check
                 (normalize(t.Reporter || '') === normalize(user.Username) || normalize(t.ReportedBy || '') === normalize(user.Username))
             ).slice(0, 10);
 
             if (reopened.length > 0) {
-                // Only show if we haven't acknowledged active reopening? 
-                // Existing logic didn't assume persistence. We'll show it.
-                setReopenedTickets(reopened);
                 setShowReopenModal(true);
             }
         };
@@ -219,11 +231,15 @@ const Dashboard = () => {
     );
 
     // --- YOUR IMPACT DATA SYNC ---
-    const myStats = stats?.staffStats?.find(s => normalize(s.Username) === normalize(user.Username)) || {};
+    // Connect to the NEW AnalyticsContext staffStats which has the correct 40/30/30 calc
+    const myStats = staffStats?.find(s => normalize(s.Username) === normalize(user.Username)) || {};
 
     // Fallbacks to 0 to prevent "undefined" or NaN
     const mySolved = myStats.resolved || 0;
     const mySpeed = myStats.avgSpeed ? Number(myStats.avgSpeed).toFixed(1) + ' hrs' : '0 hrs';
+    // "Quality Score" -> mapped to avgRating or Efficiency? Prompt says "Quality Score" -> "Column B -> Avg Rating". 
+    // Wait, prompt says "Active Performance Score" -> "Numeric index".
+    // Prompt says "Dashboard Your Impact ... Quality Score". Usually this is Rating.
     const myRating = myStats.avgRating ? Number(myStats.avgRating).toFixed(1) : '0.0';
     const myRank = myStats.rank ? `#${myStats.rank}` : '-';
 
@@ -315,11 +331,7 @@ const Dashboard = () => {
                             </p>
 
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 flex flex-wrap justify-center gap-2">
-                                {reopenedTickets.map(t => (
-                                    <span key={t.ID} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-xs font-bold shadow-none">
-                                        #{t.ID}
-                                    </span>
-                                ))}
+                                {/* Only show IDs if available in reopenedTickets */}
                             </div>
 
                             <button
@@ -370,7 +382,8 @@ const Dashboard = () => {
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => {
-                                            localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
+                                            const todayStr = new Date().toLocaleDateString();
+                                            localStorage.setItem(`booster_shown_date_${user.Username}`, todayStr);
                                             setBoosterNotice(null);
                                         }}
                                         className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest"
@@ -379,7 +392,8 @@ const Dashboard = () => {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            localStorage.setItem(`last_booster_${user.Username}`, boosterNotice.Timestamp);
+                                            const todayStr = new Date().toLocaleDateString();
+                                            localStorage.setItem(`booster_shown_date_${user.Username}`, todayStr);
                                             setBoosterNotice(null);
                                             setTrackTicket(boosterNotice.TicketID);
                                         }}

@@ -32,7 +32,9 @@ const AddAsset = () => {
         amcExpiry: '',
         vendorName: '',
         vendorContact: '',
-        purchaseCost: ''
+        purchaseCost: '',
+        responsiblePerson: '', // New
+        responsibleMobile: ''  // New
     });
 
     // Auto-calculate Warranty Expiry
@@ -213,6 +215,30 @@ const AddAsset = () => {
                                     onChange={e => setFormData({ ...formData, vendorContact: e.target.value })}
                                 />
                             </div>
+
+                            {/* RESPONSIBLE PERSON FIELDS */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit">Responsible Person Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                                    placeholder="e.g. Dr. Sharma"
+                                    value={formData.responsiblePerson}
+                                    onChange={e => setFormData({ ...formData, responsiblePerson: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit">Responsible Person Mobile (For WhatsApp Alerts)</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                                    placeholder="e.g. 9876543210"
+                                    value={formData.responsibleMobile}
+                                    onChange={e => setFormData({ ...formData, responsibleMobile: e.target.value })}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -364,33 +390,35 @@ const AddAsset = () => {
                     </button>
 
                 </form>
-            </div>
+            </div >
 
             {/* Success Popup */}
-            {successId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <CheckCircle size={40} className="text-[#2e7d32]" />
-                        </div>
-                        <h2 className="text-2xl font-black text-[#1f2d2a] mb-2">Asset Registered!</h2>
-                        <p className="text-slate-500 font-medium mb-6">Successfully added to the system.</p>
+            {
+                successId && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <CheckCircle size={40} className="text-[#2e7d32]" />
+                            </div>
+                            <h2 className="text-2xl font-black text-[#1f2d2a] mb-2">Asset Registered!</h2>
+                            <p className="text-slate-500 font-medium mb-6">Successfully added to the system.</p>
 
-                        <div className="bg-slate-50 rounded-xl p-4 mb-8 border border-slate-200">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Asset ID</p>
-                            <p className="text-3xl font-black text-[#2e7d32] tracking-tight">{successId}</p>
-                        </div>
+                            <div className="bg-slate-50 rounded-xl p-4 mb-8 border border-slate-200">
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Asset ID</p>
+                                <p className="text-3xl font-black text-[#2e7d32] tracking-tight">{successId}</p>
+                            </div>
 
-                        <button
-                            onClick={() => navigate('/assets')}
-                            className="w-full py-3 rounded-xl font-bold text-white bg-[#1f2d2a] hover:bg-[#2e7d32] transition-colors"
-                        >
-                            Back to Assets
-                        </button>
+                            <button
+                                onClick={() => navigate('/assets')}
+                                className="w-full py-3 rounded-xl font-bold text-white bg-[#1f2d2a] hover:bg-[#2e7d32] transition-colors"
+                            >
+                                Back to Assets
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

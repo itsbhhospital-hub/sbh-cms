@@ -83,11 +83,15 @@ const AssetsPanel = () => {
     const filteredAssets = assets.filter(asset => {
         const categories = getAssetCategory(asset);
         const matchesFilter = filterStatus === 'All' || categories.includes(filterStatus);
+        const safeSearch = (val) => String(val || '').toLowerCase();
+
         const matchesSearch =
-            asset.machineName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            asset.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            asset.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            asset.department?.toLowerCase().includes(searchTerm.toLowerCase());
+            safeSearch(asset.machineName).includes(searchTerm.toLowerCase()) ||
+            safeSearch(asset.id).includes(searchTerm.toLowerCase()) ||
+            safeSearch(asset.location).includes(searchTerm.toLowerCase()) ||
+            safeSearch(asset.department).includes(searchTerm.toLowerCase()) ||
+            safeSearch(asset.keywords).includes(searchTerm.toLowerCase()) ||
+            safeSearch(asset.description).includes(searchTerm.toLowerCase());
 
         return matchesFilter && matchesSearch;
     });

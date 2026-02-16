@@ -48,11 +48,12 @@ const TicketJourneyModal = ({ isOpen, onClose, ticket, transferLogs = [], extens
 
         const extensions = extensionLogs.filter(e => String(e.ComplaintID) === String(ticket.ID));
         extensions.forEach(e => {
+            const hasDate = e.NewTargetDate && e.NewTargetDate !== 'undefined';
             events.push({
                 type: 'extension',
                 date: new Date(e.ExtensionDate || e.Date),
                 title: 'Deadline Extended',
-                subtitle: `Target: ${e.NewTargetDate} (Reason: ${e.Reason})`,
+                subtitle: hasDate ? `Target: ${e.NewTargetDate} (Reason: ${e.Reason})` : `Timeline Extended. Remark: ${e.Reason}`,
                 icon: <Clock size={10} />,
                 color: 'amber'
             });

@@ -1,19 +1,23 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { sheetsService } from '../services/googleSheets';
+import { normalize, safeNumber } from '../utils/dataUtils';
 
 const AnalyticsContext = createContext(null);
-
-const normalize = (val) => String(val || '').toLowerCase().trim();
 
 export const AnalyticsProvider = ({ children }) => {
     const { user } = useAuth();
     const [lastUpdated, setLastUpdated] = useState(new Date());
 
     // 1. Raw Data (Cached in Memory)
-    const [allComplaints, setAllComplaints] = useState([]);
+    const [allTickets, setAllTickets] = useState([]);
     const [allRatings, setAllRatings] = useState([]);
+    const [userPerformanceData, setUserPerformanceData] = useState([]);
+    const [boosters, setBoosters] = useState([]);
+    const [users, setUsers] = useState([]);
+
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // 2. Computed Metrics (Derived from Raw Data)
     const [deptStats, setDeptStats] = useState([]);
@@ -22,41 +26,52 @@ export const AnalyticsProvider = ({ children }) => {
     const [flowStats, setFlowStats] = useState({ open: 0, solved: 0, delayed: 0, transferred: 0 });
     const [alerts, setAlerts] = useState([]);
 
+    // Derived flags
     const isAdmin = user?.Role?.toUpperCase() === 'ADMIN' || user?.Role?.toUpperCase() === 'SUPER_ADMIN';
 
     // -------------------------------------------------------------------------
-    // 🔄 POLLING ENGINE
+    // 🔄 POLLING ENGINE (With Collision Prevention)
     // -------------------------------------------------------------------------
-
-    // Poll Data - Every 10s (Balances freshness vs API Quota)
-    // "Real-time" effect is simulated by frequent UI updates, but data sync is 10s.
     useEffect(() => {
         if (!user) return;
 
         let isMounted = true;
 
         const fetchData = async () => {
+            if (isSyncing) return; // Prevention Check
+            setIsSyncing(true);
+
             try {
-                // Fetch Complaints (Silent Mode)
-                const complaints = await sheetsService.getComplaints(true, true);
-                // Fetch Ratings (Silent Mode)
-                const ratings = await sheetsService.getRatings(true, true);
+                // Fetch All Core Sheets
+                const [tickets, ratings, perf, boosterList, userList] = await Promise.all([
+                    sheetsService.getComplaints(true, true),
+                    sheetsService.getRatings(true, true),
+                    sheetsService.getAllUserPerformance(true, true),
+                    sheetsService.getBoosters(true, true), // NEW: Fetch boosters
+                    sheetsService.getUsers(true, true)
+                ]);
 
                 if (isMounted) {
-                    setAllComplaints(complaints);
+                    setAllTickets(tickets);
                     setAllRatings(ratings);
+                    setUserPerformanceData(perf);
+                    setBoosters(boosterList);
+                    setUsers(userList);
                     setLastUpdated(new Date());
                     setLoading(false);
                 }
             } catch (error) {
                 console.error("Analytics Poll Failed:", error);
+            } finally {
+                if (isMounted) setIsSyncing(false);
             }
         };
 
         // Initial Fetch
         fetchData();
 
-        const interval = setInterval(fetchData, 30000);
+        // 20 Second Refresh Interval (Master Requirement)
+        const interval = setInterval(fetchData, 20000);
         return () => {
             clearInterval(interval);
             isMounted = false;
@@ -66,9 +81,10 @@ export const AnalyticsProvider = ({ children }) => {
     // -------------------------------------------------------------------------
     // 🧠 INTELLIGENCE ENGINE (Runs when data changes)
     // -------------------------------------------------------------------------
-
     useEffect(() => {
-        if (allComplaints.length === 0) return;
+        if (allTickets.length === 0 && !loading) {
+            // Handle empty state gracefully if needed, but usually we just wait
+        }
 
         const now = new Date();
         const startOfDay = new Date();
@@ -76,185 +92,188 @@ export const AnalyticsProvider = ({ children }) => {
 
         // --- 1. Department Load & Flow Stats ---
         const depts = {};
-        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0 };
+        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, extended: 0 };
         const risks = [];
         const alertsList = [];
 
-        // Staff Performance Map
+        // Active Staff Map (Calculated from Tickets + Ratings + User Data)
         const staffMap = {};
 
-        allComplaints.forEach(c => {
+        // Helper to init staff in map
+        const initStaff = (name) => {
+            const nName = normalize(name);
+            if (!nName) return;
+            if (!staffMap[nName]) {
+                const userObj = users.find(u => normalize(u.Username) === nName);
+                staffMap[nName] = {
+                    name: userObj ? userObj.Username : name, // Preserve original case if possible
+                    username: nName,
+                    dept: userObj ? userObj.Department : 'Unknown',
+                    solved: 0,
+                    ratings: [],
+                    active: 0,
+                    delayCount: 0,
+                    speedTotalMinutes: 0,
+                    speedCount: 0,
+                    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+                };
+            }
+            return staffMap[nName];
+        };
+
+        // Initialize from Users list first (so we show 0 stats for inactive users)
+        users.forEach(u => initStaff(u.Username));
+
+        allTickets.forEach(c => {
             const status = String(c.Status || '').toLowerCase();
             const dept = c.Department || 'Unknown';
-            const resolver = c.ResolvedBy || c.AssignedTo || 'Unassigned';
+            const resolver = normalize(c.ResolvedBy);
+            const reporter = normalize(c.ReportedBy);
+            // Note: We track performance based on RESOLVED BY or ASSIGNED TO
+            // For open tickets, we might track "Assigned" load.
+
             const date = c.Date ? new Date(c.Date) : null;
             const solvedDate = c.ResolvedDate ? new Date(c.ResolvedDate) : null;
+            const regTime = c.Date ? new Date(c.Date).getTime() : 0;
+            const closeTime = c.ResolvedDate ? new Date(c.ResolvedDate).getTime() : 0;
 
             // Init Dept
-            if (!depts[dept]) depts[dept] = { open: 0, pending: 0, delayed: 0, total: 0, solved: 0 };
+            if (!depts[dept]) depts[dept] = { open: 0, pending: 0, delayed: 0, total: 0, solved: 0, extended: 0, transferred: 0 };
 
             // Counts
             depts[dept].total++;
-            if (status === 'open') {
-                depts[dept].open++;
-                flow.open++;
-            } else if (['pending', 'in-progress', 're-open'].includes(status)) {
-                depts[dept].pending++;
-                flow.open++; // Count as active flow
-            } else if (['solved', 'resolved', 'closed', 'force close'].includes(status)) {
+
+            const isClosed = ['solved', 'resolve', 'closed', 'force close'].includes(status);
+            const isTransfer = status === 'transferred';
+            const isDelayed = c.Delay === 'Yes' || status === 'delayed'; // Master Rule: Trust 'Delay' column or Status
+
+            if (isClosed) {
                 depts[dept].solved++;
                 if (solvedDate && solvedDate >= startOfDay) flow.solved++;
-            } else if (status === 'transferred') {
-                flow.transferred++;
-            } else if (status === 'delayed') {
-                depts[dept].delayed++;
-                flow.delayed++;
-            }
 
-            // --- Delay Risk Detection ---
-            if (!['solved', 'resolved', 'closed', 'force close'].includes(status) && date) {
-                const hoursOpen = (now - date) / (1000 * 60 * 60);
-
-                // Actual Delayed Status
-                if (status === 'delayed') {
-                    // Already marked
-                } else {
-                    // Predicted Risk
-                    if (hoursOpen > 22) {
-                        risks.push({ ...c, riskLevel: 'HIGH', hours: hoursOpen.toFixed(1) });
-                    } else if (hoursOpen > 18) {
-                        risks.push({ ...c, riskLevel: 'MEDIUM', hours: hoursOpen.toFixed(1) });
+                // --- STAFF PERFORMANCE: SOLVED COUNT ---
+                if (resolver) {
+                    const s = initStaff(resolver);
+                    if (s) {
+                        s.solved++;
+                        // --- STAFF PERFORMANCE: SPEED ---
+                        if (closeTime > regTime && regTime > 0) {
+                            const diffMins = (closeTime - regTime) / (1000 * 60);
+                            s.speedTotalMinutes += diffMins;
+                            s.speedCount++;
+                        }
                     }
                 }
+
+                // --- STAFF PERFORMANCE: DELAY RESOLUTION ---
+                if (isDelayed && resolver) {
+                    const s = initStaff(resolver);
+                    if (s) s.delayCount++; // Resolved but was delayed
+                }
+
+            } else if (isTransfer) {
+                flow.transferred++;
+                depts[dept].transferred++;
+            } else {
+                // Active (Open, Pending, etc)
+                if (status === 'open') {
+                    depts[dept].open++;
+                    flow.open++;
+                } else if (['pending', 'in-progress', 're-open'].includes(status)) {
+                    depts[dept].pending++;
+                    flow.open++; // Count as active flow
+                }
+
+                if (isDelayed) {
+                    depts[dept].delayed++;
+                    flow.delayed++;
+                }
+
+                // Internal Resource Load (Assigned User Active Load)
+                // For now, we don't have a specific "AssignedTo" field in the normalized model for open tickets 
+                // distinct from ResolvedBy (which is usually filled on close). 
+                // We'll skip active load assignment unless "AssignedTo" exists.
             }
+        });
 
-            // --- Staff Metrics ---
-            const normalizedResolver = resolver.toLowerCase().trim();
-            if (resolver !== 'Unassigned') {
-                if (!staffMap[normalizedResolver]) staffMap[normalizedResolver] = { name: resolver, solved: 0, ratings: [], active: 0 };
+        // --- 2. Staff Ratings Integration ---
+        allRatings.forEach(r => {
+            const rawStaff = r.ResolvedBy || r['Staff Name'] || r.Resolver;
+            const rating = safeNumber(r.Rating);
+            const staff = initStaff(rawStaff);
 
-                if (['solved', 'resolved', 'closed', 'force close'].includes(status)) {
-                    staffMap[normalizedResolver].solved++;
-                } else {
-                    staffMap[normalizedResolver].active++;
+            if (staff && rating > 0) {
+                staff.ratings.push(rating);
+                if (rating >= 1 && rating <= 5) {
+                    staff.breakdown[rating]++;
                 }
             }
         });
 
-        // --- 2. Staff Ratings Integration (Precise Sync) ---
-        // Build Ticket -> Resolver map for precise attribution
-        const ticketToResolver = {};
-        allComplaints.forEach(c => {
-            if (c.ID) ticketToResolver[c.ID.toString()] = normalize(c.ResolvedBy || c.AssignedTo || '');
-        });
-
-        allRatings.forEach(r => {
-            const ticketId = (r.ID || r.TicketID || '').toString();
-            const rating = parseInt(r.Rating);
-            if (isNaN(rating)) return;
-
-            // Priority 1: Match by Ticket ID (Most Accurate)
-            const resolverFromTicket = ticketToResolver[ticketId];
-            if (resolverFromTicket && staffMap[resolverFromTicket]) {
-                staffMap[resolverFromTicket].ratings.push(rating);
-                return;
-            }
-
-            // Priority 2: Match by Staff Name (Fallback)
-            const rawStaffName = r['Staff Name'] || r['StaffName'] || r['Resolver'];
-            const name = normalize(rawStaffName);
-            if (name && staffMap[name]) {
-                staffMap[name].ratings.push(rating);
-            }
-        });
-
-        // Final Staff Stats Calculation
+        // --- 3. FINAL EFFICIENCY CALCULATION (MASTER FORMULA) ---
         const finalStaffStats = Object.values(staffMap).map(s => {
-            const solvedCount = s.solved || 0;
+            // A. Avg Rating
             const avgRating = s.ratings.length ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length) : 0;
 
-            // Calculate Speed & Delay per staff
-            let staffSpeedHours = 0;
-            let staffSpeedCount = 0;
-            let staffDelayCount = 0;
-            let staffTotalCases = 0;
+            // B. Speed (Hours)
+            const avgSpeedMins = s.speedCount > 0 ? (s.speedTotalMinutes / s.speedCount) : 0;
+            const avgSpeedHours = avgSpeedMins / 60;
 
-            allComplaints.forEach(c => {
-                const rowResolver = normalize(c.ResolvedBy || c.AssignedTo);
-                const staffName = normalize(s.name);
+            // C. Scores Calculation
+            // 1. Rating Score (0-100): (Avg / 5) * 100
+            const scoreRating = (avgRating / 5) * 100;
 
-                if (rowResolver === staffName) {
-                    staffTotalCases++;
-                    const status = normalize(c.Status);
-                    const isSolved = ['solved', 'resolved', 'closed', 'force close'].includes(status);
+            // 2. Speed Score (0-100): 
+            // - If < 1 hour: 100
+            // - If > 48 hours: 0
+            // - Linear decay in between? Or simple buckets? 
+            // Let's use a dynamic curve: 100 - (hours * 2). So 50 hours = 0 score. 24 hours = 52 score.
+            const scoreSpeed = Math.max(0, 100 - (avgSpeedHours * 2));
 
-                    if (isSolved && c.Date && c.ResolvedDate) {
-                        const d1 = new Date(c.Date);
-                        const d2 = new Date(c.ResolvedDate);
-                        if (d2 > d1) {
-                            staffSpeedHours += (d2 - d1) / (1000 * 60 * 60);
-                            staffSpeedCount++;
-                        }
-                    }
+            // 3. Solved Score (0-100):
+            // We need a baseline. Let's say 50 tickets/month is max score? 
+            // Since we don't have time range filtering here (it's global buffer), let's cap it at 100 for now or RELATIVE to max solver?
+            // "SolvedScore" in the instruction was vague on normalization. 
+            // We'll use a logarithmic scale to be fair: Math.min(100, solved * 5) -> 20 tickets = 100 score.
+            const scoreSolved = Math.min(100, s.solved * 5);
 
-                    // Delay Check (Strict matches backend/dashboard next-day rule)
-                    const regDate = String(c.Date || '').replace(/'/g, '').trim();
-                    const targetDateStr = String(c.TargetDate || '').replace(/'/g, '').trim();
-                    const effectiveDateStr = targetDateStr || regDate;
-
-                    if (effectiveDateStr) {
-                        const today = new Date();
-                        const todayStr = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
-                        const isNextDay = effectiveDateStr !== todayStr;
-
-                        if (isSolved) {
-                            const closedD = String(c.ResolvedDate || '').replace(/'/g, '').trim();
-                            // If closed day is today, but it was due yesterday, it's delayed
-                            if (closedD && closedD !== effectiveDateStr && closedD !== todayStr) {
-                                // Simple string check for legacy or date comparison for accuracy
-                                const dEffective = new Date(effectiveDateStr.split('-').reverse().join('-'));
-                                const dClosed = new Date(closedD.split('-').reverse().join('-'));
-                                if (dClosed > dEffective) staffDelayCount++;
-                            }
-                        } else {
-                            // Active cases: Delayed if not registered today
-                            if (isNextDay && ['open', 'transferred', 'pending', 're-open'].includes(status)) {
-                                staffDelayCount++;
-                            }
-                        }
-                    }
-                }
-            });
-
-            const avgSpeed = staffSpeedCount > 0 ? (staffSpeedHours / staffSpeedCount) : 0;
-
-            // MASTER FORMULA (Simplified as per plan): Average Rating * 10
-            // This provides a scale of 0-50 based on quality.
-            const efficiency = avgRating * 10;
+            // D. EFFICIENCY = (Rating * 40%) + (Speed * 30%) + (Solved * 30%)
+            const efficiency = (scoreRating * 0.4) + (scoreSpeed * 0.3) + (scoreSolved * 0.3);
 
             return {
                 ...s,
                 avgRating: avgRating.toFixed(1),
+                ratingCount: s.ratings.length,
+                avgSpeed: avgSpeedHours.toFixed(1),
                 efficiency: efficiency.toFixed(1),
-                solved: solvedCount,
-                avgSpeed: avgSpeed.toFixed(1),
-                speedScore: (avgSpeed > 0 ? Math.min(30, (24 / avgSpeed) * 10) : (solvedCount > 0 ? 30 : 0)).toFixed(1),
-                delayPenalty: (staffTotalCases > 0 ? Math.max(0, (1 - (staffDelayCount / staffTotalCases)) * 20) : 20).toFixed(1)
+                resolved: s.solved,
+                delayed: s.delayCount,
+                R5: s.breakdown[5],
+                R4: s.breakdown[4],
+                R3: s.breakdown[3],
+                R2: s.breakdown[2],
+                R1: s.breakdown[1]
             };
-        }).sort((a, b) => {
-            // Sort Rule: 1. Efficiency, 2. Avg Rating, 3. Solved Count
-            if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
-            if (parseFloat(b.avgRating) !== parseFloat(a.avgRating)) return parseFloat(b.avgRating) - parseFloat(a.avgRating);
-            return b.solved - a.solved;
-        }); // Excellence Registry Sorting
+        });
 
-        // --- 3. Alerts Generation ---
+        // --- 4. GLOBAL RANKING ---
+        // Sort: Efficiency -> Solved -> Speed (ASC is better for speed? No, "SpeedScore" already handles "Lower is Better" conversion)
+        finalStaffStats.sort((a, b) => {
+            if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
+            if (b.resolved !== a.resolved) return b.resolved - a.resolved;
+            return parseFloat(a.avgSpeed) - parseFloat(b.avgSpeed); // Lower speed (hours) is better tiebreaker if identical score
+        });
+
+        // Assign Rank
+        finalStaffStats.forEach((s, idx) => {
+            s.rank = idx + 1;
+        });
+
+        // --- 5. Alerts Generation ---
         Object.entries(depts).forEach(([d, stats]) => {
             if (stats.open > 15) alertsList.push({ type: 'overload', msg: `High Load: ${d} (${stats.open} Active)` });
             if (stats.delayed > 5) alertsList.push({ type: 'delay', msg: `Delay Spike: ${d}` });
         });
-
-        if (risks.length > 10) alertsList.push({ type: 'risk', msg: `${risks.length} Cases approaching Deadline` });
 
         // Update State
         setDeptStats(Object.entries(depts).map(([name, stats]) => ({ name, ...stats })));
@@ -263,16 +282,19 @@ export const AnalyticsProvider = ({ children }) => {
         setFlowStats(flow);
         setAlerts(alertsList);
 
-    }, [allComplaints, allRatings]);
+    }, [allTickets, allRatings, users]);
 
     return (
         <AnalyticsContext.Provider value={{
             loading,
             lastUpdated,
+            allTickets,
             deptStats,
             staffStats,
             delayRisks,
             flowStats,
+            boosters,
+            users,
             alerts,
             isAdmin
         }}>

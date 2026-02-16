@@ -12,11 +12,11 @@ const CONFIG = {
     DRIVE_FOLDER_ID: "1N5dy31gADHN7Ln5p7MTRAs6KMACpt2yj",      // Provided by USER
     SHEET_NAME: "data",
     WHATSAPP: {
-        API_URL: "https://app.ceoitbox.com/message/new",
+        API_URL: "https://app.messageautosender.com/message/new",
         USERNAME: "SBH HOSPITAL",
         PASS: "123456789",
-        ADMIN_PHONE: "9644404741", // Admin Name: SBH Admin
-        ADMIN_NAME: "SBH Admin"
+        ADMIN_PHONE: "9644404741", // Updated based on user request
+        ADMIN_NAME: "Admin"
     }
 };
 
@@ -57,7 +57,10 @@ function setupAssetsSheet() {
         "AMC Taken",           // 23 [NEW]
         "AMC Amount",          // 24 [NEW]
         "Location",            // 25 [NEW]
-        "Department"           // 26 [NEW]
+        "Location",            // 25 [NEW]
+        "Department",          // 26 [NEW]
+        "Keywords",            // 27 [NEW]
+        "Description"          // 28 [NEW]
     ];
 
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -70,10 +73,16 @@ function updateAssetsSheetStructure() {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     // Phase 10 Update: Add QR PDF Link
+    // Phase 10 Update: Add QR PDF Link, Keywords, Description, Responsible Person
     const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    if (!currentHeaders.includes("QR PDF Link")) {
-        sheet.getRange(1, currentHeaders.length + 1).setValue("QR PDF Link").setFontWeight("bold");
-    }
+
+    const newHeaders = ["QR PDF Link", "Keywords", "Description", "Responsible Person", "Responsible Mobile"];
+
+    newHeaders.forEach(header => {
+        if (!currentHeaders.includes(header)) {
+            sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header).setFontWeight("bold");
+        }
+    });
 }
 
 function setupPhase10() {
@@ -214,15 +223,26 @@ function addAsset(data) {
         data.amcAmount || 0, // NEW
         data.location || "", // NEW
         data.department || "", // NEW
-        qrPdfLink || "" // QR PDF Link Key
+        data.keywords || "", // NEW: Related Words
+        data.description || "", // NEW: Matter/Description
+        qrPdfLink || "", // QR PDF Link Key
+        data.responsiblePerson || "", // NEW
+        data.responsibleMobile || ""  // NEW
     ];
 
     sheet.appendRow(row);
 
     // Notify
-    let msg = `🆕 New Asset Added:\nID: ${id}\nMachine: ${data.machineName}\nLoc: ${data.location}\nCost: ₹${data.purchaseCost}`;
-    if (data.parentId) msg += `\n(Replacement for ${data.parentId})`;
-    sendWhatsAppAlert(msg);
+    // Notify
+    const template = `*🆕 New Asset Added*
+🆔 *ID:* ${id}
+⚙️ *Machine:* ${data.machineName}
+📍 *Location:* ${data.location}
+💰 *Cost:* ₹${data.purchaseCost}
+${data.parentId ? `🔄 *Replacement for:* ${data.parentId}` : ''}
+🔗 *View:* ${assetFolder.getUrl()}`;
+
+    sendWhatsAppMessage(CONFIG.WHATSAPP.ADMIN_PHONE, CONFIG.WHATSAPP.ADMIN_NAME, template);
 
     // TRIGGER AI UDPATE IMMEDIATELY for this ID (Optional, or wait for cron)
     // For now, we trust the cron or next read.
@@ -276,6 +296,10 @@ function editAsset(data) {
     update("AMC Amount", data.amcAmount);
     update("Location", data.location);
     update("Department", data.department);
+    update("Keywords", data.keywords);
+    update("Description", data.description);
+    update("Responsible Person", data.responsiblePerson);
+    update("Responsible Mobile", data.responsibleMobile);
 
     return { status: "success", message: "Asset Updated Successfully" };
 }
@@ -318,8 +342,19 @@ function markAsReplaced(data) {
         statusOverride: "Replaced" // Special flag
     });
 
+    // Notify
+    const template = `*🔄 ASSET REPLACED*
+❌ *Old Asset:* ${data.id}
+✅ *New Asset:* ${addResult.assetId}
+📝 *Reason:* ${data.reason}
+💬 *Remark:* ${data.remark}
 
-    return { status: "success", message: "Replacement Processed", newAssetId: newAssetId };
+_The old asset has been marked as Replaced and the new one linked._`;
+
+    sendWhatsAppMessage(CONFIG.WHATSAPP.ADMIN_PHONE, CONFIG.WHATSAPP.ADMIN_NAME, template);
+
+
+    return { status: "success", message: "Replacement Processed", newAssetId: addResult.assetId };
 }
 
 /****************************************************************
@@ -349,6 +384,21 @@ function setupAITrigger() {
         .timeBased()
         .everyHours(6)
         .create();
+}
+
+function setupDailyTrigger() {
+    const triggers = ScriptApp.getProjectTriggers();
+    for (const trigger of triggers) {
+        if (trigger.getHandlerFunction() === 'checkDailyAlerts') {
+            ScriptApp.deleteTrigger(trigger);
+        }
+    }
+    ScriptApp.newTrigger('checkDailyAlerts')
+        .timeBased()
+        .everyDays(1)
+        .atHour(9) // Run at 9 AM
+        .create();
+    return "Daily Alert Trigger Set for 9 AM.";
 }
 
 // 3. CORE AI ANALYSIS ENGINE (FIXED BINDING)
@@ -727,7 +777,11 @@ function getAssetDetails(id) {
             amcTaken: getVal("AMC Taken") || "No",
             amcAmount: getVal("AMC Amount") || 0,
             location: getVal("Location"),
-            department: getVal("Department")
+            department: getVal("Department"),
+            keywords: getVal("Keywords"),
+            description: getVal("Description"),
+            responsiblePerson: getVal("Responsible Person"),
+            responsibleMobile: getVal("Responsible Mobile")
         }
     };
 }
@@ -894,21 +948,41 @@ function addServiceRecord(data) {
     let logsSheet = ss.getSheetByName("service_logs");
     if (!logsSheet) {
         logsSheet = ss.insertSheet("service_logs");
-        logsSheet.appendRow(["Asset ID", "Service Date", "Type", "Cost", "Remark", "File URL"]);
+        logsSheet.appendRow(["Asset ID", "Service Date", "Type", "Cost", "Remark", "File URL", "Location", "Department", "Vendor", "Responsible Person"]);
         logsSheet.setFrozenRows(1);
-        logsSheet.getRange(1, 1, 1, 6).setFontWeight("bold");
+        logsSheet.getRange(1, 1, 1, 10).setFontWeight("bold");
     }
 
-    logsSheet.appendRow([
+    // Ensure headers exist (migration for existing sheets)
+    const logsHeaders = logsSheet.getRange(1, 1, 1, logsSheet.getLastColumn()).getValues()[0];
+    if (!logsHeaders.includes("Location")) logsSheet.getRange(1, logsHeaders.length + 1).setValue("Location");
+    if (!logsHeaders.includes("Department")) logsSheet.getRange(1, logsHeaders.length + 2).setValue("Department");
+    if (!logsHeaders.includes("Vendor")) logsSheet.getRange(1, logsHeaders.length + 3).setValue("Vendor");
+    if (!logsHeaders.includes("Responsible Person")) logsSheet.getRange(1, logsHeaders.length + 4).setValue("Responsible Person");
+
+    const rowData = [
         data.id,
         data.serviceDate,
-        data.serviceType || "Paid", // Default to Paid if not provided
+        data.serviceType || "Paid",
         data.cost || 0,
         data.remark,
-        fileUrl
-    ]);
+        fileUrl,
+        data.location || "",
+        data.department || "",
+        data.serviceVendor || "",
+        data.responsiblePerson || ""
+    ];
 
-    sendWhatsAppAlert(`🛠 Service/Update:\nAsset: ${data.id}\nType: ${data.serviceType || "Paid"}\nCost: ₹${data.cost || 0}`);
+    logsSheet.appendRow(rowData);
+
+    // Send WhatsApp with extended info (To Admin)
+    sendWhatsAppAlert(`🛠 Service/Update:\nAsset: ${data.id}\nType: ${data.serviceType || "Paid"}\nCost: ₹${data.cost || 0}\nLoc: ${data.location || "NA"}\nBy: ${data.responsiblePerson || "NA"}`);
+
+    // Send to Responsible Person (if available)
+    if (data.responsibleMobile) {
+        sendWhatsAppAlert(`🛠 Service Update For Your Asset:\nAsset: ${data.id} (${data.machineName || ""})\nType: ${data.serviceType || "Paid"}\nRemark: ${data.remark}`, data.responsibleMobile);
+    }
+
     return { status: "success", message: "Service Record Added" };
 }
 
@@ -1040,8 +1114,8 @@ function checkDailyReminders() {
 
             // 1. Service Due Soon (20 days before)
             if (diffDays <= 20 && diffDays >= 0) {
-                // Determine Phone
-                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                // Determine Phone: Prefer Responsible Person, then Dept Head, then L2
+                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
                 const msg = `⚠️ SERVICE REMINDER\nAsset: ${asset.id}\nMachine: ${asset.machineName}\nDept: ${asset.department}\nDue Date: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
 
                 // Send Daily? Yes.
@@ -1050,7 +1124,7 @@ function checkDailyReminders() {
 
             // 2. Service Overdue (Expired)
             if (diffDays < 0) {
-                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
                 const msg = `🚨 SERVICE OVERDUE ALERT\nAsset: ${asset.id}\nImmediate Action Required.\nDue was: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
                 sendWhatsAppAlert(msg, deptPhone);
 
@@ -1074,14 +1148,14 @@ function checkDailyReminders() {
 
             // 1. Expiring Soon (30 days)
             if (diffDays <= 30 && diffDays >= 0) {
-                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
                 const msg = `⏳ AMC RENEWAL REMINDER\nAsset: ${asset.id}\nAMC Expire Date: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
                 sendWhatsAppAlert(msg, deptPhone);
             }
 
             // 2. Expired
             if (diffDays < 0) {
-                const deptPhone = deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
                 const msg = `⛔ AMC EXPIRED ALERT\nAsset: ${asset.id}\nExpired on: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals`;
                 sendWhatsAppAlert(msg, deptPhone);
 
@@ -1099,4 +1173,96 @@ function formatDate(date) {
     const d = new Date(date);
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+}
+
+/* --- UTILS --- */
+function sendWhatsAppMessage(mobile, name, message) {
+    try {
+        const url = `${CONFIG.WHATSAPP.API_URL}?username=${encodeURIComponent(CONFIG.WHATSAPP.USERNAME)}&password=${encodeURIComponent(CONFIG.WHATSAPP.PASS)}&receiverMobileNo=${matchPhone(mobile)}&receiverName=${encodeURIComponent(name)}&message=${encodeURIComponent(message)}`;
+
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        console.log("WhatsApp Sent to " + mobile + ": " + response.getContentText());
+        return response.getContentText();
+    } catch (e) {
+        console.error("WhatsApp Error: " + e.toString());
+        return "Error";
+    }
+}
+
+function matchPhone(phone) {
+    if (!phone) return "";
+    return phone.toString().replace(/\D/g, ''); // Remove non-digits
+}
+
+/* --- REAL-TIME TRIGGER (INSTALLABLE) --- */
+
+function processRealTimeEdit(e) {
+    // 1. Validation
+    if (!e || !e.range) return;
+    const sheet = e.range.getSheet();
+    if (sheet.getName() !== CONFIG.SHEET_NAME) return;
+
+    const range = e.range;
+    const col = range.getColumn();
+    const row = range.getRow();
+    const val = e.value || range.getValue();
+
+    if (row < 2) return; // Skip Header
+
+    // 2. Column Indices (1-based from Header Map checks)
+    // Next Service Date: 7, Status: 13, Warranty Expiry: 17, AMC Expiry: 19
+
+    // Get Identity Data (Asset ID = Col 1, Machine Name = Col 2)
+    const assetId = sheet.getRange(row, 1).getValue();
+    const machineName = sheet.getRange(row, 2).getValue();
+    const adminPhone = CONFIG.WHATSAPP.ADMIN_PHONE;
+    const adminName = CONFIG.WHATSAPP.ADMIN_NAME;
+
+    let msg = "";
+
+    // A. Next Service Date Changed (Col 7)
+    if (col === 7) {
+        msg = `*📅 SERVICE DATE UPDATED*
+Asset: ${machineName} (${assetId})
+New Service Date: ${formatDate(val)}
+_Maintenace schedule has been updated._`;
+    }
+
+    // B. Status Changed (Col 13)
+    else if (col === 13) {
+        if (val === "Service Due") {
+            msg = `*🛠️ STATUS: SERVICE DUE*
+Asset: ${machineName} (${assetId})
+Status marked as 'Service Due'.
+_Please arrange for service._`;
+        } else if (val === "Replaced") {
+            // Note: marking via script covers this, but this catches manual edits
+            msg = `*🔄 STATUS: REPLACED*
+Asset: ${machineName} (${assetId})
+Status marked as 'Replaced'.`;
+        } else if (val === "Dead" || val === "Retired") {
+            msg = `*⛔ STATUS: ${val.toUpperCase()}*
+Asset: ${machineName} (${assetId})
+Asset is no longer active.`;
+        }
+    }
+
+    // C. Warranty Expiry Changed (Col 17)
+    else if (col === 17) {
+        msg = `*🛡️ WARRANTY DATE UPDATED*
+Asset: ${machineName} (${assetId})
+New Warranty Expiry: ${formatDate(val)}`;
+    }
+
+    // D. AMC Expiry Changed (Col 19)
+    else if (col === 19) {
+        msg = `*📄 AMC DATE UPDATED*
+Asset: ${machineName} (${assetId})
+New AMC Expiry: ${formatDate(val)}`;
+    }
+
+    // 3. Send Message
+    if (msg) {
+        sendWhatsAppMessage(adminPhone, adminName, msg);
+    }
 }

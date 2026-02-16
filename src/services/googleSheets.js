@@ -59,6 +59,8 @@ const invalidateCache = (key) => {
 
 // --- DATA NORMALIZATION HELPER ---
 
+import { normalize } from '../utils/dataUtils';
+
 export const getGoogleDriveDirectLink = (url) => {
     if (!url) return '';
     try {
@@ -98,14 +100,14 @@ const normalizeRows = (rows) => {
         normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID']);
         normalized.Date = findValue(['Date', 'Timestamp', 'Created Date']);
         normalized.Time = findValue(['Time', 'Registered Time', 'Created Time']);
-        normalized.Department = String(findValue(['Department', 'Dept']) || '').trim();
+        normalized.Department = normalize(findValue(['Department', 'Dept']));
         normalized.Description = findValue(['Description', 'Desc', 'Complaint']);
         const rawStatus = String(findValue(['Status']) || '').trim();
         normalized.Status = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : ''; // Normalize: Open, Solved, etc.
         normalized.Delay = findValue(['Delay', 'Delayed', 'IsDelayed']); // NEW: Delay Flag mapping
-        normalized.ReportedBy = findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name']);
+        normalized.ReportedBy = normalize(findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name']));
         // Complaint_Ratings specific
-        normalized.ResolvedBy = findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name']);
+        normalized.ResolvedBy = normalize(findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name']));
         normalized.Remark = findValue(['Remark', 'Comments', 'Feedback']);
         normalized.Unit = findValue(['Unit', 'Section', 'Ward']); // NEW: Unit Mapping
         normalized.ResolvedDate = findValue(['Resolved Date', 'Closed Date', 'Closure Date', 'ResolvedDate']); // NEW: Closed Date Mapping
@@ -118,7 +120,7 @@ const normalizeRows = (rows) => {
         normalized.LastUpdated = findValue(['Last Updated', 'Date']);
 
         // User/Master Sheet specific
-        normalized.Username = findValue(['Username', 'User Name', 'Name', 'Staff Name']);
+        normalized.Username = normalize(findValue(['Username', 'User Name', 'Name', 'Staff Name']));
         normalized.Password = findValue(['Password', 'Pass']);
         normalized.Role = findValue(['Role', 'Access Level']);
         normalized.Mobile = findValue(['Mobile', 'Phone', 'Contact']);
@@ -127,18 +129,17 @@ const normalizeRows = (rows) => {
         normalized.IPDetails = findValue(['IPDetails', 'IP Address', 'IP']);
 
         // Notification & Log Specifics (NEW)
-        // Notification & Log Specifics (NEW)
-        normalized.TransferredBy = findValue(['TransferredBy', 'Transferred By', 'Transfer By', 'By', 'transferred_by', 'Admin']); // Fallback Admin for boosters
-        normalized.NewDepartment = findValue(['NewDepartment', 'New Department', 'To Dept', 'to_department', 'Department']); // Fallback Dept for boosters
-        normalized.FromDepartment = findValue(['FromDepartment', 'From Department', 'From Dept', 'from_department']);
+        normalized.TransferredBy = normalize(findValue(['TransferredBy', 'Transferred By', 'Transfer By', 'By', 'transferred_by', 'Admin'])); // Fallback Admin for boosters
+        normalized.NewDepartment = normalize(findValue(['NewDepartment', 'New Department', 'To Dept', 'to_department', 'Department'])); // Fallback Dept for boosters
+        normalized.FromDepartment = normalize(findValue(['FromDepartment', 'From Department', 'From Dept', 'from_department']));
         normalized.ComplaintID = findValue(['ComplaintID', 'TicketID', 'complaint_id', 'ID', 'Ticket']);
         normalized.TransferDate = findValue(['TransferDate', 'Transfer Time', 'transfer_time', 'Timestamp']);
         normalized.Reason = findValue(['Reason', 'Transfer Reason', 'Extension Reason', 'reason']);
-        normalized.ExtendedBy = findValue(['ExtendedBy', 'Extended By', 'extended_by']);
+        normalized.ExtendedBy = normalize(findValue(['ExtendedBy', 'Extended By', 'extended_by']));
         normalized.TargetDate = findValue(['TargetDate', 'Target Date', 'New Date', 'new_target_date']);
 
         // Ensure Booster specifics are mapped to common keys
-        if (!normalized.Admin) normalized.Admin = findValue(['Admin', 'Issued By', 'By']);
+        if (!normalized.Admin) normalized.Admin = normalize(findValue(['Admin', 'Issued By', 'By']));
         if (!normalized.Reason) normalized.Reason = findValue(['Reason', 'Comment', 'Remark']);
         if (!normalized.TicketID) normalized.TicketID = normalized.ComplaintID;
 

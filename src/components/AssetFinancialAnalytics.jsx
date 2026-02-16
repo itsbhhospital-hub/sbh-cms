@@ -99,8 +99,8 @@ const AssetFinancialAnalytics = ({ assets }) => {
                 {/* Cost Distribution Chart */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
                     <h3 className="text-lg font-black text-[#1f2d2a] mb-6">Asset Value Distribution</h3>
-                    <div className="h-64 w-full" style={{ minHeight: '250px', minWidth: '100px' }}>
-                        <ResponsiveContainer width="99%" height="100%">
+                    <div className="h-64 w-full" style={{ minHeight: '250px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={costDistributionData}
@@ -126,8 +126,8 @@ const AssetFinancialAnalytics = ({ assets }) => {
                 {/* Top Spenders Chart */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
                     <h3 className="text-lg font-black text-[#1f2d2a] mb-6">Top 5 Highest Service Costs</h3>
-                    <div className="h-64 w-full" style={{ minHeight: '250px', minWidth: '100px' }}>
-                        <ResponsiveContainer width="99%" height="100%">
+                    <div className="h-64 w-full" style={{ minHeight: '250px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={topSpendersData}
                                 layout="vertical"

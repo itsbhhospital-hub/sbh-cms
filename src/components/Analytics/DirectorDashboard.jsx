@@ -10,23 +10,17 @@ const DirectorDashboard = () => {
     const {
         loading,
         flowStats,
-        deptRisks,
+        deptStats, // DIRECT CONSUMPTION (Array)
         staffStats,
-        detailedDelayRisks,
+        delayRisks, // Renamed from detailedDelayRisks in Context to delayRisks
         alerts,
         lastSync
     } = useIntelligence();
 
     // Adapt Data Formats
-    const deptStats = useMemo(() => {
-        if (!deptRisks) return [];
-        return Object.entries(deptRisks).map(([name, data]) => ({
-            name,
-            ...data.counts
-        }));
-    }, [deptRisks]);
+    // const deptStats = ... (REMOVED: Context now provides this already formatted)
 
-    const delayRisks = detailedDelayRisks || [];
+    // const delayRisks = detailedDelayRisks || []; // REMOVED: Now from context directly
     const lastUpdated = lastSync || new Date();
 
     if (loading) return (

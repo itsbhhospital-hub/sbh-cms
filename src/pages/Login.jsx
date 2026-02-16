@@ -124,6 +124,18 @@ const Login = () => {
                             </button>
                         </form>
 
+                        {/* QR Code Section */}
+                        <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center text-center">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Scan to Access on Mobile</p>
+                            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                                <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${window.location.origin}`}
+                                    alt="Login QR"
+                                    className="w-24 h-24 object-contain"
+                                />
+                            </div>
+                        </div>
+
                         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
                                 Don't have access?{' '}

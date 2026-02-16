@@ -121,26 +121,6 @@ const PublicAssetView = () => {
                         </div>
                         <h1 className="text-2xl font-black text-white tracking-wide leading-tight px-4">{asset.machineName}</h1>
 
-                        {/* QR Code with Overlay - HIGH CONTRAST */}
-                        <div className="mt-6 relative bg-white p-3 rounded-xl shadow-2xl shadow-black/20">
-                            <div className="relative flex items-center justify-center">
-                                <QRCode
-                                    value={window.location.href}
-                                    size={180}
-                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                    viewBox={`0 0 256 256`}
-                                    level="H" // High Error Correction ensures ID overlay doesn't break scan
-                                />
-                                {/* Center ID Overlay - BOLD & VISIBLE */}
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <div className="bg-white px-3 py-1.5 rounded-md border-4 border-[#1f2d2a] shadow-lg flex flex-col items-center justify-center">
-                                        <span className="text-xl font-black text-[#1f2d2a] tracking-tight leading-none">{asset.id}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <p className="text-center mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Scan for Details</p>
-                        </div>
-
                         <div className="mt-6 inline-flex items-center gap-2 bg-white/10 px-6 py-2 rounded-full border border-white/20 backdrop-blur-sm shadow-sm">
                             <span className={`w-2.5 h-2.5 rounded-full ${isReplaced ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}`}></span>
                             <p className="text-emerald-50 font-black text-base tracking-widest uppercase">{asset.id}</p>
@@ -257,11 +237,12 @@ const PublicAssetView = () => {
                     </div>
 
                     {/* FOOTER */}
-                    <div className="pt-6 text-center">
-                        <div className="w-12 h-1 bg-slate-100 mx-auto rounded-full mb-4"></div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">SBH Group Of Hospitals</p>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-[#2e7d32]/40 mt-1">Official Asset Verification System</p>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-slate-300 mt-2">Developed by Naman Mishra</p>
+                    <div className="pt-6 text-center pb-8">
+                        <div className="w-12 h-1 bg-slate-200 mx-auto rounded-full mb-4"></div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Official Assets Verification System</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#1f2d2a] mt-2">
+                            Developed by <span className="text-[#0b5e3c] font-black">Naman Mishra</span>
+                        </p>
                     </div>
 
                 </div>

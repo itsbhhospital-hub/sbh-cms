@@ -5,6 +5,10 @@ import { useAuth } from './AuthContext';
 const IntelligenceContext = createContext(null);
 
 const normalize = (val) => String(val || '').toLowerCase().trim();
+const safeNumber = (val) => {
+    const num = parseFloat(val);
+    return isNaN(num) ? 0 : num;
+};
 
 export const IntelligenceProvider = ({ children }) => {
     const { user } = useAuth();
@@ -103,8 +107,11 @@ export const IntelligenceProvider = ({ children }) => {
     // ------------------------------------------------------------------
     // 2. UNIFIED ANALYSIS ENGINE
     // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // 2. UNIFIED ANALYSIS ENGINE (With Master Efficiency Formula)
+    // ------------------------------------------------------------------
     const analyzeSystem = (tickets, ratings) => {
-        if (!tickets || !tickets.length) return;
+        if (!tickets) return;
 
         const now = new Date();
         const startOfDay = new Date();
@@ -113,19 +120,50 @@ export const IntelligenceProvider = ({ children }) => {
         // A. Base Counters
         let health = 100;
         let stress = 0;
-        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0 };
+        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, efficiency: 0 };
         const depts = {};
         const predictions = [];
         const detailedRisks = [];
         const alertList = [];
 
+        // B. Staff Map Init (Ensure all users are tracked)
+        const staffMap = {};
+        const initStaff = (name) => {
+            const nName = normalize(name);
+            if (!nName) return;
+            if (!staffMap[nName]) {
+                const userObj = users.find(u => normalize(u.Username) === nName);
+                staffMap[nName] = {
+                    name: userObj ? userObj.Username : name,
+                    username: nName,
+                    dept: userObj ? userObj.Department : 'Unknown',
+                    solved: 0,
+                    ratings: [],
+                    active: 0,
+                    delayCount: 0,
+                    speedTotalMinutes: 0,
+                    speedCount: 0,
+                    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, total: 0 }
+                };
+            }
+            return staffMap[nName];
+        };
+
+        // Initialize from Users list first
+        users.forEach(u => initStaff(u.Username));
+
+        // C. Ticket Processing
         tickets.forEach(t => {
             const status = String(t.Status || '').toLowerCase().trim();
             const dept = t.Department || 'General';
             const date = t.Date ? new Date(t.Date) : null;
             const solvedDate = t.ResolvedDate ? new Date(t.ResolvedDate) : null;
+            const regTime = date ? date.getTime() : 0;
+            const closeTime = solvedDate ? solvedDate.getTime() : 0;
             const isActive = !['solved', 'closed'].includes(status);
             const isSolved = ['solved', 'closed'].includes(status);
+            const resolver = normalize(t.ResolvedBy);
+            const isDelayed = t.Delay === 'Yes' || status === 'delayed';
 
             // Dept Init
             if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, transfers: 0 };
@@ -133,6 +171,7 @@ export const IntelligenceProvider = ({ children }) => {
             if (isActive) {
                 if (status === 'open') { depts[dept].open++; flow.open++; }
                 if (['pending', 'in-progress', 're-open'].includes(status)) { depts[dept].pending++; flow.open++; }
+
                 // Risk Predictions
                 if (date && !isNaN(date.getTime())) {
                     const hrsOpen = (now - date) / (1000 * 60 * 60);
@@ -148,6 +187,25 @@ export const IntelligenceProvider = ({ children }) => {
             } else if (isSolved) {
                 depts[dept].solved++;
                 if (solvedDate && solvedDate >= startOfDay) flow.solved++;
+
+                // Staff Stats: Solved & Speed
+                if (resolver) {
+                    const s = initStaff(resolver);
+                    if (s) {
+                        s.solved++;
+                        if (closeTime > regTime && regTime > 0) {
+                            const diffMins = (closeTime - regTime) / (1000 * 60);
+                            s.speedTotalMinutes += diffMins;
+                            s.speedCount++;
+                        }
+                    }
+                }
+
+                if (isDelayed && resolver) {
+                    const s = initStaff(resolver);
+                    if (s) s.delayCount++;
+                }
+
             } else if (status === 'transferred') {
                 depts[dept].transfers++;
                 flow.transferred++;
@@ -159,24 +217,81 @@ export const IntelligenceProvider = ({ children }) => {
             }
         });
 
-        // NOTE: Manual Staff Stats calculation removed to prevent override.
-        // We now fetch pre-calculated stats from 'User_Performance_Ratings' sheet.
+        // D. Ratings Integration
+        if (ratings && Array.isArray(ratings)) {
+            ratings.forEach(r => {
+                const rawStaff = r.ResolvedBy || r['Staff Name'] || r.Resolver;
+                // Use safeNumber helper logic inline if simple
+                const val = parseFloat(r.Rating);
+                const rating = isNaN(val) ? 0 : val;
+                const staff = initStaff(rawStaff);
 
-        // E. Thresholds & Alerts
+                if (staff && rating > 0) {
+                    staff.ratings.push(rating);
+                    if (rating >= 1 && rating <= 5) {
+                        staff.breakdown[Math.floor(rating)]++;
+                    }
+                }
+            });
+        }
+
+        // E. FINAL EFFICIENCY CALCULATION (40/30/30)
+        const finalStaffStats = Object.values(staffMap).map(s => {
+            const avgRating = s.ratings.length ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length) : 0;
+
+            // Speed (Hours)
+            const avgSpeedMins = s.speedCount > 0 ? (s.speedTotalMinutes / s.speedCount) : 0;
+            const avgSpeedHours = avgSpeedMins / 60;
+
+            // Scores
+            const scoreRating = (avgRating / 5) * 100; // 0-100
+            const scoreSpeed = Math.max(0, 100 - (avgSpeedHours * 2)); // 0-100 (50hrs = 0)
+            const scoreSolved = Math.min(100, s.solved * 5); // 0-100 (20 tickets = 100)
+
+            // Formula: 40% Rating + 30% Speed + 30% Solved
+            const efficiency = (scoreRating * 0.4) + (scoreSpeed * 0.3) + (scoreSolved * 0.3);
+
+            return {
+                ...s,
+                avgRating: avgRating.toFixed(1),
+                ratingCount: s.ratings.length,
+                avgSpeed: avgSpeedHours.toFixed(1),
+                efficiency: efficiency.toFixed(1),
+                resolved: s.solved,
+                delayed: s.delayCount,
+                R5: s.breakdown[5],
+                R4: s.breakdown[4],
+                R3: s.breakdown[3],
+                R2: s.breakdown[2],
+                R1: s.breakdown[1]
+            };
+        });
+
+        // Global Ranking
+        finalStaffStats.sort((a, b) => {
+            if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
+            return b.resolved - a.resolved;
+        });
+        finalStaffStats.forEach((s, idx) => s.rank = idx + 1);
+
+        // Calculate Global Efficiency for AI Center
+        const globalEfficiency = finalStaffStats.length ? (finalStaffStats.reduce((a, b) => a + parseFloat(b.efficiency), 0) / finalStaffStats.length).toFixed(1) : 0;
+        flow.efficiency = globalEfficiency;
+
+        // F. Alerts
         if (stress > 50) health = Math.max(0, health - 20);
         if (tickets.length > 500) health -= 10;
-
-        // Push-based Alerts
         if (health < 60) alertList.push({ type: 'critical', msg: 'System Stress Level High' });
         if (predictions.length > 5) alertList.push({ type: 'warning', msg: 'Multiple SLA Breaches Predicted' });
 
-        // Update State
+        // G. Update State
         setHospitalHealth(health);
         setStressIndex(stress);
         setPredictedDelays(predictions);
         setDeptRisks(depts);
         setFlowStats(flow);
         setDetailedDelayRisks(detailedRisks);
+        setStaffStats(finalStaffStats); // LIVE CALCULATION OVERRIDE
         setAlerts(alertList);
     };
 

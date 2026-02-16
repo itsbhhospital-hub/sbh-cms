@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
 import { useIntelligence } from '../context/IntelligenceContext';
-import { useAnalytics } from '../context/AnalyticsContext';
+// import { useAnalytics } from '../context/AnalyticsContext'; // Removed unused
 import { Activity, AlertCircle, BarChart3, Clock, TrendingUp, Zap, Building2, User, CheckCircle } from 'lucide-react';
 
 const AICommandCenter = () => {
-    const { stressIndex, loadWarnings, crisisRisk, deptTrends, lastAiPulse } = useIntelligence();
-    const { flowStats, staffStats, allComplaints } = useAnalytics();
+    const { stressIndex, loadWarnings = [], crisisRisk, deptTrends, lastAiPulse = new Date(), flowStats, staffStats, allTickets: allComplaints } = useIntelligence();
 
     const stressColor = useMemo(() => {
         if (stressIndex > 70) return 'text-rose-500 border-rose-200 bg-rose-50';

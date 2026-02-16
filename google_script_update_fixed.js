@@ -1624,24 +1624,22 @@ function getComplaintsPaginated(page, limit, deptFilter, statusFilter, search, r
 function getUserPerformance(username) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // Recalculate metrics to ensure freshness
+    // Force Metrics Update First
     updateUserMetrics(username);
 
     const sheet = ss.getSheetByName('USER_PERFORMANCE');
-
     if (!sheet) return response('success', 'User not found', {});
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
     const target = String(username).toLowerCase().trim();
 
-    // Find User
     let stats = null;
     let allEfScores = [];
 
+    // SCAN FOR RANKING
     for (let i = 1; i < data.length; i++) {
         const u = String(data[i][0]).toLowerCase().trim();
-        const score = parseFloat(data[i][5]) || 0; // Efficiency Score column
+        const score = parseFloat(data[i][5]) || 0;
         allEfScores.push(score);
 
         if (u === target) {
@@ -1663,10 +1661,19 @@ function getUserPerformance(username) {
         }
     }
 
-    if (!stats) return response('success', 'User not found in metrics', {});
+    if (!stats) {
+        // Return Empty Structure instead of Error (Fixes "0" bug)
+        return response('success', 'No Data Yet', {
+            Username: username,
+            SolvedCount: 0,
+            AvgRating: 0,
+            EfficiencyScore: 0,
+            Rank: allEfScores.length + 1
+        });
+    }
 
     // Calculate Rank
-    allEfScores.sort((a, b) => b - a); // Descending
+    allEfScores.sort((a, b) => b - a);
     const rank = allEfScores.indexOf(stats.EfficiencyScore) + 1;
 
     return response('success', 'Performance Data', {
@@ -1820,10 +1827,13 @@ function getComplaintById(id) {
 /**
  * ADMIN BOOSTER SYSTEM
  */
+/**
+ * ADMIN BOOSTER SYSTEM (Enhanced Logic)
+ */
 function sendBoosterAction(payload) {
     const id = payload.id;
     const adminName = payload.adminName;
-    const reason = payload.reason;
+    const reason = payload.reason || 'Urgent attention required.';
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('data');
     const data = sheet.getDataRange().getValues();
@@ -1841,64 +1851,70 @@ function sendBoosterAction(payload) {
 
     if (rowIndex === -1) throw new Error("Ticket not found");
 
-    const dept = data[rowIndex - 1][colMap.Department - 1];
+    const dept = String(data[rowIndex - 1][colMap.Department - 1]).trim();
+    const timestamp = getISTTimestamp();
 
-    // 1. Log to Journey
-    var timestamp = getISTTimestamp();
-    var actionLog = 'Admin Booster Notice\nBy: ' + adminName + '\nDepartment: ' + dept + '\nMessage: ' + (reason || 'Immediate resolution requested.') + '\nDate: ' + timestamp;
+    // 1. Log to Journey History
+    var actionLog = `[${timestamp}] 🚀 BOOSTER ACTIVATED\nBy: ${adminName}\nNote: ${reason}`;
     var currentHistory = colMap.History ? String(sheet.getRange(rowIndex, colMap.History).getValue()) : '';
-    if (colMap.History) {
-        // Deduplication: Only add if not already boosted with same reason/timestamp recently (simple check)
-        if (currentHistory.indexOf('Admin Booster Notice') === -1 || currentHistory.indexOf(timestamp) === -1) {
+
+    // Prevent duplicate logs in same minute
+    if (!currentHistory.includes(actionLog)) {
+        if (colMap.History) {
             sheet.getRange(rowIndex, colMap.History).setValue(currentHistory ? currentHistory + '\n' + actionLog : actionLog);
         }
     }
 
-    // 2. Send WhatsApp Booster Template
+    // 2. Send WhatsApp Booster Template (To Dept Staff Only)
     const boosterMsg = '[PRIORITY ACTION NOTICE]\n\n' +
         'Ticket: ' + id + '\n' +
         'Department: ' + dept + '\n\n' +
         'Admin has requested immediate resolution.\n' +
-        'Reason: ' + (reason || 'Urgent attention required.') + '\n\n' +
+        'Reason: ' + reason + '\n\n' +
         'Please address this case at the earliest.\n\n' +
         'SBH Group Of Hospitals\n' +
         '_Administrative Notice_';
 
-    // Send to all staff in that department
     const mSheet = ss.getSheetByName('master');
     const mData = mSheet.getDataRange().getValues();
     const mHeaders = mData[0];
     const dIdx = findCol(mHeaders, 'Department') - 1;
     const mobIdx = findCol(mHeaders, 'Mobile') - 1;
     const sIdx = findCol(mHeaders, 'Status') - 1;
+    const uIdx = findCol(mHeaders, 'Username') - 1;
+
     const targetDept = normalize(dept);
+    const adminNorm = normalize(adminName);
 
     const staffMobiles = [];
     for (let i = 1; i < mData.length; i++) {
         const isUserActive = sIdx > -1 ? String(mData[i][sIdx]).toLowerCase() === 'active' : true;
-        if (normalize(mData[i][dIdx]) === targetDept && isUserActive) {
+        const uName = normalize(mData[i][uIdx]);
+
+        // 🚨 TARGET RULE: Same Department AND NOT the sender (Admin)
+        if (normalize(mData[i][dIdx]) === targetDept && isUserActive && uName !== adminNorm) {
             staffMobiles.push(mData[i][mobIdx]);
         }
     }
 
-    staffMobiles.filter(function (v, i, a) { return a.indexOf(v) === i; }).forEach(function (m) {
+    [...new Set(staffMobiles)].forEach(function (m) {
         if (m) {
             try {
                 sendWhatsApp(m, boosterMsg);
-                Utilities.sleep(200); // Optimized for speed
-            } catch (e) {
-                Logger.log("Booster Send Error for " + m + ": " + e);
-            }
+                Utilities.sleep(200);
+            } catch (e) { }
         }
     });
 
-    // 3. Log to BOOSTER_NOTICES for real-time Frontend Popup
+    // 3. Log to BOOSTER_NOTICES (Popups)
+    // We add a 'Date' column implicitly by using timestamp to allow frontend filtering for "Today"
     try {
         let bSheet = getOrCreateSheet('BOOSTER_NOTICES', ['Timestamp', 'TicketID', 'Department', 'Admin', 'Reason']);
-        bSheet.appendRow(["'" + timestamp, id, dept, adminName, reason || 'Urgent attention required.']);
+        bSheet.appendRow(["'" + timestamp, id, dept, adminName, reason]);
     } catch (e) {
         Logger.log("Booster Log Error: " + e);
     }
+
     return response('success', 'Booster Sent', { id: id, status: 'Booster Sent' });
 }
 

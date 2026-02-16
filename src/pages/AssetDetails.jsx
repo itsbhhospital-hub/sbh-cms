@@ -125,16 +125,20 @@ const AssetDetails = () => {
             location: asset.location || '',
             department: asset.department || '',
             warrantyType: asset.warrantyType || 'None',
-            warrantyExpiry: asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
+            warrantyExpiry: (asset.warrantyExpiry && !isNaN(new Date(asset.warrantyExpiry))) ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
             amcTaken: asset.amcTaken || 'No',
-            amcStart: asset.amcStart ? new Date(asset.amcStart).toISOString().split('T')[0] : '',
-            amcExpiry: asset.amcExpiry ? new Date(asset.amcExpiry).toISOString().split('T')[0] : '',
+            amcStart: (asset.amcStart && !isNaN(new Date(asset.amcStart))) ? new Date(asset.amcStart).toISOString().split('T')[0] : '',
+            amcExpiry: (asset.amcExpiry && !isNaN(new Date(asset.amcExpiry))) ? new Date(asset.amcExpiry).toISOString().split('T')[0] : '',
             amcAmount: asset.amcAmount || '',
-            purchaseDate: asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
-            currentServiceDate: asset.currentServiceDate ? new Date(asset.currentServiceDate).toISOString().split('T')[0] : '',
-            nextServiceDate: asset.nextServiceDate ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : '',
+            purchaseDate: (asset.purchaseDate && !isNaN(new Date(asset.purchaseDate))) ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
+            currentServiceDate: (asset.currentServiceDate && !isNaN(new Date(asset.currentServiceDate))) ? new Date(asset.currentServiceDate).toISOString().split('T')[0] : '',
+            nextServiceDate: (asset.nextServiceDate && !isNaN(new Date(asset.nextServiceDate))) ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : '',
             vendorName: asset.vendorName || '',
-            vendorContact: asset.vendorContact || ''
+            vendorContact: asset.vendorContact || '',
+            keywords: asset.keywords || '',
+            description: asset.description || '',
+            responsiblePerson: asset.responsiblePerson || '',
+            responsibleMobile: asset.responsibleMobile || ''
         });
         setShowEditModal(true);
     };
@@ -157,6 +161,11 @@ const AssetDetails = () => {
 
     const handleReplaceSubmit = async (e) => {
         e.preventDefault();
+
+        if (!window.confirm("Are you sure you want to mark this asset as REPLACED? This action cannot be undone.")) {
+            return;
+        }
+
         setSubmitting(true);
         try {
             await assetsService.markAsReplaced({
@@ -171,7 +180,13 @@ const AssetDetails = () => {
                     purchaseDate: replaceForm.newPurchaseDate,
                     invoiceFile: replaceForm.newInvoiceFile,
                     invoiceName: replaceForm.newInvoiceName
-                }
+                },
+                location: replaceForm.location,
+                department: replaceForm.department,
+                vendorName: replaceForm.vendorName,
+                vendorContact: replaceForm.vendorContact,
+                responsiblePerson: replaceForm.responsiblePerson,
+                responsibleMobile: replaceForm.responsibleMobile
             });
             await fetchDetails();
             setShowReplaceModal(false);
@@ -194,8 +209,12 @@ const AssetDetails = () => {
                     serviceDate: serviceForm.serviceDate,
                     nextServiceDate: serviceForm.nextServiceDate,
                     remark: serviceForm.remark,
-                    cost: serviceForm.serviceType === 'Paid' ? serviceForm.cost : 0, // Ensure strictly handled
-                    serviceType: serviceForm.serviceType
+                    cost: serviceForm.serviceType === 'Paid' ? serviceForm.cost : 0,
+                    serviceType: serviceForm.serviceType,
+                    serviceVendor: serviceForm.serviceVendor || asset.vendorName,
+                    location: serviceForm.location || asset.location,
+                    department: serviceForm.department || asset.department,
+                    responsiblePerson: serviceForm.responsiblePerson || asset.responsiblePerson
                 },
                 serviceForm.file,
                 serviceForm.fileName,
@@ -385,7 +404,20 @@ const AssetDetails = () => {
                                     </button>
                                     {asset.status !== 'Replaced' && (
                                         <button
-                                            onClick={() => setShowReplaceModal(true)}
+                                            onClick={() => {
+                                                setReplaceForm(prev => ({
+                                                    ...prev,
+                                                    // Auto-Fill from Old Asset
+                                                    newMachineName: asset.machineName, // Often same model
+                                                    location: asset.location,
+                                                    department: asset.department,
+                                                    vendorName: asset.vendorName,
+                                                    vendorContact: asset.vendorContact,
+                                                    responsiblePerson: asset.responsiblePerson,
+                                                    responsibleMobile: asset.responsibleMobile
+                                                }));
+                                                setShowReplaceModal(true);
+                                            }}
                                             className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100"
                                             title="Mark as Replaced"
                                         >
@@ -444,6 +476,7 @@ const AssetDetails = () => {
                         <div className="bg-[#1f2d2a] rounded-3xl p-8 border border-slate-800 shadow-xl text-white flex flex-col items-center justify-center text-center relative overflow-hidden">
 
                             {/* Hidden Print Template for High Quality Download */}
+                            {/* HIDDEN PRINT TEMPLATE - FIXED 1000px WIDTH */}
                             <div id="print-qr-card"
                                 style={{
                                     position: 'absolute',
@@ -451,63 +484,68 @@ const AssetDetails = () => {
                                     top: 0,
                                     left: 0,
                                     backgroundColor: '#ffffff',
-                                    padding: '32px',
-                                    width: '400px',
+                                    width: '1000px',
+                                    height: 'auto',
+                                    minHeight: '1300px',
+                                    padding: '40px',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    textAlign: 'center',
-                                    border: '4px solid #1f2d2a'
+                                    border: '40px solid #1f2d2a'
                                 }}
                             >
-                                <h2 style={{ color: '#1f2d2a', fontWeight: 900, fontSize: '24px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>SBH Group</h2>
-                                <p style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '24px' }}>Asset Verification</p>
+                                {/* HEADER */}
+                                <div style={{ textAlign: 'center', marginBottom: '40px', paddingTop: '40px' }}>
+                                    <h1 style={{ color: '#1f2d2a', fontWeight: 900, fontSize: '64px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>SBH GROUP</h1>
+                                    <p style={{ color: '#64748b', fontWeight: 700, fontSize: '24px', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: '10px' }}>Asset Verification System</p>
+                                </div>
 
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
-                                    <QRCode
-                                        value={publicLink}
-                                        size={250}
-                                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                        viewBox={`0 0 256 256`}
-                                        level="H"
-                                    />
-                                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                                        <div style={{
-                                            backgroundColor: '#ffffff',
-                                            padding: '14px 28px',
-                                            minWidth: '140px',
-                                            borderRadius: '14px',
-                                            border: '5px solid #1f2d2a',
-                                            boxShadow: '0 0 0 4px #ffffff',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            textAlign: 'center'
-                                        }}>
-                                            <span style={{
-                                                fontSize: '32px',
-                                                fontWeight: 700,
-                                                color: '#1f2d2a',
-                                                letterSpacing: '-0.02em',
-                                                whiteSpace: 'nowrap',
-                                                lineHeight: '1'
-                                            }}>{asset.id}</span>
-                                        </div>
+                                {/* QR CONTAINER */}
+                                <div style={{ position: 'relative', width: '600px', height: '600px', marginTop: '20px', marginBottom: '40px' }}>
+                                    <div style={{ width: '100%', height: '100%' }}>
+                                        <QRCode
+                                            value={publicLink}
+                                            size={600}
+                                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                            viewBox={`0 0 256 256`}
+                                            level="H"
+                                        />
+                                    </div>
+                                    {/* CENTER LABEL - AUTO FIT */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        backgroundColor: '#ffffff',
+                                        padding: '8px 20px',
+                                        borderRadius: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: '5px solid white', // creates space around
+                                        minWidth: '90px'
+                                    }}>
+                                        <span style={{ fontSize: '32px', fontWeight: 900, color: '#1f2d2a', lineHeight: 1 }}>{asset.id}</span>
                                     </div>
                                 </div>
-                                <p style={{ color: '#1f2d2a', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '16px' }}>Property Of SBH Group Of Hospitals</p>
+
+                                {/* FOOTER TEXT */}
+                                <div style={{ textAlign: 'center', marginTop: 'auto', paddingBottom: '40px', width: '100%' }}>
+                                    <h2 style={{ fontSize: '42px', fontWeight: 800, color: '#1f2d2a', margin: 0, textTransform: 'uppercase' }}>{asset.machineName}</h2>
+                                    <p style={{ fontSize: '20px', color: '#64748b', marginTop: '10px', fontWeight: 600 }}>Property of SBH Group Of Hospitals</p>
+                                </div>
                             </div>
 
                             {/* Visible Card */}
-                            <div className="bg-white p-4 rounded-2xl mb-4 relative" id="qr-code-view">
-                                <QRCode
-                                    value={publicLink}
-                                    size={140}
-                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                    viewBox={`0 0 256 256`}
+                            {/* Visible Card */}
+                            <div className="bg-white p-4 rounded-2xl mb-4 relative flex items-center justify-center" id="qr-code-view">
+                                <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${publicLink}`}
+                                    alt="Asset QR"
+                                    className="w-[140px] h-[140px] object-contain relative z-0"
                                 />
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                                     <div className="bg-white px-2 py-1 rounded border border-[#1f2d2a] shadow-sm">
                                         <span className="text-xs font-black text-[#1f2d2a] tracking-tight">{asset.id}</span>
                                     </div>
@@ -733,6 +771,41 @@ const AssetDetails = () => {
                                     ></textarea>
                                 </div>
 
+                                {/* Auto-Filled / Editable Location & Contact Info */}
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Service Location & Contact</h4>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Location</label>
+                                            <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold"
+                                                value={serviceForm.location || asset.location || ''}
+                                                onChange={e => setServiceForm({ ...serviceForm, location: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Department</label>
+                                            <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold"
+                                                value={serviceForm.department || asset.department || ''}
+                                                onChange={e => setServiceForm({ ...serviceForm, department: e.target.value })} />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Service Vendor</label>
+                                            <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold"
+                                                value={serviceForm.serviceVendor || asset.vendorName || ''}
+                                                onChange={e => setServiceForm({ ...serviceForm, serviceVendor: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Responsible Person</label>
+                                            <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold"
+                                                value={serviceForm.responsiblePerson || asset.responsiblePerson || ''}
+                                                onChange={e => setServiceForm({ ...serviceForm, responsiblePerson: e.target.value })} />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Upload Service Report</label>
                                     <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 relative">
@@ -771,7 +844,7 @@ const AssetDetails = () => {
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </div >
                 )
             }
 
@@ -820,6 +893,21 @@ const AssetDetails = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Related Words (Keywords)</label>
+                                        <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                            placeholder="e.g. Printer, Scanner, Office"
+                                            value={editForm.keywords || ''} onChange={e => setEditForm({ ...editForm, keywords: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Matter / Description</label>
+                                        <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                            placeholder="Brief description..."
+                                            value={editForm.description || ''} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
                                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Purchase Cost (₹)</label>
                                         <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
                                             value={editForm.purchaseCost || ''} onChange={e => setEditForm({ ...editForm, purchaseCost: e.target.value })} />
@@ -857,6 +945,19 @@ const AssetDetails = () => {
                                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Vendor Contact</label>
                                         <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
                                             value={editForm.vendorContact || ''} onChange={e => setEditForm({ ...editForm, vendorContact: e.target.value })} />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit mb-1 block">Responsible Person</label>
+                                        <input type="text" className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-3 py-2 font-bold"
+                                            value={editForm.responsiblePerson || ''} onChange={e => setEditForm({ ...editForm, responsiblePerson: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit mb-1 block">Responsible Mobile</label>
+                                        <input type="text" className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-3 py-2 font-bold"
+                                            value={editForm.responsibleMobile || ''} onChange={e => setEditForm({ ...editForm, responsibleMobile: e.target.value })} />
                                     </div>
                                 </div>
 
@@ -949,12 +1050,56 @@ const AssetDetails = () => {
                                     <div className="space-y-4">
                                         <input type="text" placeholder="New Machine Name" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
                                             value={replaceForm.newMachineName} onChange={e => setReplaceForm({ ...replaceForm, newMachineName: e.target.value })} />
+
                                         <div className="grid grid-cols-2 gap-4">
-                                            <input type="text" placeholder="Serial Number" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
-                                                value={replaceForm.newSerialNumber} onChange={e => setReplaceForm({ ...replaceForm, newSerialNumber: e.target.value })} />
-                                            <input type="number" placeholder="Cost (₹)" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
-                                                value={replaceForm.newPurchaseCost} onChange={e => setReplaceForm({ ...replaceForm, newPurchaseCost: e.target.value })} />
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">New Serial No</label>
+                                                <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                                    value={replaceForm.newSerialNumber} onChange={e => setReplaceForm({ ...replaceForm, newSerialNumber: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Cost (₹)</label>
+                                                <input type="number" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
+                                                    value={replaceForm.newPurchaseCost} onChange={e => setReplaceForm({ ...replaceForm, newPurchaseCost: e.target.value })} />
+                                            </div>
                                         </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Location</label>
+                                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-600"
+                                                    value={replaceForm.location} onChange={e => setReplaceForm({ ...replaceForm, location: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Department</label>
+                                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-600"
+                                                    value={replaceForm.department} onChange={e => setReplaceForm({ ...replaceForm, department: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">New Vendor Name</label>
+                                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-600"
+                                                    value={replaceForm.vendorName} onChange={e => setReplaceForm({ ...replaceForm, vendorName: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Vendor Contact</label>
+                                                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-600"
+                                                    value={replaceForm.vendorContact} onChange={e => setReplaceForm({ ...replaceForm, vendorContact: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                                            <label className="text-xs font-black text-indigo-800 uppercase tracking-widest block mb-2">Responsible Person (Auto-Filled)</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input type="text" placeholder="Name" className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 font-bold text-slate-700"
+                                                    value={replaceForm.responsiblePerson} onChange={e => setReplaceForm({ ...replaceForm, responsiblePerson: e.target.value })} />
+                                                <input type="text" placeholder="Mobile" className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 font-bold text-slate-700"
+                                                    value={replaceForm.responsibleMobile} onChange={e => setReplaceForm({ ...replaceForm, responsibleMobile: e.target.value })} />
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Purchase Date</label>
                                             <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
