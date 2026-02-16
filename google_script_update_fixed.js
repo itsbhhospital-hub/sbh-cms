@@ -929,7 +929,7 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
     });
 }
 
-// PART 2 & 3: DAILY REMINDERS & AUTOMATED DELAY SYSTEM (Run at 12:00 AM)
+// PART 2 & 3: AUTOMATIC DELAY ENGINE (Runs on Login + Trigger)
 function checkPendingStatus() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('data');
@@ -939,131 +939,106 @@ function checkPendingStatus() {
     const headers = data[0];
     const colMap = getColMap(headers);
 
+    // 1. SETUP DATE REFERENCE (IST - Date Only)
+    // We want to compare Calendar Dates. Time does not matter for "Yesterday" logic.
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = Utilities.formatDate(now, IST_TIMEZONE, "yyyy-MM-dd");
+    const todayDate = new Date(todayStr); // 00:00:00 IST today
 
-    // 1. PREPARE DELAYED SHEET
-    // Define headers for the new sheet
-    const delayedHeaders = ['Ticket ID', 'Department', 'Registered Date', 'Registered Time', 'Delayed Date', 'Status'];
+    // 2. PREPARE DELAYED SHEET (For History/Logging)
+    const delayedHeaders = ['Ticket ID', 'Department', 'Registered Date', 'Registered Time', 'Delayed Date', 'Status', 'Notified'];
     const delayedSheet = getOrCreateSheet('Delayed_Cases', delayedHeaders);
-
-    // Cache existing Delayed IDs to prevent duplicates for the same day
     const delayedData = delayedSheet.getDataRange().getValues();
-    const existingDelayedIDs = new Set();
+
+    // Cache existing delayed cases to avoid double logging
+    const loggedDelayedIds = new Set();
     for (let d = 1; d < delayedData.length; d++) {
-        // ID is column 0
-        existingDelayedIDs.add(String(delayedData[d][0]));
+        loggedDelayedIds.add(String(delayedData[d][0]));
     }
 
-    const L1 = getEscalationContact('L1'); // Director
-    const L2 = getEscalationContact('L2'); // Senior
-    const L3 = getEscalationContact('L3'); // Junior/Lead
+    const L1 = getEscalationContact('L1');
+    const L2 = getEscalationContact('L2');
 
-    const targetDateIdx = findCol(headers, 'TargetDate') - 1;
+    let updatesMade = false;
 
+    // 3. SCAN ALL TICKETS
     for (let i = 1; i < data.length; i++) {
-        const status = String(data[i][colMap.Status - 1] || '').trim().toLowerCase();
+        const row = data[i];
+        const status = String(row[colMap.Status - 1] || '').trim();
+        const normStatus = status.toLowerCase();
 
-        // Check Open, Pending, In-Progress, Re-Open, Delayed OR TRANSFERRED
-        if (status !== 'open' && status !== 'pending' && status !== 'in-progress' && status !== 're-open' && status !== 'delayed' && status !== 'transferred') continue;
+        // SKIP IF: Already Resolved, Closed, Solved
+        if (['resolved', 'closed', 'solved', 'force close'].includes(normStatus)) continue;
 
-        const dateStr = data[i][colMap.Date - 1];
-        if (!dateStr) continue;
+        // GET REGISTERED DATE
+        const regDateRaw = row[colMap.Date - 1];
+        if (!regDateRaw) continue;
 
-        const id = data[i][colMap.ID - 1];
-        const dept = data[i][colMap.Department - 1];
-        const createdDate = new Date(dateStr);
+        let regDateStr = "";
+        try {
+            regDateStr = Utilities.formatDate(new Date(regDateRaw), IST_TIMEZONE, "yyyy-MM-dd");
+        } catch (e) {
+            // Fallback for custom formats if necessary
+            continue;
+        }
 
-        // STRICT DELAY LOGIC: CALENDAR DATE CHECK
-        // A ticket is delayed if Today > RegisteredDate (Next Day Rule) AND Status is not Closed/Solved
-        // We do NOT count hours. We only count calendar days passed.
+        const regDate = new Date(regDateStr);
 
-        // 1. Check if "Delayed_Cases" already has this ticket
-        const alreadyLogged = existingDelayedIDs.has(String(id));
+        // LOGIC: IF Registered Date < TodayDate (Strictly Yesterday or Older)
+        if (regDate < todayDate) {
+            const ticketId = row[colMap.ID - 1];
+            const dept = row[colMap.Department - 1];
 
-        // 2. Calculate Calendar Difference
-        // Reset times to midnight for accurate day comparison
-        const regMidnight = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
-        const diffTime = Math.abs(today - regMidnight);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            // A) UPDATE MAIN SHEET STATUS TO 'Delayed' (If not already)
+            // This fixes the Dashboard Count = 0 issue.
+            if (normStatus !== 'delayed') {
+                if (colMap.Status) {
+                    sheet.getRange(i + 1, colMap.Status).setValue('Delayed');
+                    updatesMade = true;
 
-        // Rule: If today > regDate (diffDays >= 1) -> It is delayed
-        // Example: Reg 12th, Today 12th -> Diff 0 -> Not Delayed
-        // Example: Reg 12th, Today 13th -> Diff 1 -> Delayed
-
-        if (diffDays >= 1 && today > regMidnight) {
-            // 3. Mark as Delayed in Main Sheet if not already
-            if (status !== 'delayed') {
-                if (colMap.Status) sheet.getRange(i + 1, colMap.Status).setValue('Delayed');
-
-                // Log to History
-                const historyCol = colMap.History;
-                if (historyCol) {
-                    const ts = getISTTimestamp();
-                    const msg = `[${ts}] ⚠ ACTION REQUIRED — Case delayed.\nResolution timeline exceeded.\nDepartment: ${dept}`;
-                    const currentHist = sheet.getRange(i + 1, historyCol).getValue();
-                    sheet.getRange(i + 1, historyCol).setValue(currentHist ? currentHist + '\n' + msg : msg);
+                    // Log to History
+                    if (colMap.History) {
+                        const hist = row[colMap.History - 1];
+                        const msg = `[${getISTTimestamp()}] SYSTEM AUTO-UPDATE: Status changed to Delayed (Pending since ${regDateStr}).`;
+                        sheet.getRange(i + 1, colMap.History).setValue(hist ? hist + '\n' + msg : msg);
+                    }
                 }
             }
 
-            // 4. Log to "Delayed_Cases" if not present
-            if (!alreadyLogged) {
+            // B) LOG TO DELAY SHEET & SEND REMINDER (If not already logged)
+            if (!loggedDelayedIds.has(String(ticketId))) {
                 delayedSheet.appendRow([
-                    id,
+                    ticketId,
                     dept,
-                    formatDateIST(createdDate), // Registered Date
-                    formatTimeIST(createdDate), // Registered Time
-                    getISTTimestamp(),          // Delayed Entry Timestamp
-                    'Delayed'
+                    regDateStr,
+                    row[colMap.Time - 1] || '',
+                    getISTTimestamp(),
+                    'Delayed',
+                    'TRUE' // Notified Flag
                 ]);
-                existingDelayedIDs.add(String(id));
+                loggedDelayedIds.add(String(ticketId));
 
-                // 5. Send WhatsApp Alert (First Time Only)
-                const delayMsg = `⚠ *DELAY ALERT*\n\n` +
-                    `Ticket: *${id}*\n` +
-                    `Department: *${dept}*\n` +
-                    `Registered: *${formatDateIST(createdDate)} • ${formatTimeIST(createdDate)}*\n` +
-                    `Status: *Delayed (${diffDays} Day)*\n\n` +
-                    `This case has crossed the expected resolution time.\n\n` +
-                    `Please take immediate action.\n\n` +
-                    `*SBH Group Of Hospitals*\n` +
-                    `_Automated Alert_`;
-                sendDeptReminder(id, dept, delayMsg, "DIRECT_MSG");
+                // TRIGGER REMINDER (First Time Only)
+                sendDeptReminder(ticketId, dept, regDateStr, "DELAY_ALERT");
             }
 
-            // 5. ESCALATION (Every time check runs? No, should be conditional to avoid spam. 
-            // Current strict logic implies this runs once per day or we need a tracking mechanism for escalations.
-            // For now, retaining existing escalation logic based on diffDays)
+            // C) ESCALATION CHECK (Day 3, Day 5)
+            // Calc days passed
+            const diffTime = Math.abs(todayDate - regDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Level 1 Escalation (Day 2 of Delay)
-            if (diffDays === 2) {
-                // We need to ensure we don't spam. ideally we check a flag. 
-                // Assuming this script runs once a day as per original design.
-                sendDeptReminder(id, dept, diffDays, "WARNING");
-            }
-            // Level 2 Escalation (Day 3 of Delay)
-            else if (diffDays === 3) {
-                if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", id, dept, diffDays, dateStr);
-            }
-            // Level 3 Escalation (Day 5 of Delay)
-            else if (diffDays >= 5) {
-                if (L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", id, dept, diffDays, dateStr);
+            if (diffDays === 3) {
+                // L2 Escalation
+                if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", ticketId, dept, diffDays, regDateStr);
+            } else if (diffDays >= 5) {
+                // L1 Escalation (Every day after 5? Or just once? Assuming once at 5 for now to avoid spam)
+                if (diffDays === 5 && L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", ticketId, dept, diffDays, regDateStr);
             }
         }
+    }
 
-        // 3. ESCALATION & REMINDERS
-        // Level 1 Escalation (Day 2 of Delay)
-        if (diffDays === 2) {
-            sendDeptReminder(id, dept, diffDays, "WARNING");
-        }
-        // Level 2 Escalation (Day 3 of Delay) - Call L2
-        else if (diffDays === 3) {
-            if (L2 && L2.mobile) sendEscalationMsg(L2.mobile, "L2 Officer", id, dept, diffDays, dateStr);
-        }
-        // Level 3 Escalation (Day 5 of Delay) - Call Director
-        else if (diffDays >= 5) {
-            if (L1 && L1.mobile) sendEscalationMsg(L1.mobile, "L1 (DIRECTOR)", id, dept, diffDays, dateStr);
-        }
+    if (updatesMade) {
+        SpreadsheetApp.flush();
     }
 }
 
@@ -1088,6 +1063,14 @@ function sendDeptReminder(id, dept, extraParam, type) {
             let msg = "";
             if (type === "DIRECT_MSG") {
                 msg = extraParam;
+            }
+            else if (type === "DELAY_ALERT") {
+                msg = '⚠️ *DELAY ALERT*\n' +
+                    'Complaint ID: ' + id + '\n' +
+                    'Department: ' + dept + '\n\n' +
+                    'Case pending since yesterday.\n' +
+                    'Immediate action required.\n\n' +
+                    '— *SBH CMS Auto Alert*';
             }
             else if (type === "REMINDER") {
                 const dateStr = extraParam instanceof Date ? extraParam.toLocaleDateString() : new Date(extraParam).toLocaleDateString();
@@ -1115,6 +1098,7 @@ function sendDeptReminder(id, dept, extraParam, type) {
                 sendWhatsApp(m, msg);
                 Utilities.sleep(800);
             }
+
         }
     });
 }
@@ -1749,6 +1733,11 @@ function updateTicketStatusEverywhere(ticketId, newStatus) {
  */
 function getDashboardStats(username, userDept, role) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // 🔴 AUTO-RUN DELAY CHECK ON DASHBOARD LOAD
+    // This ensures that even if triggers are missed, the dashboard is always accurate.
+    checkPendingStatus();
+
     const sheet = ss.getSheetByName('data');
     if (!sheet) return response('error', 'Data sheet missing');
 
@@ -1783,29 +1772,22 @@ function getDashboardStats(username, userDept, role) {
         }
 
         var s = normalize(row[colMap.Status - 1]);
-        var regDateStr = (row[colMap.Date - 1] || '');
-        var regDateParsed = parseCustomDate(regDateStr);
-        var isPrevDay = regDateParsed && regDateParsed < startOfDay;
 
         // Status-based counts
         if (s === 'open') {
             stats.open++;
-            if (isPrevDay) stats.delayed++;
         }
         else if (s === 'pending' || s === 'in-progress' || s === 're-open') {
             stats.pending++;
-            if (isPrevDay) stats.delayed++;
         }
         else if (s === 'solved' || s === 'resolved' || s === 'closed' || s === 'force close') {
             stats.solved++;
         }
         else if (s === 'transferred') {
             stats.transferred++;
-            if (isPrevDay) stats.delayed++;
         }
         else if (s === 'delayed') {
             stats.delayed++;
-            stats.pending++; // Delayed tickets are still pending
         }
 
         if (s === 'extended' || s === 'extend') stats.extended++;
