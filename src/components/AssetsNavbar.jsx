@@ -22,39 +22,52 @@ const AssetsNavbar = () => {
         if (isScannerOpen) {
             // Slight delay to ensure DOM is ready
             setTimeout(() => {
-                if (!document.getElementById('reader')) return;
+                #html5 - qrcode - button - camera - permission { padding: 10px 20px; background: #2e7d32; color: white; border - radius: 8px; font - weight: bold; margin - top: 20px; }
+                #reader video { border - radius: 12px; }
+                `;
+                document.head.appendChild(style);
 
                 html5QrcodeScanner = new window.Html5QrcodeScanner(
                     "reader",
-                    { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+                    { 
+                        fps: 10, 
+                        qrbox: { width: 250, height: 250 }, 
+                        aspectRatio: 1.0,
+                        videoConstraints: {
+                            facingMode: "environment"
+                        }
+                    },
                     /* verbose= */ false
                 );
 
                 html5QrcodeScanner.render((decodedText) => {
-                    // Success callback
-                    console.log(`Scan result: ${decodedText}`);
-                    if (decodedText.includes('/assets/public/')) {
+                    console.log(`Scan result: ${ decodedText } `);
+                    // Handle both full URLs and partial asset paths
+                    if (decodedText.includes('/assets/') || decodedText.includes('/asset-view/')) {
                         html5QrcodeScanner.clear().then(() => {
                             setIsScannerOpen(false);
-                            window.location.href = decodedText;
+                            // If it's a relative path from the scanner, ensure it works
+                            if (decodedText.startsWith('http')) {
+                                window.location.href = decodedText;
+                            } else {
+                                window.location.href = window.location.origin + decodedText;
+                            }
                         });
                     } else {
-                        alert("Invalid SBH Asset QR Code");
+                        // Attempt to extract ID if it's just a number
+                        if (/^\d+$/.test(decodedText)) {
+                            html5QrcodeScanner.clear().then(() => {
+                                setIsScannerOpen(false);
+                                window.location.href = `${ window.location.origin } /assets/${ decodedText } `;
+                            });
+                        } else {
+                            alert("Invalid SBH Asset QR Code");
+                        }
                     }
                 }, (error) => {
-                    // console.warn(`Code scan error = ${error}`);
+                    // console.warn(`Code scan error = ${ error } `);
                 });
                 scannerRef.current = html5QrcodeScanner;
-
-                // Add styles for the scanner to hide branding
-                const style = document.createElement('style');
-                style.id = 'qr-scanner-styles';
-                style.innerHTML = `
-                #html5-qrcode-anchor-scan-type-change { display: none !important; }
-                #html5-qrcode-button-camera-permission { padding: 10px 20px; background: #2e7d32; color: white; border-radius: 8px; font-weight: bold; margin-top: 20px; }
-                #reader video { border-radius: 12px; transform: scaleX(-1); } 
-                `;
-                document.head.appendChild(style);
 
             }, 100);
         }
