@@ -101,11 +101,7 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
                         )}
                     </span>
                     <span className="text-[10px] text-slate-400 md:hidden font-black uppercase tracking-widest mt-1">
-                        {(() => {
-                            const d = (complaint.Date || '').replace(/'/g, '').split(' ')[0];
-                            const t = (complaint.Time || '').replace(/'/g, '');
-                            return `${d} ${t}`;
-                        })()}
+                        {formatIST(complaint.Date)}
                     </span>
                 </div>
             </td>
@@ -136,20 +132,20 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
             <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase">
-                            {(complaint.LatestTransfer.TransferDate || '').replace(/'/g, '').split(' ')[0]}
+                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase whitespace-nowrap">
+                            {formatIST(complaint.LatestTransfer.TransferDate).split('•')[0].trim()}
                         </span>
                         <span className="text-[9px] font-mono text-slate-300 tracking-tight">
-                            {(complaint.LatestTransfer.TransferDate || '').includes(' ') ? (complaint.LatestTransfer.TransferDate || '').split(' ').slice(1).join(' ').replace(/'/g, '') : ''}
+                            {formatIST(complaint.LatestTransfer.TransferDate).split('•')[1]?.trim() || ''}
                         </span>
                     </div>
                 ) : (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase">
-                            {(complaint.Date || '').replace(/'/g, '').split(' ')[0]}
+                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase whitespace-nowrap">
+                            {formatIST(complaint.Date).split('•')[0].trim()}
                         </span>
                         <span className="text-[9px] font-mono text-slate-300 tracking-tight">
-                            {(complaint.Time || '').replace(/'/g, '')}
+                            {formatIST(complaint.Date).split('•')[1]?.trim() || ''}
                         </span>
                     </div>
                 )}
@@ -493,29 +489,52 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
             return transferRecord ? { ...c, LatestTransfer: transferRecord } : c;
         });
 
-        // Smart Sorting: Critical > Delayed > Transferred > Newest
+        // Primary Sorting: Newest First (Date DESC)
         return [...base].sort((a, b) => {
-            const decisionA = getAiCaseDecision(a);
-            const decisionB = getAiCaseDecision(b);
+            let dateA, dateB;
 
-            // 1. Critical Priority First
-            if (decisionA.priority.label === 'Critical' && decisionB.priority.label !== 'Critical') return -1;
-            if (decisionB.priority.label === 'Critical' && decisionA.priority.label !== 'Critical') return 1;
+            // Context-Aware Date Selection
+            if (filter === 'Solved') {
+                dateA = new Date(String(a.ResolvedDate || a.Resolved_Date || a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.ResolvedDate || b.Resolved_Date || b.Date || '').replace(/'/g, ''));
+            } else if (filter === 'Transferred') {
+                dateA = new Date(String(a.LatestTransfer?.TransferDate || a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.LatestTransfer?.TransferDate || b.Date || '').replace(/'/g, ''));
+            } else if (filter === 'Pending') {
+                // Pending often means waiting for action, so Last Updated or Date is best.
+                // If we don't have explicit 'LastUpdated', we use Date.
+                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
+            } else {
+                // Default: Registered Date (Open, All, Delayed)
+                dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
+                dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
+            }
 
-            // 2. Delayed Status Next
-            const statusA = (a.Status || '').toLowerCase();
-            const statusB = (b.Status || '').toLowerCase();
-            if (statusA === 'delayed' && statusB !== 'delayed') return -1;
-            if (statusB === 'delayed' && statusA !== 'delayed') return 1;
+            // Valid Date Check (push invalid dates to bottom)
+            if (isNaN(dateA.getTime())) return 1;
+            if (isNaN(dateB.getTime())) return -1;
 
-            // 3. Transferred Status
-            if (statusA === 'transferred' && statusB !== 'transferred') return -1;
-            if (statusB === 'transferred' && statusA !== 'transferred') return 1;
+            if (dateB - dateA !== 0) return dateB - dateA;
 
-            // 4. Newest First (Date DESC)
-            return new Date(b.Date) - new Date(a.Date);
+            // Tie-Breaker: TICKET ID (Newer ID = Newer Case)
+            // Try numeric sort first
+            const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
+            const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
+            if (idB - idA !== 0) return idB - idA;
+
+            // Fallback to purely string comparison if numbers are equal (e.g. A-100 vs B-100) or missing
+            const strIdA = String(a.ID || '').toLowerCase();
+            const strIdB = String(b.ID || '').toLowerCase();
+            if (strIdA < strIdB) return 1;
+            if (strIdA > strIdB) return -1;
+
+            // Final fallback: Row Number (if available from sheet)
+            const rowA = a.rowNumber || a.rowIndex || 0;
+            const rowB = b.rowNumber || b.rowIndex || 0;
+            return rowB - rowA;
         });
-    }, [complaints, transferLogs, getAiCaseDecision]);
+    }, [complaints, transferLogs, filter]);
 
     const displayComplaints = enrichedComplaints;
 
@@ -583,30 +602,32 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="hidden md:block bg-white rounded-2xl border border-[#dcdcdc] shadow-none overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-[#f8faf9] border-b border-[#f0f0f0]">
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ticket Reference</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Complaint Description</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Dept Assigned</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Medical Unit</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Registered On</th>
-                                    <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Service Unit</th>
-                                    <th className="p-4 py-4 w-10"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {displayComplaints.map(complaint => (
-                                    <ComplaintRow
-                                        key={complaint.ID}
-                                        complaint={complaint}
-                                        aiDecision={getAiCaseDecision(complaint)}
-                                        onClick={openDetailModal}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="hidden md:block bg-white rounded-2xl border border-[#dcdcdc] shadow-none overflow-hidden flex flex-col">
+                        <div className="max-h-[800px] overflow-y-auto custom-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 z-10 bg-[#f8faf9] shadow-sm">
+                                    <tr className="border-b border-[#f0f0f0]">
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ticket Reference</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Complaint Description</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Dept Assigned</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Medical Unit</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Registered On</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Service Unit</th>
+                                        <th className="p-4 py-4 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {displayComplaints.map(complaint => (
+                                        <ComplaintRow
+                                            key={complaint.ID}
+                                            complaint={complaint}
+                                            aiDecision={getAiCaseDecision(complaint)}
+                                            onClick={openDetailModal}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="md:hidden">

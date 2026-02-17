@@ -19,15 +19,22 @@ const AssetsPanel = () => {
     const [filterStatus, setFilterStatus] = useState('All');
     const [activeTab, setActiveTab] = useState('list');
 
-    useEffect(() => {
-        fetchAssets();
-    }, []);
+    // --- DATA FETCHING & CACHING ---
+    const fetchAssets = async (isRefetch = false) => {
+        if (!isRefetch) {
+            const cached = sessionStorage.getItem('sbh_assets_cache');
+            if (cached) {
+                setAssets(JSON.parse(cached));
+                setLoading(false);
+            }
+        }
 
-    const fetchAssets = async () => {
-        setLoading(true);
         try {
             const data = await assetsService.getAssets();
-            setAssets(data || []);
+            if (data) {
+                setAssets(data);
+                sessionStorage.setItem('sbh_assets_cache', JSON.stringify(data));
+            }
         } catch (error) {
             console.error("Failed to load assets", error);
         } finally {
@@ -35,8 +42,12 @@ const AssetsPanel = () => {
         }
     };
 
+    useEffect(() => {
+        fetchAssets();
+    }, []);
+
     // --- LOGIC ENGINE FOR COUNTS & FILTERING ---
-    const getAssetCategory = (asset) => {
+    const getAssetCategory = React.useCallback((asset) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -69,32 +80,54 @@ const AssetsPanel = () => {
         }
 
         return categories;
-    };
+    }, []);
 
-    // Derived Metrics
-    const metrics = {
-        total: assets.length,
-        serviceDue: assets.filter(a => getAssetCategory(a).includes('Service Due')).length,
-        serviceExpired: assets.filter(a => getAssetCategory(a).includes('Service Expired')).length,
-        amcExpiring: assets.filter(a => getAssetCategory(a).includes('AMC Expiring')).length,
-        amcExpired: assets.filter(a => getAssetCategory(a).includes('AMC Expired')).length,
-    };
+    // Derived Metrics (Memoized)
+    const metrics = React.useMemo(() => {
+        return {
+            total: assets.length,
+            serviceDue: assets.filter(a => getAssetCategory(a).includes('Service Due')).length,
+            serviceExpired: assets.filter(a => getAssetCategory(a).includes('Service Expired')).length,
+            amcExpiring: assets.filter(a => getAssetCategory(a).includes('AMC Expiring')).length,
+            amcExpired: assets.filter(a => getAssetCategory(a).includes('AMC Expired')).length,
+        };
+    }, [assets, getAssetCategory]);
 
-    const filteredAssets = assets.filter(asset => {
-        const categories = getAssetCategory(asset);
-        const matchesFilter = filterStatus === 'All' || categories.includes(filterStatus);
-        const safeSearch = (val) => String(val || '').toLowerCase();
+    const filteredAssets = React.useMemo(() => {
+        return assets.filter(asset => {
+            const categories = getAssetCategory(asset);
+            const matchesFilter = filterStatus === 'All' || categories.includes(filterStatus);
+            const safeSearch = (val) => String(val || '').toLowerCase();
 
-        const matchesSearch =
-            safeSearch(asset.machineName).includes(searchTerm.toLowerCase()) ||
-            safeSearch(asset.id).includes(searchTerm.toLowerCase()) ||
-            safeSearch(asset.location).includes(searchTerm.toLowerCase()) ||
-            safeSearch(asset.department).includes(searchTerm.toLowerCase()) ||
-            safeSearch(asset.keywords).includes(searchTerm.toLowerCase()) ||
-            safeSearch(asset.description).includes(searchTerm.toLowerCase());
+            const matchesSearch =
+                safeSearch(asset.machineName).includes(searchTerm.toLowerCase()) ||
+                safeSearch(asset.id).includes(searchTerm.toLowerCase()) ||
+                safeSearch(asset.location).includes(searchTerm.toLowerCase()) ||
+                safeSearch(asset.department).includes(searchTerm.toLowerCase()) ||
+                safeSearch(asset.keywords).includes(searchTerm.toLowerCase()) ||
+                safeSearch(asset.description).includes(searchTerm.toLowerCase());
 
-        return matchesFilter && matchesSearch;
-    });
+            return matchesFilter && matchesSearch;
+        }).sort((a, b) => {
+            // Priority: Last Edited > Updated > Created
+            const getTime = (asset) => {
+                return Math.max(
+                    new Date(asset.lastEdited || 0).getTime(),
+                    new Date(asset.updatedAt || 0).getTime(),
+                    new Date(asset.lastUpdated || 0).getTime(),
+                    new Date(asset.createdDate || asset.createdAt || 0).getTime()
+                );
+            };
+
+            const timeA = getTime(a);
+            const timeB = getTime(b);
+
+            if (timeB - timeA !== 0) return timeB - timeA;
+
+            // Fallback to ID (Newer ID first)
+            return String(b.id || '').localeCompare(String(a.id || ''));
+        });
+    }, [assets, filterStatus, searchTerm, getAssetCategory]);
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -258,11 +291,11 @@ const AssetsPanel = () => {
                     </div>
 
                     {/* Table View */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                        <div className="hidden md:block overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-[#f8faf9] border-b border-slate-200">
-                                    <tr>
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                        <div className="hidden md:block max-h-[800px] overflow-y-auto custom-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 z-10 bg-[#f8faf9] shadow-sm">
+                                    <tr className="border-b border-slate-200">
                                         <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Asset Details</th>
                                         <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Location</th>
                                         <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Service Status</th>

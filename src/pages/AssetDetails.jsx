@@ -633,7 +633,7 @@ const AssetDetails = () => {
 
                         <div className="relative border-l-2 border-slate-100 ml-3 space-y-8">
                             {(asset.history && asset.history.length > 0) ? (
-                                asset.history.map((record, idx) => {
+                                [...asset.history].sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, idx) => {
                                     let icon, bgColor, borderColor, titleColor;
                                     switch (record.type) {
                                         case 'event': // Asset Acquired

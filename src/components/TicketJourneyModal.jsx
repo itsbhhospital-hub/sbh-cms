@@ -92,7 +92,7 @@ const TicketJourneyModal = ({ isOpen, onClose, ticket, transferLogs = [], extens
             });
         }
 
-        return events.sort((a, b) => a.date - b.date);
+        return events.sort((a, b) => b.date - a.date);
     };
 
     const events = getEvents();

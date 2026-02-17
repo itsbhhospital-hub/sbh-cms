@@ -12,9 +12,45 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
 
     // Memoize paginated data for performance
     const paginatedData = useMemo(() => {
+        const sorted = [...complaints].sort((a, b) => {
+            let dateA, dateB;
+            // Use title as the filter context (Open, Solved, Delayed, etc.)
+            const mode = (title || '').trim();
+
+            if (mode === 'Solved') {
+                dateA = new Date(String(a.ResolvedDate || a.Resolved_Date || a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.ResolvedDate || b.Resolved_Date || b.Date || '').replace(/'/g, ''));
+            } else if (mode === 'Transferred') {
+                // Try LatestTransfer object if available, otherwise Date
+                const tDateA = a.LatestTransfer?.TransferDate || a.TransferDate;
+                const tDateB = b.LatestTransfer?.TransferDate || b.TransferDate;
+                dateA = new Date(String(tDateA || a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(tDateB || b.Date || '').replace(/'/g, ''));
+            } else if (mode === 'Delayed') {
+                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
+            } else if (mode === 'Pending') {
+                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
+            } else {
+                // Default: Registered Date
+                dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
+                dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
+            }
+
+            if (isNaN(dateA.getTime())) return 1;
+            if (isNaN(dateB.getTime())) return -1;
+
+            if (dateB - dateA !== 0) return dateB - dateA;
+
+            // Tie-Breaker: TICKET ID
+            const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
+            const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
+            return idB - idA;
+        });
         const start = (currentPage - 1) * itemsPerPage;
-        return complaints.slice(start, start + itemsPerPage);
-    }, [complaints, currentPage]);
+        return sorted.slice(start, start + itemsPerPage);
+    }, [complaints, currentPage, title]);
 
     const totalPages = Math.ceil(complaints.length / itemsPerPage);
 

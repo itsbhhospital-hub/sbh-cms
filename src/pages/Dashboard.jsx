@@ -5,10 +5,14 @@ import ActiveUsersModal from '../components/ActiveUsersModal';
 import DashboardPopup from '../components/DashboardPopup';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter } from 'lucide-react';
+import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter, AlertTriangle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DirectorDashboard from '../components/Analytics/DirectorDashboard';
 import { useIntelligence } from '../context/IntelligenceContext';
+import WorkloadHeatmap from '../components/AI/WorkloadHeatmap';
+import RiskPredictionPanel from '../components/AI/RiskPredictionPanel';
+import AIExcellenceRegistry from '../components/AI/AIExcellenceRegistry';
+import AILivePulse from '../components/AILivePulse';
 
 const normalize = (val) => String(val || '').toLowerCase().trim();
 
@@ -23,10 +27,12 @@ const Dashboard = () => {
         stats,
         boosters,
         users: activeUsers,
-        loading: intelligenceLoading,
+
+        loading,
         stressIndex,
         crisisRisk,
-        staffStats // Added missing destructuring
+        staffStats,
+        aiRiskReport // 🧠 IMPORT AI DATA
     } = useIntelligence();
 
     // ------------------------------------------------------------------
@@ -46,6 +52,49 @@ const Dashboard = () => {
     // Automated Alerts
     const [boosterNotice, setBoosterNotice] = useState(null);
     const [delayAlert, setDelayAlert] = useState(null);
+
+    // 🧠 MODULE 2 & 9: SMART ALERT ENGINE (Client-Side)
+    useEffect(() => {
+        if (loading || !aiRiskReport.length) return;
+
+        // 1. Auto Priority Booster (Module 2)
+        // Find highest risk case that hasn't been boosted today
+        const critical = aiRiskReport.find(r => r.score > 80);
+        if (critical) {
+            const lastShown = localStorage.getItem(`booster_shown_${critical.id}`);
+            const today = new Date().toDateString();
+
+            if (lastShown !== today) {
+                setBoosterNotice({
+                    TicketID: critical.id,
+                    Reason: critical.reasons.join(', '),
+                    Admin: 'AI Auto-System'
+                });
+                // Mark as shown to prevent spam (Module 14)
+                localStorage.setItem(`booster_shown_${critical.id}`, today);
+            }
+        }
+
+        // 2. Department Delay Warnings (Module 9)
+        // Only show to relevant department users
+        const myDept = normalize(user.Department);
+        const myDeptRisk = aiRiskReport.filter(r => normalize(r.dept) === myDept && r.score > 60);
+
+        if (myDeptRisk.length > 0) {
+            const lastWarn = localStorage.getItem(`delay_warn_${myDept}`);
+            const now = new Date().getTime();
+
+            // Cooldown 4 hours
+            if (!lastWarn || (now - parseInt(lastWarn)) > (4 * 60 * 60 * 1000)) {
+                setDelayAlert({
+                    count: myDeptRisk.length,
+                    msg: `⚠ High Delay Risk detected for ${myDeptRisk.length} cases.`
+                });
+                localStorage.setItem(`delay_warn_${myDept}`, now);
+            }
+        }
+
+    }, [aiRiskReport, loading, user.Department]);
 
     const isSuperAdmin = user?.Role?.toUpperCase() === 'SUPER_ADMIN';
     const isAdmin = user?.Role?.toLowerCase() === 'admin' || user?.Role?.toUpperCase() === 'ADMIN' || isSuperAdmin;
@@ -109,7 +158,7 @@ const Dashboard = () => {
     }, [allTickets, user]);
 
     useEffect(() => {
-        if (intelligenceLoading || !allTickets.length) return;
+        if (loading || !allTickets.length) return;
 
         // 1. DELAY POPUP (Daily Logic)
         const checkDelay = () => {
@@ -199,67 +248,61 @@ const Dashboard = () => {
         checkBooster();
         checkReopen();
 
-    }, [allTickets, boosters, intelligenceLoading, isAdmin, user]);
+    }, [allTickets, boosters, loading, isAdmin, user]);
 
 
     // ------------------------------------------------------------------
     // UI HANDLERS
     // ------------------------------------------------------------------
+    // OPTIMIZED: Memoized filtered items for the popup to ensure instant click response
+    const filteredPopupItems = useMemo(() => {
+        if (!popupOpen || !popupCategory || popupCategory === 'Active Staff') return [];
+
+        const uRole = String(user.Role || '').toUpperCase().trim();
+        const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
+        const uDept = normalize(user.Department);
+        const uname = normalize(user.Username);
+
+        return allTickets.filter(t => {
+            // Visibility Check
+            const rowDept = normalize(t.Department);
+            const rowBy = normalize(t.ReportedBy);
+            const rowReporter = normalize(t.Reporter || t.Username);
+            const rowResolver = normalize(t.ResolvedBy);
+            const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
+
+            if (!isVisible) return false;
+
+            const status = normalize(t.Status);
+
+            if (popupCategory === 'All') return true;
+
+            if (popupCategory === 'Open') {
+                if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
+                return true;
+            }
+
+            if (popupCategory === 'Delayed') {
+                const isDelayed = String(t.Delay).toLowerCase() === 'yes' || status === 'delayed';
+                if (!isDelayed) return false;
+                if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
+
+                const isMyDept = rowDept === uDept;
+                const isReporter = rowBy === uname || rowReporter === uname;
+                if (!isAdminView && (isReporter || !isMyDept)) return false;
+                return true;
+            }
+
+            if (popupCategory === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
+            return status === popupCategory.toLowerCase();
+        });
+    }, [allTickets, popupOpen, popupCategory, user]);
+
     const handleCardClick = (type) => {
         if (type === 'Active Staff') {
             setShowActiveStaffModal(true);
         } else {
-            const uRole = String(user.Role || '').toUpperCase().trim();
-            const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
-            const uDept = normalize(user.Department);
-            const uname = normalize(user.Username);
-            const todayStr = new Date().toLocaleDateString();
-
-            const filtered = allTickets.filter(t => {
-                // Visibility Check
-                const rowDept = normalize(t.Department);
-                const rowBy = normalize(t.ReportedBy);
-                const rowReporter = normalize(t.Reporter || t.Username);
-                const rowResolver = normalize(t.ResolvedBy); // NEW: Solved by me check
-                const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
-
-                if (!isVisible) return false;
-
-                const status = normalize(t.Status);
-                const regDate = String(t.Date || '').replace(/'/g, '').trim();
-                const targetDateStr = String(t.TargetDate || '').replace(/'/g, '').trim();
-
-                if (type === 'All') return true;
-
-                if (type === 'Open') {
-                    // Logic: Count from 'Open' property 
-                    // Open Panel shows ALL tickets where Status != Closed (as per Master Prompt)
-                    // It should include Delayed tickets too, as they are still "Open" in nature until closed.
-                    if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
-                    return true;
-                }
-
-                if (type === 'Delayed') {
-                    // Logic: Count from 'Delay' property (Dual Visibility)
-                    // If marked 'yes' OR status is 'delayed'
-                    const isDelayed = String(t.Delay).toLowerCase() === 'yes' || status === 'delayed';
-
-                    if (!isDelayed) return false;
-                    if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false; // Safety check
-
-                    // Delay Routing Rule for non-admins
-                    const isMyDept = rowDept === uDept;
-                    const isReporter = rowBy === uname || rowReporter === uname;
-                    if (!isAdminView && (isReporter || !isMyDept)) return false;
-
-                    return true;
-                }
-
-                if (type === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
-                return status === type.toLowerCase();
-            });
-
-            setPopupItems(filtered);
+            // Instant UI update: Set category and open flag first
             setPopupCategory(type);
             setPopupOpen(true);
         }
@@ -268,25 +311,25 @@ const Dashboard = () => {
     const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, filterType }) => (
         <div
             onClick={() => handleCardClick(filterType)}
-            className={`flex flex-col justify-between p-6 rounded-3xl bg-white border cursor-pointer relative overflow-hidden transition-all
-                ${activeFilter === filterType && filterType !== 'Active Staff' ? 'border-[#2e7d32] border-2 shadow-none' : 'border-[#dcdcdc] shadow-none'} 
+            className={`flex flex-col justify-between p-4 rounded-2xl bg-white border cursor-pointer relative overflow-hidden transition-all h-full
+                ${activeFilter === filterType && filterType !== 'Active Staff' ? 'border-[#2e7d32] border-2 shadow-sm' : 'border-[#dcdcdc] shadow-sm'} 
                 hover:border-[#2e7d32] active:scale-[0.98] group`}
         >
-            <div className={`absolute top-0 right-0 p-3 opacity-5 ${colorClass}`}>
-                <Icon size={48} className="md:w-16 md:h-16" />
+            <div className={`absolute -right-2 -top-2 p-3 opacity-5 ${colorClass}`}>
+                <Icon size={48} />
             </div>
 
-            <div className="flex justify-between items-start relative z-10">
-                <div className={`p-3 rounded-xl ${bgClass} ${colorClass} border border-black/5`}>
-                    <Icon size={20} />
+            <div className="flex justify-between items-start relative z-10 mb-1">
+                <div className={`p-1.5 rounded-lg ${bgClass} ${colorClass} border border-black/5`}>
+                    <Icon size={14} />
                 </div>
                 {activeFilter === filterType && filterType !== 'Active Staff' && (
-                    <div className="bg-[#2e7d32] text-white text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest">Selected</div>
+                    <div className="bg-[#2e7d32] text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest">Active</div>
                 )}
             </div>
             <div className="relative z-10">
-                <h3 className="text-4xl font-black text-[#1f2d2a] leading-none mb-2 tracking-tighter">{value}</h3>
-                <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase opacity-80">{title}</p>
+                <h3 className="text-2xl font-black text-[#1f2d2a] leading-none mb-0.5 tracking-tighter">{value}</h3>
+                <p className="text-[9px] font-black text-slate-400 tracking-widest uppercase opacity-80">{title}</p>
             </div>
         </div>
     );
@@ -304,7 +347,7 @@ const Dashboard = () => {
     const myRating = myStats.avgRating ? Number(myStats.avgRating).toFixed(1) : '0.0';
     const myRank = myStats.rank ? `#${myStats.rank}` : '-';
 
-    if (intelligenceLoading) return <DashboardSkeleton />;
+    if (loading) return <DashboardSkeleton />;
 
     return (
         <div className="w-full max-w-full overflow-x-hidden md:px-0 space-y-6 md:space-y-8 pb-10">
@@ -317,7 +360,7 @@ const Dashboard = () => {
                 isOpen={popupOpen}
                 onClose={() => setPopupOpen(false)}
                 title={popupCategory}
-                complaints={popupItems}
+                complaints={filteredPopupItems}
                 onTrack={(ticket) => {
                     setPopupOpen(false);
                     setTrackTicket(ticket);
@@ -470,6 +513,7 @@ const Dashboard = () => {
             </AnimatePresence>
 
             {/* Hospital Header */}
+            <AILivePulse />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-4">
                 <div>
                     <h1 className="text-3xl font-black text-[#1f2d2a] tracking-tighter flex items-center gap-4 uppercase">
@@ -514,6 +558,46 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* 🧠 AI AUTONOMOUS LAYER */}
+            <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 1. PRIMARY COLUMN (Left 2/3) */}
+                <div className="lg:col-span-2 space-y-4">
+
+                    {/* A. WORKLOAD HEATMAP (Moved to Top) */}
+                    <WorkloadHeatmap />
+
+                    {/* B. METRICS SNAPSHOT GRID (Moved Bottom & Compacted) */}
+                    <div className="flex flex-col bg-white rounded-2xl p-4 border border-[#dcdcdc] shadow-sm relative overflow-hidden min-h-[400px]">
+                        <h3 className="text-[10px] font-bold text-slate-300 mb-3 uppercase tracking-widest pl-1">Operational Snapshot</h3>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-full flex-grow grid-rows-3 lg:grid-rows-2">
+                            {/* Row 1 */}
+                            <StatCard icon={AlertCircle} title="Open" value={dashboardStats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
+                            <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
+                            <StatCard icon={CheckCircle} title="Solved" value={dashboardStats.solved} bgClass="bg-[#d6f5e3]" colorClass="text-[#2e7d32]" filterType="Solved" />
+
+                            {/* Row 2 */}
+                            <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
+
+                            {/* Dynamic Slot */}
+                            {isAdmin ? (
+                                <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
+                            ) : (
+                                <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
+                            )}
+
+                            <StatCard icon={Share2} title="Transferred" value={dashboardStats.transferred} bgClass="bg-[#eadcff]/40" colorClass="text-[#6d28d9]" filterType="Transferred" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. SECONDARY COLUMN (Right 1/3) */}
+                <div className="space-y-6">
+                    <RiskPredictionPanel />
+                    <AIExcellenceRegistry />
+                </div>
+            </div>
+
             {/* Active Filter & Stats Grid */}
             <div className="space-y-4">
                 {activeFilter !== 'All' && (
@@ -524,34 +608,11 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* Stats Grid - Standardized Green Palette */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                    {/* 🟢 FIX: Bind to Calculated Dashboard Stats */}
-                    <StatCard icon={AlertCircle} title="Open" value={dashboardStats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
-
-                    <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
-
-                    <StatCard icon={CheckCircle} title="Solved" value={dashboardStats.solved} bgClass="bg-[#d6f5e3]" colorClass="text-[#2e7d32]" filterType="Solved" />
-
-                    <StatCard icon={Share2} title="Transferred" value={dashboardStats.transferred} bgClass="bg-[#eadcff]/40" colorClass="text-[#6d28d9]" filterType="Transferred" />
-
-                    {isAdmin ? (
-                        <>
-                            <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
-                            {/* Delayed Card now visible for ALL Admins */}
-                            <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
-                        </>
-                    ) : (
-                        <>
-                            <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
-                            <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
-                        </>
-                    )}
-                </div>
+                {/* OLD GRID REMOVED */}
             </div>
 
-            {/* YOUR IMPACT SECTION (New) */}
-            <div className="bg-white rounded-3xl p-8 border border-[#dcdcdc] shadow-sm">
+            {/* YOUR IMPACT SECTION */}
+            <div className="bg-white rounded-3xl p-8 border border-[#dcdcdc] shadow-sm mt-8">
                 <h3 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2 uppercase tracking-tight">
                     <Shield size={24} className="text-[#2e7d32]" />
                     Your Impact
@@ -562,13 +623,13 @@ const Dashboard = () => {
                     <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType="Solved" />
                     <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType="Active Staff" />
                 </div>
-            </div >
+            </div>
 
             {/* List Container */}
-            < div className="mt-4 md:mt-8" >
+            <div className="mt-4 md:mt-8">
                 <ComplaintList initialFilter={activeFilter} autoOpenTicket={trackTicket} onAutoOpenComplete={() => setTrackTicket(null)} />
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 

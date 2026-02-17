@@ -50,8 +50,6 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    transition: 0.15s ease;
-    /* Smooth but lightweight */
   }
 
   body {
@@ -203,16 +201,22 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: #f1f1f1;
+    border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: var(--hosp-green-active);
+    /* or a slightly darker shade for visibility */
     border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--hosp-green-hover);
   }
 }

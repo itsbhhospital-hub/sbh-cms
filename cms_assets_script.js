@@ -60,7 +60,11 @@ function setupAssetsSheet() {
         "Location",            // 25 [NEW]
         "Department",          // 26 [NEW]
         "Keywords",            // 27 [NEW]
-        "Description"          // 28 [NEW]
+        "Description",         // 28 [NEW]
+        "QR PDF Link",         // 29 [NEW]
+        "Responsible Person",  // 30 [NEW]
+        "Responsible Mobile",  // 31 [NEW]
+        "Last Updated"         // 32 [NEW]
     ];
 
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -76,7 +80,7 @@ function updateAssetsSheetStructure() {
     // Phase 10 Update: Add QR PDF Link, Keywords, Description, Responsible Person
     const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-    const newHeaders = ["QR PDF Link", "Keywords", "Description", "Responsible Person", "Responsible Mobile"];
+    const newHeaders = ["QR PDF Link", "Keywords", "Description", "Responsible Person", "Responsible Mobile", "Last Updated"];
 
     newHeaders.forEach(header => {
         if (!currentHeaders.includes(header)) {
@@ -227,7 +231,8 @@ function addAsset(data) {
         data.description || "", // NEW: Matter/Description
         qrPdfLink || "", // QR PDF Link Key
         data.responsiblePerson || "", // NEW
-        data.responsibleMobile || ""  // NEW
+        data.responsibleMobile || "",  // NEW
+        timestamp // Last Updated
     ];
 
     sheet.appendRow(row);
@@ -308,6 +313,7 @@ function editAsset(data) {
     update("Description", data.description);
     update("Responsible Person", data.responsiblePerson);
     update("Responsible Mobile", data.responsibleMobile);
+    update("Last Updated", new Date());
 
     return { status: "success", message: "Asset Updated Successfully" };
 }

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { sheetsService } from '../services/googleSheets';
 import { useAuth } from './AuthContext';
+import { runAIAnalysis } from '../services/aiCore'; // 🧠 AI IMPORT
 
 const IntelligenceContext = createContext(null);
 
@@ -44,11 +45,39 @@ export const IntelligenceProvider = ({ children }) => {
     // AI Auto System Recommendations
     const [aiRecommendations, setAiRecommendations] = useState({ booster: null, delayWarning: null });
 
+    // 🧠 AI METRICS
+    const [aiRiskReport, setAiRiskReport] = useState([]);
+    const [aiDeptLoad, setAiDeptLoad] = useState({});
+    const [aiStaffScores, setAiStaffScores] = useState({});
+
+    // ------------------------------------------------------------------
+    // LOCAL CACHING & FETCH LOCKING
+    // ------------------------------------------------------------------
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Initial Load from Cache (Instant UI)
+    useEffect(() => {
+        try {
+            const cachedTickets = sessionStorage.getItem('sbh_tickets_cache');
+            const cachedStats = sessionStorage.getItem('sbh_stats_cache');
+            const cachedStaff = sessionStorage.getItem('sbh_staff_cache');
+
+            if (cachedTickets) setAllTickets(JSON.parse(cachedTickets));
+            if (cachedStats) setStats(JSON.parse(cachedStats));
+            if (cachedStaff) setStaffStats(JSON.parse(cachedStaff));
+
+            if (cachedTickets) setLoading(false);
+        } catch (e) {
+            console.warn("Failed to load cache", e);
+        }
+    }, []);
+
     // ------------------------------------------------------------------
     // 1. DATA SYNC ENGINE (20s Cycle)
     // ------------------------------------------------------------------
     const refreshIntelligence = async () => {
-        if (!user) return;
+        if (!user || isRefreshing) return;
+        setIsRefreshing(true);
         try {
             const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(String(user.Role).toLowerCase());
 
@@ -67,6 +96,8 @@ export const IntelligenceProvider = ({ children }) => {
             if (boosterData) setBoosters(boosterData);
             if (ratingsData) setAllRatings(ratingsData);
 
+            let currentStaffStats = [];
+
             // Populate Staff Stats directly from Sheet (Source of Truth)
             if (perfData && Array.isArray(perfData)) {
                 // Normalize keys just in case
@@ -83,17 +114,26 @@ export const IntelligenceProvider = ({ children }) => {
                     breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
                 }));
                 setStaffStats(mappedStats);
+                currentStaffStats = mappedStats;
             }
 
             if (allData) {
                 setAllTickets(allData);
                 // Trigger Systems Analysis (Risk, Flow, etc.) - user stats removed
-                analyzeSystem(allData, ratingsData || []);
+                analyzeSystem(allData, ratingsData || [], currentStaffStats);
             }
 
             setLastSync(new Date());
+
+            // Update Frontend Cache
+            sessionStorage.setItem('sbh_tickets_cache', JSON.stringify(allData || []));
+            sessionStorage.setItem('sbh_stats_cache', JSON.stringify(statsData || {}));
+            sessionStorage.setItem('sbh_staff_cache', JSON.stringify(currentStaffStats || []));
+
         } catch (e) {
             console.warn("Intelligence Sync Failed:", e);
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
@@ -112,8 +152,30 @@ export const IntelligenceProvider = ({ children }) => {
     // ------------------------------------------------------------------
     // 2. UNIFIED ANALYSIS ENGINE (With Master Efficiency Formula)
     // ------------------------------------------------------------------
-    const analyzeSystem = (tickets, ratings) => {
+    const analyzeSystem = (tickets, ratings, currentStaffStats) => {
         if (!tickets) return;
+
+        // 🧠 MODULE 13: NO FALSE ZERO DATA
+        if (tickets.length === 0 && !loading && lastSync) {
+            // If data exists in sheet but here is 0, force re-sync
+            // We use a small timeout to avoid infinite loops if it's genuinely empty
+            console.warn("🧠 AI DETECT: Potential False Zero. Scheduling Re-sync...");
+            setTimeout(() => refreshIntelligence(), 2000);
+        }
+
+        // 🧠 1. RUN AI CORE PREDICTIONS
+        const aiResults = runAIAnalysis(tickets, currentStaffStats);
+
+        // 🧠 MODULE 14: ZERO-SPAM PROTECTION
+        // Compare new AI results with previous state to avoid re-rendering/notifying if identical
+        if (JSON.stringify(aiResults.riskReport) !== JSON.stringify(aiRiskReport)) {
+            setAiRiskReport(aiResults.riskReport);
+        }
+        if (JSON.stringify(aiResults.deptLoad) !== JSON.stringify(aiDeptLoad)) {
+            setAiDeptLoad(aiResults.deptLoad);
+        }
+        // Staff scores update less frequently, but we check anyway
+        setAiStaffScores(aiResults.staffScores);
 
         const now = new Date();
         const startOfDay = new Date();
@@ -373,6 +435,13 @@ export const IntelligenceProvider = ({ children }) => {
         setPredictedDelays(predictions);
         setDeptRisks(depts);
         setFlowStats(flow);
+        // Global Latest-First Sorting for Risks
+        detailedRisks.sort((a, b) => {
+            const dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
+            const dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
+            return dateB - dateA;
+        });
+
         setDetailedDelayRisks(detailedRisks);
         setStaffStats(finalStaffStats);
         setAlerts(alertList);
@@ -485,10 +554,13 @@ export const IntelligenceProvider = ({ children }) => {
             flowStats,
             staffStats,
             detailedDelayRisks,
-            staffStats,
-            detailedDelayRisks,
             alerts,
-            aiRecommendations // Expose AI Logic
+            aiRecommendations, // Expose AI Logic
+
+            // 🧠 EXPOSED AI METRICS
+            aiRiskReport,
+            aiDeptLoad,
+            aiStaffScores
         }}>
             {children}
         </IntelligenceContext.Provider>
