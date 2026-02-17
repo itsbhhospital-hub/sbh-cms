@@ -22,31 +22,37 @@ const AssetsNavbar = () => {
         if (isScannerOpen) {
             // Slight delay to ensure DOM is ready
             setTimeout(() => {
-                #html5 - qrcode - button - camera - permission { padding: 10px 20px; background: #2e7d32; color: white; border - radius: 8px; font - weight: bold; margin - top: 20px; }
-                #reader video { border - radius: 12px; }
+                if (!document.getElementById('reader')) return;
+
+                // Add styles for the scanner to hide branding and fix mirroring
+                const style = document.createElement('style');
+                style.id = 'qr-scanner-styles';
+                style.innerHTML = `
+                #html5-qrcode-anchor-scan-type-change { display: none !important; }
+                #html5-qrcode-button-camera-permission { padding: 10px 20px; background: #2e7d32; color: white; border-radius: 8px; font-weight: bold; margin-top: 20px; }
+                #reader video { border-radius: 12px; } 
                 `;
                 document.head.appendChild(style);
 
                 html5QrcodeScanner = new window.Html5QrcodeScanner(
                     "reader",
-                    { 
-                        fps: 10, 
-                        qrbox: { width: 250, height: 250 }, 
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
                         aspectRatio: 1.0,
                         videoConstraints: {
-                            facingMode: "environment"
+                            facingMode: "environment" // Force back camera
                         }
                     },
                     /* verbose= */ false
                 );
 
                 html5QrcodeScanner.render((decodedText) => {
-                    console.log(`Scan result: ${ decodedText } `);
+                    console.log(`Scan result: ${decodedText}`);
                     // Handle both full URLs and partial asset paths
                     if (decodedText.includes('/assets/') || decodedText.includes('/asset-view/')) {
                         html5QrcodeScanner.clear().then(() => {
                             setIsScannerOpen(false);
-                            // If it's a relative path from the scanner, ensure it works
                             if (decodedText.startsWith('http')) {
                                 window.location.href = decodedText;
                             } else {
@@ -58,17 +64,16 @@ const AssetsNavbar = () => {
                         if (/^\d+$/.test(decodedText)) {
                             html5QrcodeScanner.clear().then(() => {
                                 setIsScannerOpen(false);
-                                window.location.href = `${ window.location.origin } /assets/${ decodedText } `;
+                                window.location.href = `${window.location.origin}/assets/${decodedText}`;
                             });
                         } else {
-                            alert("Invalid SBH Asset QR Code");
+                            alert("Invalid SBH Asset QR Code: " + decodedText);
                         }
                     }
                 }, (error) => {
-                    // console.warn(`Code scan error = ${ error } `);
+                    // console.warn(`Code scan error = ${error}`);
                 });
                 scannerRef.current = html5QrcodeScanner;
-
             }, 100);
         }
 
@@ -215,7 +220,5 @@ const AssetsNavbar = () => {
         </>
     );
 };
-
-
 
 export default memo(AssetsNavbar);
