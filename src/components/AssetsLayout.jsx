@@ -4,7 +4,6 @@ import GlobalLoader from '../components/GlobalLoader';
 import AssetsSidebar from '../components/AssetsSidebar';
 import AssetsNavbar from '../components/AssetsNavbar';
 import Footer from '../components/Footer';
-import BottomNav from '../components/BottomNav';
 
 const AssetsLayout = ({ children }) => {
     return (
@@ -19,7 +18,6 @@ const AssetsLayout = ({ children }) => {
                         </Suspense>
                     </div>
                     <Footer />
-                    <BottomNav />
                 </main>
             </div>
         </LayoutProvider>

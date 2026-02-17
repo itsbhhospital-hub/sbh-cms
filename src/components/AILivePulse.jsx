@@ -6,7 +6,7 @@ const AILivePulse = () => {
     const { lastSync, loading } = useIntelligence();
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-slate-200 text-xs font-medium text-slate-600">
+        <div className="fixed bottom-16 right-4 z-50 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-slate-200 text-xs font-medium text-slate-600">
             <div className="relative flex items-center justify-center w-3 h-3">
                 {loading ? (
                     <motion.div

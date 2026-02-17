@@ -9,6 +9,7 @@ import {
 import { assetsService } from '../services/assetsService';
 import { useAuth } from '../context/AuthContext';
 import AssetFinancialAnalytics from '../components/AssetFinancialAnalytics';
+import ScrollControls from '../components/ScrollControls';
 
 const AssetsPanel = () => {
     const navigate = useNavigate();
@@ -399,6 +400,8 @@ const AssetsPanel = () => {
                     </div>
                 </>
             )}
+            {/* Scroll Controls */}
+            <ScrollControls />
         </div>
     );
 };

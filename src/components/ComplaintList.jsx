@@ -12,6 +12,7 @@ import ExtendModal from './ExtendModal';
 import ResolveModal from './ResolveModal';
 import RateModal from './RateModal';
 import BoosterModal from './BoosterModal';
+import ScrollControls from './ScrollControls';
 
 const PerformanceWidget = ({ user, userStats }) => {
     // Use official stats from backend if available, else fallback to 0
