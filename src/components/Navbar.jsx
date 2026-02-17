@@ -562,8 +562,23 @@ const Navbar = () => {
                                     </div>
                                     <div className="w-10 h-10 bg-[#f8faf9] rounded-xl flex items-center justify-center text-slate-300 overflow-hidden border border-[#dcdcdc] group-hover:border-[#2e7d32] transition-colors">
                                         {user.ProfilePhoto ? (
-                                            <img src={user.ProfilePhoto} alt="Profile" className="w-full h-full object-cover object-center" loading="lazy" />
-                                        ) : (
+                                            <img
+                                                src={user.ProfilePhoto}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover object-center"
+                                                loading="lazy"
+                                                referrerPolicy="no-referrer"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = ''; // Clear source to trigger fallback div
+                                                    // Force the fallback UI by setting user.ProfilePhoto to null locally (optional)
+                                                    // But better to just hide this and show the div
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.classList.add('fallback-active');
+                                                }}
+                                            />
+                                        ) : null}
+                                        {(!user.ProfilePhoto || user.ProfilePhoto === '') && (
                                             <div className="w-full h-full flex items-center justify-center bg-[#cfead6] font-black text-[#2e7d32] uppercase text-xs">
                                                 {user.Username ? user.Username[0].toUpperCase() : <User size={20} strokeWidth={2.5} />}
                                             </div>

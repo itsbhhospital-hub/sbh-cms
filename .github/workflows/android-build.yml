@@ -39,7 +39,9 @@ jobs:
         run: npm run cap:sync
 
       - name: Build Android APK
-        run: npm run cap:build
+        run: |
+          chmod +x android/gradlew
+          npm run cap:build
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
