@@ -36,13 +36,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Sync Capacitor
-        run: npx @capacitor/cli sync android
+        run: npm run cap:sync
 
       - name: Build Android APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+        run: npm run cap:build
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

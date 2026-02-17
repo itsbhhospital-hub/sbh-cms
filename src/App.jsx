@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import AssetsLayout from './components/AssetsLayout';
+import BottomNav from './components/BottomNav';
 
 // Lazy Load Heavy Pages
 const UserManagement = lazy(() => import('./pages/UserManagement'));
