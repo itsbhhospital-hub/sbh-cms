@@ -14,6 +14,7 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import AssetsLayout from './components/AssetsLayout';
 import BottomNav from './components/BottomNav';
+import MobileWelcome from './components/MobileWelcome';
 
 // Lazy Load Heavy Pages
 const UserManagement = lazy(() => import('./pages/UserManagement'));
@@ -73,6 +74,7 @@ function App() {
         <AuthProvider>
 
           <IntelligenceProvider>
+            <MobileWelcome />
             <GlobalLoader />
             <Routes>
               <Route path="/login" element={<Login />} />
