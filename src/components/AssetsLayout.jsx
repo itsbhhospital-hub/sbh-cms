@@ -1,9 +1,9 @@
 import React, { Suspense } from 'react';
 import { LayoutProvider } from '../context/LayoutContext';
-import GlobalLoader from '../components/GlobalLoader';
-import AssetsSidebar from '../components/AssetsSidebar';
-import AssetsNavbar from '../components/AssetsNavbar';
-import Footer from '../components/Footer';
+import GlobalLoader from './GlobalLoader';
+import AssetsSidebar from './AssetsSidebar';
+import AssetsNavbar from './AssetsNavbar';
+import Footer from './Footer';
 
 const AssetsLayout = ({ children }) => {
     return (

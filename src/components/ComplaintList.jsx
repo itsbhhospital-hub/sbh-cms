@@ -1020,6 +1020,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                     <button onClick={() => setShowSuccess(false)} className="w-full py-4.5 bg-[#1f2d2a] hover:bg-black text-white font-black rounded-2xl active:scale-[0.98] transition-all tracking-widest uppercase text-[10px]">Continue</button>
                 </div>
             </div>
+
+            {/* Floating Fast Scroll Controls */}
+            <ScrollControls />
         </div>
     );
 };
