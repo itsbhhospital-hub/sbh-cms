@@ -490,54 +490,38 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
             return transferRecord ? { ...c, LatestTransfer: transferRecord } : c;
         });
 
-        // Primary Sorting: Newest First (Date DESC)
+        // Universal Latest-First Sort (Timestamp DESC > Ticket ID DESC)
         return [...base].sort((a, b) => {
-            let dateA, dateB;
+            const dateA = parseCustomDate(a.Timestamp || a.Date);
+            const dateB = parseCustomDate(b.Timestamp || b.Date);
 
-            // Context-Aware Date Selection
-            if (filter === 'Solved') {
-                dateA = new Date(String(a.ResolvedDate || a.Resolved_Date || a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.ResolvedDate || b.Resolved_Date || b.Date || '').replace(/'/g, ''));
-            } else if (filter === 'Transferred') {
-                dateA = new Date(String(a.LatestTransfer?.TransferDate || a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.LatestTransfer?.TransferDate || b.Date || '').replace(/'/g, ''));
-            } else if (filter === 'Pending') {
-                // Pending often means waiting for action, so Last Updated or Date is best.
-                // If we don't have explicit 'LastUpdated', we use Date.
-                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
-            } else {
-                // Default: Registered Date (Open, All, Delayed)
-                dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
-                dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
-            }
+            const timeA = dateA ? dateA.getTime() : 0;
+            const timeB = dateB ? dateB.getTime() : 0;
 
-            // Valid Date Check (push invalid dates to bottom)
-            if (isNaN(dateA.getTime())) return 1;
-            if (isNaN(dateB.getTime())) return -1;
+            if (timeB !== timeA) return timeB - timeA;
 
-            if (dateB - dateA !== 0) return dateB - dateA;
-
-            // Tie-Breaker: TICKET ID (Newer ID = Newer Case)
-            // Try numeric sort first
+            // Tie-breaker: Ticket ID (Numeric)
             const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
             const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
-            if (idB - idA !== 0) return idB - idA;
-
-            // Fallback to purely string comparison if numbers are equal (e.g. A-100 vs B-100) or missing
-            const strIdA = String(a.ID || '').toLowerCase();
-            const strIdB = String(b.ID || '').toLowerCase();
-            if (strIdA < strIdB) return 1;
-            if (strIdA > strIdB) return -1;
-
-            // Final fallback: Row Number (if available from sheet)
-            const rowA = a.rowNumber || a.rowIndex || 0;
-            const rowB = b.rowNumber || b.rowIndex || 0;
-            return rowB - rowA;
+            return idB - idA;
         });
     }, [complaints, transferLogs, filter]);
 
     const displayComplaints = enrichedComplaints;
+
+    // AUTO-SCROLL TO TOP ON NEW ENTRY
+    const listRef = useRef(null);
+    const prevCountRef = useRef(0);
+
+    useEffect(() => {
+        if (complaints.length > prevCountRef.current) {
+            // New items added
+            if (listRef.current) {
+                listRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        prevCountRef.current = complaints.length;
+    }, [complaints.length]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 pb-32">
@@ -604,17 +588,17 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="hidden md:block bg-white rounded-2xl border border-[#dcdcdc] shadow-none overflow-hidden flex flex-col">
-                        <div className="max-h-[800px] overflow-y-auto custom-scrollbar">
+                        <div ref={listRef} className="h-[70vh] overflow-y-auto custom-scrollbar scroll-smooth pr-[6px]">
                             <table className="w-full text-left border-collapse">
                                 <thead className="sticky top-0 z-10 bg-[#f8faf9] shadow-sm">
                                     <tr className="border-b border-[#f0f0f0]">
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black">Ticket Reference</th>
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black">Complaint Description</th>
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Dept Assigned</th>
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Medical Unit</th>
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black">Registered On</th>
-                                        <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black">Service Unit</th>
-                                        <th className="p-4 py-4 w-10"></th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-24 uppercase tracking-widest font-black bg-[#f8faf9]">Ticket Reference</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 uppercase tracking-widest font-black bg-[#f8faf9]">Complaint Description</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black bg-[#f8faf9]">Dept Assigned</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black bg-[#f8faf9]">Medical Unit</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 w-32 uppercase tracking-widest font-black bg-[#f8faf9]">Registered On</th>
+                                        <th className="p-4 py-4 text-[10px] text-slate-400 text-right w-24 uppercase tracking-widest font-black bg-[#f8faf9]">Service Unit</th>
+                                        <th className="p-4 py-4 w-10 bg-[#f8faf9]"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -631,7 +615,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                         </div>
                     </div>
 
-                    <div className="md:hidden">
+                    <div ref={listRef} className="md:hidden h-[70vh] overflow-y-auto scroll-smooth pr-[6px]">
                         {displayComplaints.map(complaint => (
                             <ComplaintCard
                                 key={complaint.ID}

@@ -71,7 +71,7 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-white h-[70vh] scroll-smooth pr-[6px]">
                     {complaints.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-300">
                             <Activity size={48} className="mb-4 opacity-20" />
@@ -82,11 +82,11 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
                             <table className="w-full text-left border-collapse min-w-[600px]">
                                 <thead className="bg-[#f8faf9] sticky top-0 z-10 border-b border-[#dcdcdc]">
                                     <tr>
-                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-20">ID</th>
-                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32]">Description</th>
-                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-40 text-center">Department</th>
-                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-center">Status</th>
-                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-right">Action</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-20 bg-[#f8faf9]">ID</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] bg-[#f8faf9]">Description</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-40 text-center bg-[#f8faf9]">Department</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-center bg-[#f8faf9]">Status</th>
+                                        <th className="p-4 py-3 text-[10px] font-black uppercase tracking-widest text-[#2e7d32] w-32 text-right bg-[#f8faf9]">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">

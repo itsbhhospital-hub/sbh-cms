@@ -250,6 +250,21 @@ const Dashboard = () => {
 
     }, [allTickets, boosters, loading, isAdmin, user]);
 
+    // OPTIMIZED: Universal Latest-First Sort for Dashboard Components
+    const sortedAllTickets = useMemo(() => {
+        if (!allTickets) return [];
+        return [...allTickets].sort((a, b) => {
+            const dateA = new Date(String(a.Timestamp || a.Date).replace(/'/g, ''));
+            const dateB = new Date(String(b.Timestamp || b.Date).replace(/'/g, ''));
+            const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+            const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+            if (timeB !== timeA) return timeB - timeA;
+            const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
+            const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
+            return idB - idA;
+        });
+    }, [allTickets]);
+
 
     // ------------------------------------------------------------------
     // UI HANDLERS
@@ -263,7 +278,7 @@ const Dashboard = () => {
         const uDept = normalize(user.Department);
         const uname = normalize(user.Username);
 
-        return allTickets.filter(t => {
+        return sortedAllTickets.filter(t => {
             // Visibility Check
             const rowDept = normalize(t.Department);
             const rowBy = normalize(t.ReportedBy);
@@ -296,7 +311,7 @@ const Dashboard = () => {
             if (popupCategory === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
             return status === popupCategory.toLowerCase();
         });
-    }, [allTickets, popupOpen, popupCategory, user]);
+    }, [sortedAllTickets, popupOpen, popupCategory, user]);
 
     const handleCardClick = (type) => {
         if (type === 'Active Staff') {

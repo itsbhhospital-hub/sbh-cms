@@ -195,14 +195,59 @@ const AssetsPanel = () => {
                         </span>
                     </div>
 
-                    {/* Line 5: Company | Model */}
-                    <div className="flex items-center gap-3">
+                    {/* Line 5: Company | Model & Expiry Intelligence */}
+                    <div className="flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                             <Tag size={12} className="text-slate-400" />
                             <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">
                                 {asset.company || 'Unknown'} | {asset.model || 'Generic'}
                             </span>
                         </div>
+
+                        {/* Expiry Countdown Chips */}
+                        {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+
+                            const getDaysDiff = (dateStr) => {
+                                if (!dateStr) return null;
+                                const futureDate = new Date(dateStr);
+                                futureDate.setHours(0, 0, 0, 0);
+                                const diffTime = futureDate - today;
+                                return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            };
+
+                            const serviceDays = getDaysDiff(asset.nextServiceDate);
+                            const amcDays = getDaysDiff(asset.amcExpiry);
+                            const warrantyDays = getDaysDiff(asset.warrantyExpiry);
+
+                            const getChipColor = (days) => {
+                                if (days === null) return null;
+                                if (days < 0) return 'bg-rose-50 text-rose-600 border-rose-100';
+                                if (days <= 15) return 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse';
+                                if (days <= 30) return 'bg-amber-50 text-amber-600 border-amber-100';
+                                return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                            };
+
+                            const renderChip = (days, label, Icon) => {
+                                if (days === null) return null;
+                                const color = getChipColor(days);
+                                return (
+                                    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-tight ${color}`}>
+                                        <Icon size={10} />
+                                        <span>{label}: {days < 0 ? 'Exp' : `${days}d`}</span>
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <>
+                                    {renderChip(serviceDays, 'Svc', Clock)}
+                                    {renderChip(amcDays, 'AMC', ShieldAlert)}
+                                    {renderChip(warrantyDays, 'Wty', CheckCircle)}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
 
