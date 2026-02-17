@@ -55,7 +55,7 @@ const MobileWelcome = () => {
                             className="w-32 h-32 mb-8 bg-white rounded-3xl p-6 shadow-2xl flex items-center justify-center border border-white/10"
                         >
                             <img
-                                src="/sbh_icon.png"
+                                src="/logo.png"
                                 alt="SBH Logo"
                                 className="w-full h-full object-contain"
                             />
