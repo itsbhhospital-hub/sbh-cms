@@ -46,6 +46,7 @@ const Dashboard = () => {
     // Popup System
     const [popupOpen, setPopupOpen] = useState(false);
     const [popupCategory, setPopupCategory] = useState('');
+    const [popupSubFilter, setPopupSubFilter] = useState(null); // 'personal' or null
     const [popupItems, setPopupItems] = useState([]);
     const [trackTicket, setTrackTicket] = useState(null);
 
@@ -96,8 +97,8 @@ const Dashboard = () => {
 
     }, [aiRiskReport, loading, user.Department]);
 
-    const isSuperAdmin = user?.Role?.toUpperCase() === 'SUPER_ADMIN';
-    const isAdmin = user?.Role?.toLowerCase() === 'admin' || user?.Role?.toUpperCase() === 'ADMIN' || isSuperAdmin;
+    const isSuperAdmin = ['SUPERADMIN', 'SUPER_ADMIN'].includes(normalize(user?.Role).toUpperCase());
+    const isUserAdmin = isSuperAdmin || normalize(user?.Role) === 'admin';
 
     // ------------------------------------------------------------------
     // AUTOMATED CHECKS (Run when Data Updates)
@@ -114,8 +115,7 @@ const Dashboard = () => {
 
         const uDept = normalize(user.Department);
         const uName = normalize(user.Username);
-        const uRole = String(user.Role || '').toUpperCase().trim();
-        const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
+        const isAdminView = isUserAdmin;
 
         allTickets.forEach(t => {
             // Permission Filter (Match Popup Logic)
@@ -280,8 +280,7 @@ const Dashboard = () => {
     const filteredPopupItems = useMemo(() => {
         if (!popupOpen || !popupCategory || popupCategory === 'Active Staff') return [];
 
-        const uRole = String(user.Role || '').toUpperCase().trim();
-        const isAdminView = uRole === 'ADMIN' || uRole === 'SUPER_ADMIN';
+        const isAdminView = isUserAdmin;
         const uDept = normalize(user.Department);
         const uname = normalize(user.Username);
 
@@ -291,11 +290,16 @@ const Dashboard = () => {
             const rowBy = normalize(t.ReportedBy);
             const rowReporter = normalize(t.Reporter || t.Username);
             const rowResolver = normalize(t.ResolvedBy);
-            const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
 
+            const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
             if (!isVisible) return false;
 
             const status = normalize(t.Status);
+
+            // 🟢 PERSONAL FILTER (For "Your Impact" section)
+            if (popupSubFilter === 'personal') {
+                if (rowResolver !== uname && rowBy !== uname) return false;
+            }
 
             if (popupCategory === 'All') return true;
 
@@ -324,12 +328,12 @@ const Dashboard = () => {
         });
     }, [sortedAllTickets, popupOpen, popupCategory, user]);
 
-    const handleCardClick = (type) => {
+    const handleCardClick = (type, subFilter = null) => {
         if (type === 'Active Staff') {
             setShowActiveStaffModal(true);
         } else {
-            // Instant UI update: Set category and open flag first
             setPopupCategory(type);
+            setPopupSubFilter(subFilter);
             setPopupOpen(true);
         }
     };
@@ -649,7 +653,10 @@ const Dashboard = () => {
                     Your Impact
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatCard icon={CheckCircle} title="Solved Cases" value={mySolved} colorClass="text-[#2e7d32]" bgClass="bg-[#cfead6]" filterType="Solved" />
+                    <StatCard icon={CheckCircle} title="Solved Cases" value={mySolved} colorClass="text-[#2e7d32]" bgClass="bg-[#cfead6]"
+                        filterType="Solved"
+                        onClick={() => handleCardClick('Solved', 'personal')}
+                    />
                     <StatCard icon={Timer} title="Avg Speed" value={mySpeed} colorClass="text-blue-600" bgClass="bg-blue-50" filterType={null} />
                     <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType={null} />
                     <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType={null} />
