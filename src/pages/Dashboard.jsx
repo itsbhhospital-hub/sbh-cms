@@ -181,7 +181,7 @@ const Dashboard = () => {
             allTickets.forEach(t => {
                 const isDelayed = String(t.Delay).toLowerCase() === 'yes' || String(t.Status).toLowerCase() === 'delayed';
                 if (isDelayed) {
-                    if (isAdmin) {
+                    if (isUserAdmin) {
                         delayCount++;
                     } else {
                         const rowDept = normalize(t.Department);
@@ -197,7 +197,7 @@ const Dashboard = () => {
             });
 
             if (delayCount > 0) {
-                setDelayAlert({ count: delayCount, dept: isAdmin ? 'All Departments' : user.Department });
+                setDelayAlert({ count: delayCount, dept: isUserAdmin ? 'All Departments' : user.Department });
             }
         };
 
@@ -240,7 +240,7 @@ const Dashboard = () => {
 
         // 3. REOPEN NOTIFICATION
         const checkReopen = () => {
-            if (isAdmin) return;
+            if (isUserAdmin) return;
             const reopened = allTickets.filter(t =>
                 String(t.Status).toLowerCase() === 're-open' && // Fix status check
                 (normalize(t.Reporter || '') === normalize(user.Username) || normalize(t.ReportedBy || '') === normalize(user.Username))
@@ -255,7 +255,7 @@ const Dashboard = () => {
         checkBooster();
         checkReopen();
 
-    }, [allTickets, boosters, loading, isAdmin, user]);
+    }, [allTickets, boosters, loading, isUserAdmin, user]);
 
     // OPTIMIZED: Universal Latest-First Sort for Dashboard Components
     const sortedAllTickets = useMemo(() => {
@@ -604,7 +604,7 @@ const Dashboard = () => {
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-full flex-grow grid-rows-3 lg:grid-rows-2">
                             {/* Row 1 */}
                             <StatCard icon={AlertCircle} title="Open" value={dashboardStats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
-                            {isAdmin ? (
+                            {isUserAdmin ? (
                                 <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
                             ) : (
                                 <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
@@ -615,7 +615,7 @@ const Dashboard = () => {
                             <StatCard icon={Clock} title="Delayed" value={dashboardStats.delayed} bgClass="bg-rose-50" colorClass="text-rose-600" filterType="Delayed" />
 
                             {/* Dynamic Slot */}
-                            {isAdmin ? (
+                            {isUserAdmin ? (
                                 <StatCard icon={Users} title="Staff Active" value={activeUsers ? activeUsers.filter(u => String(u.Status).toLowerCase() === 'active').length : 0} bgClass="bg-slate-100" colorClass="text-slate-700" filterType="Active Staff" />
                             ) : (
                                 <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
