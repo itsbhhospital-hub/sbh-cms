@@ -3,13 +3,15 @@ import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Clock, Search, ArrowRight, User, Calendar, History, TrendingUp, AlertCircle } from 'lucide-react';
-import { formatIST, formatDateIST, parseCustomDate } from '../utils/dateUtils';
+import { formatIST, formatDateIST, parseCustomDate, normalize } from '../utils/dateUtils';
+import { useIntelligence } from '../context/IntelligenceContext';
 
 const ExtendedCases = () => {
     const { user } = useAuth();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const { allTickets } = useIntelligence();
 
     useEffect(() => {
         loadLogs();
@@ -44,8 +46,17 @@ const ExtendedCases = () => {
             String(log.ExtendedBy || '').toLowerCase().includes(search) ||
             String(log.Reason || '').toLowerCase().includes(search);
 
-        // Permission filtering: Admins see all, others see extensions they performed
-        const matchesUser = isAdmin ? true : String(log.ExtendedBy || '').toLowerCase() === String(user.Username).toLowerCase();
+        // Permission filtering: Admins see all
+        if (isAdmin) return matchesSearch;
+
+        // Regular Users: See only their own OR their department's tickets
+        const ticket = allTickets?.find(t => String(t.ID) === String(log.ComplaintID));
+        const rowDept = normalize(ticket?.Department);
+        const uDept = normalize(user?.Department);
+        const uName = normalize(user?.Username);
+        const extendedBy = normalize(log.ExtendedBy);
+
+        const matchesUser = rowDept === uDept || extendedBy === uName;
 
         return matchesSearch && matchesUser;
     });
