@@ -1,21 +1,31 @@
 import { useIntelligence } from '../../context/IntelligenceContext';
+import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Award, Zap, Star } from 'lucide-react';
 
 const AIExcellenceRegistry = () => {
     const { aiStaffScores } = useIntelligence();
+    const { user } = useAuth();
 
     if (!aiStaffScores) return null;
 
+    const isSuperAdmin = ['SUPERADMIN', 'SUPER_ADMIN'].includes(String(user?.Role || '').toUpperCase().trim());
+    const isUserAdmin = isSuperAdmin || String(user?.Role || '').toLowerCase().trim() === 'admin';
+
     // Convert scores object to sorted array
-    const topPerformers = Object.keys(aiStaffScores)
+    let topPerformers = Object.keys(aiStaffScores)
         .map(username => ({
             username,
             score: aiStaffScores[username]
         }))
-        .filter(u => u.score > 0) // Only active
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5); // Top 5
+        .filter(u => u.score > 0); // Only active
+
+    if (isUserAdmin) {
+        topPerformers = topPerformers.sort((a, b) => b.score - a.score).slice(0, 5); // Top 5 for Admin
+    } else {
+        const uname = String(user?.Username || '').toLowerCase().trim();
+        topPerformers = topPerformers.filter(u => u.username.toLowerCase().trim() === uname);
+    }
 
     if (topPerformers.length === 0) return null;
 

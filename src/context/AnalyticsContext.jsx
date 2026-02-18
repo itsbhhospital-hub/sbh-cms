@@ -188,9 +188,19 @@ export const AnalyticsProvider = ({ children }) => {
                     depts[dept].open++;
                 } else if (['pending', 'in-progress', 're-open'].includes(status)) {
                     depts[dept].pending++;
+                } else if (status === 'extend' || status === 'extended') {
+                    depts[dept].extended++;
+                    flow.extended++;
                 } else {
                     // Fallback active count
                     if (status !== 'transferred') depts[dept].open++;
+                }
+
+                // Additional Check for TargetDate (even if status is not 'extend')
+                const hasTargetDate = c.TargetDate && String(c.TargetDate).trim() !== '' && String(c.TargetDate).toLowerCase() !== 'none';
+                if (hasTargetDate && status !== 'extend' && status !== 'extended') {
+                    depts[dept].extended++;
+                    flow.extended++;
                 }
 
                 // 🟢 FIX: Delay Logic (Inside Active Block)

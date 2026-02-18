@@ -102,24 +102,43 @@ const WorkReport = () => {
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-8 -mt-8">
-                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Solved Cases</p>
-                            <p className="text-3xl font-black text-[#2e7d32] leading-none tracking-tight">{selectedUser.stats.resolved}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8 -mt-8 relative z-10">
+                        {/* 1. Solved Cases */}
+                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all group">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Total Impact</p>
+                            <div className="flex items-end justify-between">
+                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.resolved}</h4>
+                                <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Solved</div>
+                            </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Avg Rating</p>
-                            <p className="text-3xl font-black text-amber-500 leading-none flex items-center gap-1.5 tracking-tight">
-                                {selectedUser.stats.avgRating} <Star size={24} className="fill-amber-400 border-none" />
-                            </p>
+
+                        {/* 2. Avg Rating */}
+                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Quality Score</p>
+                            <div className="flex items-end justify-between">
+                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.avgRating} <span className="text-amber-400 text-2xl">★</span></h4>
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{selectedUser.stats.ratingCount} Ratings</div>
+                            </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Speed (Hr)</p>
-                            <p className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{Number(selectedUser.stats.avgSpeed).toFixed(1)}</p>
+
+                        {/* 3. Speed */}
+                        <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Avg Speed</p>
+                            <div className="flex items-end justify-between">
+                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{Number(selectedUser.stats.avgSpeed).toFixed(1)} <span className="text-sm text-slate-400 font-bold ml-1">HRS</span></h4>
+                                <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
+                                    <Clock size={20} />
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-none text-white">
-                            <p className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest mb-2">Efficiency Rating</p>
-                            <p className="text-3xl font-black text-white leading-none tracking-tight">{Number(selectedUser.stats.efficiency).toFixed(0)}</p>
+
+                        {/* 4. Efficiency (Dark) */}
+                        <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-xl shadow-slate-200 transition-all group overflow-hidden relative">
+                            <TrendingUp className="absolute right-0 bottom-0 text-[#2e7d32]/10 w-24 h-24 -mr-4 -mb-4 rotate-12" />
+                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-4 relative z-10">Efficiency Rating</p>
+                            <div className="flex items-end justify-between relative z-10">
+                                <h4 className="text-5xl font-black text-white leading-none tracking-tighter">{Number(selectedUser.stats.efficiency).toFixed(0)}</h4>
+                            </div>
                         </div>
                     </div>
 
@@ -187,8 +206,8 @@ const WorkReport = () => {
                     <div className="flex flex-col md:flex-row justify-between items-end gap-6 p-10 bg-[#1f2d2a] rounded-[2.5rem] shadow-none text-white relative overflow-hidden">
                         <div className="relative z-10">
                             <span className="bg-[#2e7d32] text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-lg shadow-black/20">Resource Metrics</span>
-                            <h1 className="text-3xl md:text-4xl font-black mb-2 uppercase tracking-tight">Personnel Analytics</h1>
-                            <p className="text-xs text-[#2e7d32] font-black uppercase tracking-widest opacity-80">Monitoring hospital service efficiency standards</p>
+                            <h1 className="text-3xl md:text-4xl font-black mb-2 uppercase tracking-tight text-white">Personnel Analytics</h1>
+                            <p className="text-xs text-emerald-400/90 font-black uppercase tracking-widest">Monitoring hospital service efficiency standards</p>
                         </div>
                         <div className="relative z-10 w-full md:w-auto">
                             <div className="relative group">

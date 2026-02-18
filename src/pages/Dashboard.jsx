@@ -5,7 +5,7 @@ import ActiveUsersModal from '../components/ActiveUsersModal';
 import DashboardPopup from '../components/DashboardPopup';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter, AlertTriangle, X } from 'lucide-react';
+import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter, AlertTriangle, X, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DirectorDashboard from '../components/Analytics/DirectorDashboard';
 import { useIntelligence } from '../context/IntelligenceContext';
@@ -646,20 +646,57 @@ const Dashboard = () => {
                 {/* OLD GRID REMOVED */}
             </div>
 
-            {/* YOUR IMPACT SECTION */}
-            <div className="bg-white rounded-3xl p-8 border border-[#dcdcdc] shadow-sm mt-8">
-                <h3 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2 uppercase tracking-tight">
-                    <Shield size={24} className="text-[#2e7d32]" />
-                    Your Impact
+            {/* YOUR IMPACT SECTION - PREMIUM REDESIGN */}
+            <div className="bg-white rounded-[2rem] p-8 border border-[#dcdcdc] shadow-sm mt-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-32 translate-x-32 opacity-50"></div>
+
+                <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 uppercase tracking-[0.3em] relative z-10">
+                    <Shield size={16} className="text-[#2e7d32]" />
+                    Performance Analytics
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatCard icon={CheckCircle} title="Solved Cases" value={mySolved} colorClass="text-[#2e7d32]" bgClass="bg-[#cfead6]"
-                        filterType="Solved"
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+                    {/* 1. Solved Cases (High Contrast) */}
+                    <div
                         onClick={() => handleCardClick('Solved', 'personal')}
-                    />
-                    <StatCard icon={Timer} title="Avg Speed" value={mySpeed} colorClass="text-blue-600" bgClass="bg-blue-50" filterType={null} />
-                    <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType={null} />
-                    <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType={null} />
+                        className="bg-white p-6 rounded-2xl border border-[#dcdcdc] hover:border-[#2e7d32] transition-all group cursor-pointer active:scale-95"
+                    >
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Your Impact</p>
+                        <div className="flex items-end justify-between">
+                            <h4 className="text-5xl font-black text-[#1f2d2a] leading-none tracking-tighter">{mySolved}</h4>
+                            <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Solved</div>
+                        </div>
+                    </div>
+
+                    {/* 2. Avg Speed */}
+                    <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Avg Speed</p>
+                        <div className="flex items-end justify-between">
+                            <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">
+                                {String(mySpeed).split(' ')[0]} <span className="text-sm text-slate-400 font-bold ml-1">{String(mySpeed).split(' ')[1]}</span>
+                            </h4>
+                            <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
+                                <Clock size={20} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. Quality Score */}
+                    <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Quality Score</p>
+                        <div className="flex items-end justify-between">
+                            <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{myRating} <span className="text-amber-400 text-2xl">★</span></h4>
+                        </div>
+                    </div>
+
+                    {/* 4. Efficiency Rank (Dark Theme) */}
+                    <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-xl shadow-slate-200 transition-all group overflow-hidden relative">
+                        <TrendingUp className="absolute right-0 bottom-0 text-[#2e7d32]/10 w-24 h-24 -mr-4 -mb-4 rotate-12" />
+                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-4 relative z-10">Efficiency Rank</p>
+                        <div className="flex items-end justify-between relative z-10">
+                            <h4 className="text-5xl font-black text-white leading-none tracking-tighter">{myRank.replace('#', '') || '0'}</h4>
+                        </div>
+                    </div>
                 </div>
             </div>
 

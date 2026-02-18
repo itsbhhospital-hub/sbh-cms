@@ -1,14 +1,19 @@
 import { useIntelligence } from '../../context/IntelligenceContext';
 import { calculateWorkloadParams } from '../../services/aiCore';
+import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 
 const WorkloadHeatmap = () => {
     const { allTickets, aiDeptLoad } = useIntelligence();
+    const { user } = useAuth();
 
     if (!aiDeptLoad || !allTickets) return null;
 
+    const isSuperAdmin = ['SUPERADMIN', 'SUPER_ADMIN'].includes(String(user?.Role || '').toUpperCase().trim());
+    const isUserAdmin = isSuperAdmin || String(user?.Role || '').toLowerCase().trim() === 'admin';
+
     // Transform AI Data into Array for rendering
-    const departments = Object.keys(aiDeptLoad).map(dept => {
+    let departments = Object.keys(aiDeptLoad).map(dept => {
         const stats = aiDeptLoad[dept];
         // Re-calculate params to get color coding (or we could have done this in AI core)
         const { level, color } = calculateWorkloadParams(allTickets, dept);
@@ -19,7 +24,15 @@ const WorkloadHeatmap = () => {
             level,
             color
         };
-    }).sort((a, b) => b.open - a.open); // Sort by highest load
+    });
+
+    // Filtering for visibility
+    if (!isUserAdmin) {
+        const uDept = String(user?.Department || '').toLowerCase().trim();
+        departments = departments.filter(d => d.name.toLowerCase().trim() === uDept);
+    }
+
+    departments.sort((a, b) => b.open - a.open); // Sort by highest load
 
     const getColorClass = (color) => {
         if (color === 'red') return 'bg-rose-50 border-rose-200 text-rose-700';

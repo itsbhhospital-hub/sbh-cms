@@ -525,7 +525,7 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
 
     return (
         <div className="max-w-7xl mx-auto px-4 pb-32">
-            <PerformanceWidget user={user} userStats={userPerformance} />
+
 
             <div className="bg-white rounded-2xl border border-[#dcdcdc] shadow-none mb-6 sticky top-4 z-20 overflow-hidden">
                 <div className="p-4 border-b border-[#f0f0f0] flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-xl">

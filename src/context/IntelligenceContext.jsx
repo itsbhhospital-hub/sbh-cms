@@ -37,10 +37,11 @@ export const IntelligenceProvider = ({ children }) => {
     const [predictedDelays, setPredictedDelays] = useState([]); // Simple list for Dashboard
 
     // Director/Analytics Metrics
-    const [deptRisks, setDeptRisks] = useState({}); // Detailed Dept Stats
+    const [deptRisks, setDeptRisks] = useState({}); // Detailed Dept Stats (Object)
+    const [deptStats, setDeptStats] = useState([]); // Detailed Dept Stats (Array)
     const [flowStats, setFlowStats] = useState({ open: 0, solved: 0, delayed: 0, transferred: 0 });
     const [staffStats, setStaffStats] = useState([]);
-    const [detailedDelayRisks, setDetailedDelayRisks] = useState([]);
+    const [delayRisks, setDelayRisks] = useState([]);
     const [alerts, setAlerts] = useState([]);
     // AI Auto System Recommendations
     const [aiRecommendations, setAiRecommendations] = useState({ booster: null, delayWarning: null });
@@ -184,7 +185,7 @@ export const IntelligenceProvider = ({ children }) => {
         // A. Base Counters
         let health = 100;
         let stress = 0;
-        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, efficiency: 0 };
+        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, extended: 0, efficiency: 0 };
         const depts = {};
         const predictions = [];
         const detailedRisks = [];
@@ -199,7 +200,8 @@ export const IntelligenceProvider = ({ children }) => {
                 const userObj = users.find(u => normalize(u.Username) === nName);
                 staffMap[nName] = {
                     name: userObj ? userObj.Username : name,
-                    username: nName,
+                    Username: userObj ? userObj.Username : name, // Use Capital U
+                    username: nName, // Keep for legacy if needed by other components
                     dept: userObj ? userObj.Department : 'Unknown',
                     solved: 0,
                     ratings: [],
@@ -252,7 +254,7 @@ export const IntelligenceProvider = ({ children }) => {
             const isDelayed = delayValue === 'yes' || status === 'delayed' || isOverdueByTarget || isOverdueByDate;
 
             // Dept Init
-            if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, transfers: 0 };
+            if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, extended: 0, transfers: 0 };
 
             if (isActive) {
                 // 🟢 FIX: Count ALL active as Open Flow
@@ -263,11 +265,21 @@ export const IntelligenceProvider = ({ children }) => {
                     depts[dept].open++;
                 } else if (['pending', 'in-progress', 're-open'].includes(status)) {
                     depts[dept].pending++;
+                } else if (status === 'extend' || status === 'extended') {
+                    depts[dept].extended++;
+                    flow.extended++;
                 } else {
                     // For other active statuses (like 'delayed' or unmapped), count as open in dept too?
                     // User said "Open panel should count: status != Closed".
                     // So let's count them as open if not pending/transferred
                     if (status !== 'transferred') depts[dept].open++;
+                }
+
+                // Additional Check for TargetDate (even if status is not 'extend')
+                const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
+                if (hasTargetDate && status !== 'extend' && status !== 'extended') {
+                    depts[dept].extended++;
+                    flow.extended++;
                 }
 
                 // 🟢 FIX: Delayed Logic INSIDE Active Block
@@ -436,6 +448,7 @@ export const IntelligenceProvider = ({ children }) => {
         setStressIndex(stress);
         setPredictedDelays(predictions);
         setDeptRisks(depts);
+        setDeptStats(Object.entries(depts).map(([name, stats]) => ({ name, ...stats })));
         setFlowStats(flow);
         // Global Latest-First Sorting for Risks
         detailedRisks.sort((a, b) => {
@@ -444,7 +457,7 @@ export const IntelligenceProvider = ({ children }) => {
             return dateB - dateA;
         });
 
-        setDetailedDelayRisks(detailedRisks);
+        setDelayRisks(detailedRisks);
         setStaffStats(finalStaffStats);
         setAlerts(alertList);
         setAiRecommendations({ booster: bestBooster, delayWarning: delayWarn });
@@ -544,6 +557,7 @@ export const IntelligenceProvider = ({ children }) => {
             // Intelligence
             hospitalHealth,
             deptRisks,
+            deptStats,
             predictedDelays,
             stressIndex,
             crisisRisk: getCrisisRisk(),
@@ -555,7 +569,7 @@ export const IntelligenceProvider = ({ children }) => {
             // Advanced Analytics (Ported)
             flowStats,
             staffStats,
-            detailedDelayRisks,
+            delayRisks,
             alerts,
             aiRecommendations, // Expose AI Logic
 

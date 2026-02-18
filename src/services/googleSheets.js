@@ -137,7 +137,9 @@ const normalizeRows = (rows) => {
         normalized.Reason = findValue(['Reason', 'Transfer Reason', 'Extension Reason', 'reason']);
         normalized.ExtendedBy = normalize(findValue(['ExtendedBy', 'Extended By', 'extended_by', 'User']));
         normalized.OldTargetDate = findValue(['OldTargetDate', 'Old Target Date', 'old_target_date', 'Previous Date', 'previous_date', 'Old Date', 'prev_date', 'PreviousTargetDate']);
-        normalized.NewTargetDate = findValue(['NewTargetDate', 'New Target Date', 'new_target_date', 'New Date', 'new_date', 'TargetDate', 'Target Date', 'target_date']);
+        const targetDateVal = findValue(['NewTargetDate', 'New Target Date', 'new_target_date', 'New Date', 'new_date', 'TargetDate', 'Target Date', 'target_date']);
+        normalized.NewTargetDate = targetDateVal;
+        normalized.TargetDate = targetDateVal; // Map to both for compatibility
         normalized.DiffDays = findValue(['DiffDays', 'Diff Days', 'diff_days', 'Days Added', 'days_added', 'Extension Days']);
         normalized.ExtensionTime = findValue(['ExtensionTime', 'Extension Time', 'extension_time', 'Extension Date', 'extension_date', 'Timestamp', 'Date']);
 

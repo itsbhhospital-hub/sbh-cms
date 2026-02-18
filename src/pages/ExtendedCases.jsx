@@ -3,7 +3,8 @@ import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Clock, Search, ArrowRight, User, Calendar, History, TrendingUp, AlertCircle } from 'lucide-react';
-import { formatIST, formatDateIST, parseCustomDate, normalize } from '../utils/dateUtils';
+import { formatIST, formatDateIST, parseCustomDate } from '../utils/dateUtils';
+import { normalize } from '../utils/dataUtils';
 import { useIntelligence } from '../context/IntelligenceContext';
 
 const ExtendedCases = () => {
