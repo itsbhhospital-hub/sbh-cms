@@ -154,7 +154,9 @@ const ExtendedCases = () => {
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">Previous</p>
                                             <p className="font-bold text-slate-600 text-sm">
-                                                {log.OldTargetDate && log.OldTargetDate !== 'None' ? formatDateIST(log.OldTargetDate) : 'N/A'}
+                                                {log.OldTargetDate && log.OldTargetDate !== 'None' && log.OldTargetDate !== 'N/A'
+                                                    ? formatDateIST(log.OldTargetDate)
+                                                    : (log.ExtensionTime || log.Date ? formatDateIST(log.ExtensionTime || log.Date) : 'N/A')}
                                             </p>
                                         </div>
                                         <ArrowRight size={16} className="text-slate-300" />

@@ -152,7 +152,8 @@ const Dashboard = () => {
             // Breakdown
             if (status === 'pending' || status === 'in-progress') initial.pending++;
             if (status === 'transferred') initial.transferred++;
-            if (status === 'extended' || status === 'extend') initial.extended++;
+            const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
+            if (status === 'extended' || status === 'extend' || hasTargetDate) initial.extended++;
 
             // 3. DELAYED (Can be active)
             if (isDelayed) {
@@ -494,7 +495,7 @@ const Dashboard = () => {
                                         <span className="text-sm font-black text-[#1f2d2a]">#{boosterNotice.TicketID || boosterNotice.ComplaintID || 'N/A'}</span>
                                     </div>
                                     <div className="space-y-3">
-                                        <div>
+                                        <div className="pt-2">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reason for Urgency</p>
                                             <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{boosterNotice.Reason || 'Urgent attention required.'}"</p>
                                         </div>
