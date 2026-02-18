@@ -80,7 +80,7 @@ const Signup = () => {
                                 <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                             </div>
                             <div className="text-left font-ui">
-                                <h2 className="text-2xl font-black text-[#1f2d2a] tracking-tight leading-none mb-1">HOSPITAL CMS</h2>
+                                <h2 className="text-2xl font-black text-[#1f2d2a] tracking-tight leading-none mb-1">SBH Group Portal</h2>
                                 <p className="text-[10px] font-black text-[#2e7d32] tracking-widest uppercase opacity-80">Medical Staff Enrollment</p>
                             </div>
                         </div>

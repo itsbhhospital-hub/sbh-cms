@@ -231,23 +231,25 @@ export const IntelligenceProvider = ({ children }) => {
             const isSolved = ['solved', 'closed', 'resolved', 'force close'].includes(status);
             const resolver = normalize(t.ResolvedBy);
 
-            // NEW DELAY LOGIC: Dual Visibility
-            // Is it overdue by TargetDate? 
-            let isOverdue = false;
+            // 🟢 REAL-TIME DELAY DETECTION (Module 7)
+            // A case is Delayed if:
+            // 1. Explicitly marked as Delay='Yes' by backend schedule
+            // 2. Status is 'delayed' (Legacy support)
+            // 3. Breached TargetDate
+            // 4. Registered BEFORE Today (Midnight IST)
+            const delayValue = String(t.Delay || '').toLowerCase().trim();
+            const regDateForDelay = t.Date ? new Date(t.Date) : null;
+            const isOverdueByDate = (regDateForDelay && !isNaN(regDateForDelay.getTime())) && regDateForDelay < startOfDay;
+
+            let isOverdueByTarget = false;
             if (t.TargetDate) {
                 const targetDate = new Date(t.TargetDate);
-                if (!isNaN(targetDate.getTime()) && new Date() > targetDate && isActive) {
-                    isOverdue = true;
+                if (!isNaN(targetDate.getTime()) && new Date() > targetDate) {
+                    isOverdueByTarget = true;
                 }
             }
 
-            // A case is Delayed if:
-            // 1. Explicitly marked as Delay='Yes' by backend schedule
-            // 2. Breached TargetDate
-            // 3. Status is 'delayed' (Legacy support)
-            // 🟢 FIX: Check 'Delay' column robustly
-            const delayVal = String(t.Delay || '').toLowerCase().trim();
-            const isDelayed = delayVal === 'yes' || status === 'delayed' || isOverdue;
+            const isDelayed = delayValue === 'yes' || status === 'delayed' || isOverdueByTarget || isOverdueByDate;
 
             // Dept Init
             if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, transfers: 0 };

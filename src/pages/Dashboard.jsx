@@ -131,7 +131,13 @@ const Dashboard = () => {
             const delayVal = String(t.Delay || '').toLowerCase().trim();
 
             const isClosed = ['solved', 'closed', 'resolved', 'force close'].includes(status);
-            const isDelayed = delayVal === 'yes' || status === 'delayed';
+
+            // 🟢 REAL-TIME DELAY DETECTION
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            const regDate = new Date(t.Date);
+            const isPastRegistration = !isNaN(regDate.getTime()) && regDate < startOfToday;
+            const isDelayed = delayVal === 'yes' || status === 'delayed' || isPastRegistration;
 
             // 1. SOLVED
             if (isClosed) {
@@ -588,7 +594,11 @@ const Dashboard = () => {
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-full flex-grow grid-rows-3 lg:grid-rows-2">
                             {/* Row 1 */}
                             <StatCard icon={AlertCircle} title="Open" value={dashboardStats.open} bgClass="bg-[#ffd59e]/30" colorClass="text-[#c2410c]" filterType="Open" />
-                            <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
+                            {isAdmin ? (
+                                <StatCard icon={History} title="Extended" value={dashboardStats.extended} bgClass="bg-blue-50" colorClass="text-blue-600" filterType="Extended" />
+                            ) : (
+                                <StatCard icon={Timer} title="Pending" value={dashboardStats.pending} bgClass="bg-[#cfe8ff]/40" colorClass="text-[#0369a1]" filterType="Pending" />
+                            )}
                             <StatCard icon={CheckCircle} title="Solved" value={dashboardStats.solved} bgClass="bg-[#d6f5e3]" colorClass="text-[#2e7d32]" filterType="Solved" />
 
                             {/* Row 2 */}

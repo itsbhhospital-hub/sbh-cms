@@ -3,7 +3,7 @@ import { sheetsService } from '../services/googleSheets';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Clock, Search, ArrowRight, User, Calendar, History, TrendingUp, AlertCircle } from 'lucide-react';
-import { formatIST, formatDateIST } from '../utils/dateUtils';
+import { formatIST, formatDateIST, parseCustomDate } from '../utils/dateUtils';
 
 const ExtendedCases = () => {
     const { user } = useAuth();
@@ -19,10 +19,12 @@ const ExtendedCases = () => {
         try {
             const data = await sheetsService.getExtensionLogs(true);
             const safeData = Array.isArray(data) ? data : [];
-            // Sort by most recent extension time
-            const sorted = safeData.sort((a, b) =>
-                new Date(b.ExtensionTime).getTime() - new Date(a.ExtensionTime).getTime()
-            );
+            // Sort by most recent extension time using robust parser
+            const sorted = safeData.sort((a, b) => {
+                const dateA = parseCustomDate(a.ExtensionTime);
+                const dateB = parseCustomDate(b.ExtensionTime);
+                return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+            });
             setLogs(sorted);
         } catch (error) {
             console.error("Failed to load extension logs", error);
@@ -151,7 +153,9 @@ const ExtendedCases = () => {
                                     <div className="flex items-center justify-between mb-2">
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">Previous</p>
-                                            <p className="font-bold text-slate-600 text-sm">{log.OldTargetDate ? formatDateIST(log.OldTargetDate) : 'N/A'}</p>
+                                            <p className="font-bold text-slate-600 text-sm">
+                                                {log.OldTargetDate && log.OldTargetDate !== 'None' ? formatDateIST(log.OldTargetDate) : 'N/A'}
+                                            </p>
                                         </div>
                                         <ArrowRight size={16} className="text-slate-300" />
                                         <div className="text-right">
@@ -161,7 +165,9 @@ const ExtendedCases = () => {
                                     </div>
                                     <div className="flex items-center justify-center gap-2 bg-blue-100/50 py-1.5 rounded-lg border border-blue-100">
                                         <AlertCircle size={14} className="text-blue-500" />
-                                        <span className="text-xs font-bold text-blue-700">+{log.DiffDays} Days Added</span>
+                                        <span className="text-xs font-bold text-blue-700">
+                                            {log.DiffDays ? `+${String(log.DiffDays).replace(/\+/g, '')} Days Added` : 'Timeline Adjusted'}
+                                        </span>
                                     </div>
                                 </div>
 

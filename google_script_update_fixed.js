@@ -58,23 +58,33 @@ function setupDailyTrigger() {
 function parseCustomDate(dateStr) {
     if (!dateStr) return new Date();
     // Handle "dd-MM-yyyy..." format which new Date() hates
-    // Remove possible leading '
-    const clean = String(dateStr).replace(/'/g, '').trim();
+    // Remove possible leading ' and brackets from history logs [16 Feb 2026...]
+    const clean = String(dateStr).replace(/'/g, '').replace(/[\[\]]/g, '').replace(/•/g, '').trim();
 
-    // Check if it matches dd-MM-yyyy
-    // Simple parsing assuming dd-MM-yyyy ...
-    // If native parse works (ISO), use it. Date.parse returns NaN if failed.
+    // 1. Try Native JS Parse
     const ts = Date.parse(clean);
     if (!isNaN(ts)) return new Date(ts);
 
-    // Manual Parse for dd-MM-yyyy
-    // Split by non-digits
-    const parts = clean.split(/[^0-9]/);
+    // 2. Handle "16 Feb 2026 10:10:10 AM" or "16-Feb-2026"
+    const months = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+    };
+
+    const parts = clean.split(/[\s\-\/\.]+/); // Split by space, dash, slash, dot
     if (parts.length >= 3) {
-        // parts[0]=dd, parts[1]=MM, parts[2]=yyyy
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
+        let day = parseInt(parts[0], 10);
+        let month = -1;
+        let year = parseInt(parts[2], 10);
+
+        // Try parsing month as name
+        const monthName = String(parts[1]).toLowerCase().substring(0, 3);
+        if (months.hasOwnProperty(monthName)) {
+            month = months[monthName];
+        } else {
+            month = parseInt(parts[1], 10) - 1;
+        }
+
         if (year > 1900 && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
             return new Date(year, month, day);
         }
@@ -944,10 +954,10 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
     }
 
     if (userMobile) {
-        const msg = '*COMPLAINT REGISTERED*\n\n' +
+        const msg = '✅ *COMPLAINT REGISTERED*\n\n' +
             'Dear ' + reporter + ',\n' +
             'Your complaint has been logged successfully.\n\n' +
-            '🔹 *Ticket ID:* ' + id + ' \n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
             '📍 *Department:* ' + dept + ' \n' +
             '📝 *Issue:* ' + desc + ' \n\n' +
             'We will update you shortly.\n\n' +
@@ -958,10 +968,10 @@ function sendNewComplaintNotifications(dept, id, reporter, desc) {
 
     [...new Set(staffMobiles)].forEach(m => {
         if (m && m !== userMobile) {
-            const msg = '🚨 *NEW COMPLAINT ALERT*\n\n' +
+            const msg = '🔔 *NEW COMPLAINT ALERT*\n\n' +
                 'Attention Team, \n' +
                 'A new ticket requires your action.\n\n' +
-                '🔹 *Ticket ID:* ' + id + ' \n' +
+                '🎫 *Ticket ID:* ' + id + ' \n' +
                 '📍 *Department:* ' + dept + ' \n' +
                 '👤 *Reporter:* ' + reporter + ' \n' +
                 '📝 *Issue:* ' + desc + ' \n\n' +
@@ -987,7 +997,6 @@ function checkAndMoveToDelay() {
     const colMap = getColMap(headers);
 
     // 1. SETUP DATE REFERENCE (IST - Date Only)
-    // We want to compare Calendar Dates. Time does not matter for "Yesterday" logic.
     const now = new Date();
     const todayStr = Utilities.formatDate(now, IST_TIMEZONE, "yyyy-MM-dd");
     const todayDate = new Date(todayStr); // 00:00:00 IST today
@@ -1015,22 +1024,25 @@ function checkAndMoveToDelay() {
         if (['resolved', 'closed', 'solved', 'force close'].includes(normStatus)) continue;
 
         // GET REGISTERED DATE
-        const regDateRaw = row[colMap.Date - 1];
+        let regDateRaw = row[colMap.Date - 1];
         if (!regDateRaw) continue;
 
-        let regDateStr = "";
-        try {
-            regDateStr = Utilities.formatDate(new Date(regDateRaw), IST_TIMEZONE, "yyyy-MM-dd");
-        } catch (e) {
-            // Fallback for custom formats if necessary
-            continue;
+        // Self-Healing: If Date is actually a Date object (sometimes happens in Sheets)
+        let regDate;
+        if (regDateRaw instanceof Date) {
+            regDate = regDateRaw;
+        } else {
+            regDate = parseCustomDate(regDateRaw);
         }
 
-        const regDate = new Date(regDateStr);
+        const regDateStr = Utilities.formatDate(regDate, IST_TIMEZONE, "yyyy-MM-dd");
+        // FIX: If parse fails and returns 1970 or current year but wrong day, it causes issues.
+        // We trust the yyyy-MM-dd format for absolute comparison.
+        const regDateNormalized = new Date(regDateStr);
 
         // 🟢 STRICT DELAY LOGIC:
         // IF Today > RegisteredDate (i.e., Registered Yesterday or Before)
-        if (todayDate > regDate) {
+        if (todayDate > regDateNormalized) {
 
             const ticketId = row[colMap.ID - 1];
             const dept = row[colMap.Department - 1];
@@ -1044,9 +1056,12 @@ function checkAndMoveToDelay() {
 
                     // 🟢 PART 7: JOURNEY ENTRY AUTO LOG
                     if (colMap.History) {
-                        const hist = row[colMap.History - 1];
-                        const msg = `[${getISTTimestamp()}] ⚠ Case Delayed\nReason: Not solved on same day\nSystem Auto Marked`;
-                        sheet.getRange(i + 1, colMap.History).setValue(hist ? hist + '\n' + msg : msg);
+                        const hist = String(row[colMap.History - 1] || '');
+                        // Check if already marked to avoid duplicates
+                        if (hist.indexOf('⚠ Case Delayed') === -1) {
+                            const msg = `[${getISTTimestamp()}] ⚠ Case Delayed\nReason: Not solved on same day\nSystem Auto Marked`;
+                            sheet.getRange(i + 1, colMap.History).setValue(hist ? hist + '\n' + msg : msg);
+                        }
                     }
                 }
             }
@@ -1072,83 +1087,141 @@ function checkAndMoveToDelay() {
     }
 }
 
+// 🟢 PART 7: MANUAL TRIGGER FIX (For catching up and repairing 1970-01-01 issues)
+function triggerManualAutoDelayFix() {
+    Logger.log("Starting Manual Auto-Delay Fix...");
+    checkAndMoveToDelay();
+    Logger.log("Manual Auto-Delay Fix Completed.");
+}
+
 // 🟢 PART 6: DELAY MESSAGE TRIGGER SYSTEM (Run at 9:15 AM)
 function sendDelayReminder() {
+    Logger.log("--- Starting sendDelayReminder ---");
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const delayedSheet = ss.getSheetByName('Delayed_Cases');
-    if (!delayedSheet) return;
+    if (!delayedSheet) {
+        Logger.log("Delayed_Cases sheet not found.");
+        return;
+    }
 
     const data = delayedSheet.getDataRange().getValues();
-    if (data.length <= 1) return;
+    Logger.log("Scanning Delayed_Cases sheet. Total rows: " + data.length);
+    if (data.length <= 1) {
+        Logger.log("No data rows found in Delayed_Cases.");
+        return;
+    }
 
     const headers = data[0];
     const colMap = {};
     headers.forEach((h, idx) => colMap[h] = idx + 1);
 
-    const notifiedIdx = (colMap['Notified'] || 0) - 1;
-    if (notifiedIdx < 0) return;
+    // 🔴 SELF-HEALING: Add 'Notified' column if missing
+    if (!colMap['Notified']) {
+        Logger.log("Self-Healing: Adding 'Notified' column to Delayed_Cases.");
+        delayedSheet.getRange(1, headers.length + 1).setValue('Notified');
+        SpreadsheetApp.flush();
+        // Refresh mapping
+        const newHeaders = delayedSheet.getDataRange().getValues()[0];
+        newHeaders.forEach((h, idx) => colMap[h] = idx + 1);
+    }
 
+    Logger.log("Headers Mapped: " + JSON.stringify(colMap));
+
+    const notifiedIdx = (colMap['Notified'] || 0) - 1;
+    if (notifiedIdx < 0) {
+        Logger.log("ERROR: 'Notified' column missing in Delayed_Cases sheet.");
+        return;
+    }
+
+    let sentCount = 0;
     for (let r = 1; r < data.length; r++) {
         const row = data[r];
-        const notified = String(row[notifiedIdx] || '').toUpperCase();
+        const ticketId = row[(colMap['Ticket ID'] || 0) - 1];
+        const notified = String(row[notifiedIdx] || '').toUpperCase().trim();
 
-        // 🟢 SEND ONLY IF NOT NOTIFIED 'TRUE'
-        if (notified === 'FALSE') {
-            const ticketId = row[(colMap['Ticket ID'] || 0) - 1];
+        Logger.log("Row " + (r + 1) + ": Ticket " + ticketId + " | Notified Status: " + (notified || "EMPTY"));
+
+        // 🟢 SEND ONLY IF NOT NOTIFIED 'TRUE' (Handle empty as FALSE)
+        if (notified !== 'TRUE') {
             const dept = row[(colMap['Department'] || 0) - 1];
             const regDate = row[(colMap['Registered Date'] || 0) - 1];
 
             if (ticketId && dept) {
-                // Send Alert
+                Logger.log("Attempting to send notification for Ticket: " + ticketId + " (Dept: " + dept + ")");
                 sendDeptReminder(ticketId, dept, regDate, "DELAY_ALERT");
 
                 // Mark as Notified
                 delayedSheet.getRange(r + 1, notifiedIdx + 1).setValue('TRUE');
+                sentCount++;
+            } else {
+                Logger.log("Skipping Row " + (r + 1) + ": Missing Ticket ID or Department.");
             }
         }
     }
+    Logger.log("--- sendDelayReminder Finished. Total Notified this run: " + sentCount + " ---");
 }
 
 function sendDeptReminder(id, dept, extraParam, type) {
+    Logger.log("   [Dept Reminder] Target: " + id + " | Dept: " + dept + " | Type: " + type);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('master');
+    if (!sheet) {
+        Logger.log("   ERROR: 'master' sheet not found.");
+        return;
+    }
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const dIdx = findCol(headers, 'Department') - 1;
     const mIdx = findCol(headers, 'Mobile') - 1;
+    const roleIdx = findCol(headers, 'Role') - 1;
+
+    if (dIdx < 0 || mIdx < 0) {
+        Logger.log("   ERROR: Department or Mobile column not found in 'master'.");
+        return;
+    }
 
     const targetDept = normalize(dept);
     const staffMobiles = [];
 
     for (let i = 1; i < data.length; i++) {
-        const rowD = normalize(data[i][dIdx]);
-        if (rowD === targetDept) staffMobiles.push(data[i][mIdx]);
+        const rowDept = normalize(data[i][dIdx]);
+        const rowRole = normalize(data[i][roleIdx]);
+
+        // Match Dept OR SuperAdmin
+        if (rowDept === targetDept || rowRole === 'superadmin' || rowRole === 'super_admin') {
+            const mobile = data[i][mIdx];
+            if (mobile) staffMobiles.push(mobile);
+        }
     }
 
-    [...new Set(staffMobiles)].forEach(m => {
+    const uniqueMobiles = [...new Set(staffMobiles)];
+    Logger.log("   Found " + uniqueMobiles.length + " unique mobiles for alert.");
+
+    uniqueMobiles.forEach(m => {
         if (m) {
             let msg = "";
             if (type === "DIRECT_MSG") {
                 msg = extraParam;
             }
             else if (type === "DELAY_ALERT") {
-                msg = '⚠️ *DELAY ALERT*\n' +
-                    'Complaint ID: ' + id + '\n' +
-                    'Department: ' + dept + '\n\n' +
-                    'Case pending since yesterday.\n' +
-                    'Immediate action required.\n\n' +
-                    '— *SBH CMS Auto Alert*';
+                msg = '🚨 *URGENT: DELAY ALERT*\n\n' +
+                    'The following case is still pending and requires immediate attention.\n\n' +
+                    '🎫 *Ticket ID:* ' + id + ' \n' +
+                    '📍 *Department:* ' + dept + ' \n' +
+                    '⏳ *Status:* Overdue since yesterday\n\n' +
+                    'Kindly address this case now.\n\n' +
+                    '*SBH Group Of Hospitals*\n' +
+                    '_Automated Monitoring System_';
             }
             else if (type === "REMINDER") {
-                const dateStr = extraParam instanceof Date ? extraParam.toLocaleDateString() : new Date(extraParam).toLocaleDateString();
-                msg = '⚠️ *Delay Alert – Action Required*\n\n' +
-                    '🔹 *Ticket ID:* ' + id + ' \n' +
+                const days = extraParam;
+                msg = '⚠️ *Urgently Pending Ticket*\n\n' +
+                    '🎫 *Ticket ID:* ' + id + ' \n' +
                     '📍 *Department:* ' + dept + ' \n' +
-                    '📅 *Registered Date:* ' + dateStr + ' \n\n' +
-                    'This complaint is still pending.\n' +
-                    'Please resolve it as soon as possible.\n\n' +
-                    '*SBH Group of Hospitals*\n' +
-                    '_Automated Notification_';
+                    '⏳ *Overdue:* ' + days + ' days\n\n' +
+                    'This complaint must be resolved ASAP.\n\n' +
+                    '*SBH Group Of Hospitals*\n' +
+                    '_Automated Priority Alert_';
             } else if (type === "WARNING") {
                 const days = extraParam;
                 msg = '⚠️ *Urgent Reminder – Pending Complaint*\n\n' +
@@ -1157,7 +1230,7 @@ function sendDeptReminder(id, dept, extraParam, type) {
                     '⏳ *Pending Since:* ' + days + ' days\n\n' +
                     'This case is still unresolved.\n' +
                     'Immediate action is required.\n\n' +
-                    '*SBH Group of Hospitals*\n' +
+                    '*SBH Group Of Hospitals*\n' +
                     '_Automated Escalation System_';
             }
 
@@ -1175,26 +1248,26 @@ function sendEscalationMsg(mobile, level, id, dept, days, dateStr) {
     const regDate = new Date(dateStr).toLocaleDateString();
 
     if (level === "L2 Officer") {
-        msg = '🚨 *Escalation Notice*\n\n' +
-            '🔹 *Ticket ID:* ' + id + ' \n' +
+        msg = '🚩 *LEVEL 2 ESCALATION*\n\n' +
+            'Management Attention Required,\n\n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
             '📍 *Department:* ' + dept + ' \n' +
-            '⏳ *Pending Since:* ' + days + ' days\n' +
-            '📅 *Registered Date:* ' + regDate + ' \n\n' +
-            'This complaint has not been resolved.\n' +
-            'Kindly intervene and ensure resolution.\n\n' +
-            '*SBH Group of Hospitals*\n' +
-            '_Automated Escalation System_';
+            '⏳ *Pending Since:* ' + (days || '0') + ' days\n' +
+            '📅 *Created On:* ' + (regDate || 'N/A') + ' \n\n' +
+            'Kindly intervene for immediate resolution.\n\n' +
+            '*SBH Group Of Hospitals*\n' +
+            '_Strategic Oversight System_';
     } else if (level === "L1 (DIRECTOR)") {
-        msg = '🚨 *Critical Escalation – Director Attention Required*\n\n' +
+        msg = '🚨 *DIRECTORATE LEVEL ESCALATION*\n\n' +
             'Respected Sir, \n\n' +
-            '🔹 *Ticket ID:* ' + id + ' \n' +
+            'This ticket has reached critical delay status.\n\n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
             '📍 *Department:* ' + dept + ' \n' +
-            '⏳ *Pending Since:* ' + days + ' days\n' +
-            '📅 *Registered Date:* ' + regDate + ' \n\n' +
-            'This complaint remains unresolved despite reminders and escalation.\n\n' +
-            'Kindly take necessary action.\n\n' +
-            '*SBH Group of Hospitals*\n' +
-            '_Automated Monitoring System_';
+            '⏳ *Overdue:* ' + (days || '0') + ' days\n' +
+            '📅 *Registered:* ' + (regDate || 'N/A') + ' \n\n' +
+            'Requested for your direct intervention.\n\n' +
+            '*SBH Group Of Hospitals*\n' +
+            '_Directorate Monitoring System_';
     }
 
     if (msg) sendWhatsApp(mobile, msg);
@@ -1203,11 +1276,13 @@ function sendEscalationMsg(mobile, level, id, dept, days, dateStr) {
 function sendResolutionNotification(id, reportedBy, status, resolvedBy, remark) {
     const mob = getUserMobile(reportedBy);
     if (mob) {
-        const msg = '*TICKET RESOLVED*\n\n' +
-            'Your complaint has been addressed.\n\n' +
-            '🔹 *Ticket ID:* ' + id + ' \n' +
-            '👤 *Resolved By:* ' + resolvedBy + ' \n' +
-            '💬 *Resolution:* ' + remark + ' \n\n' + '*SBH Group Of Hospitals*\n' +
+        const msg = '✅ *TICKET RESOLVED*\n\n' +
+            'Your complaint has been successfully addressed.\n\n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
+            '👤 *Resolved By:* ' + (resolvedBy || 'Official Staff') + ' \n' +
+            '💬 *Resolution:* ' + (remark || 'Resolved successfully') + ' \n\n' +
+            'Thank you for your patience.\n\n' +
+            '*SBH Group Of Hospitals*\n' +
             '_Automated System Notification_';
         sendWhatsApp(mob, msg);
     }
@@ -1216,12 +1291,12 @@ function sendResolutionNotification(id, reportedBy, status, resolvedBy, remark) 
 function sendExtensionNotification(id, reportedBy, by, date, reason) {
     const mob = getUserMobile(reportedBy);
     if (mob) {
-        const msg = '*TIMELINE EXTENDED*\n\n' +
+        const msg = '📅 *TIMELINE EXTENDED*\n\n' +
             'Completion target for your ticket has been updated.\n\n' +
-            'ðŸ”¹ *Ticket ID:* ' + id + ' \n' +
-            'ðŸ‘¤ *Updated By:* ' + by + ' \n' +
-            'ðŸ“… *New Target:* ' + date + ' \n' +
-            'ðŸ“ *Reason:* ' + reason + ' \n\n' +
+            '🎫 *Ticket ID:* ' + (id || 'N/A') + ' \n' +
+            '👤 *Authorized By:* ' + (by || 'System') + ' \n' +
+            '🚩 *New Target:* ' + (date || 'N/A') + ' \n' +
+            '📝 *Reason:* ' + (reason || 'Operational Requirement') + ' \n\n' +
             '*SBH Group Of Hospitals*\n' +
             '_Automated System Notification_';
         sendWhatsApp(mob, msg);
@@ -1230,12 +1305,12 @@ function sendExtensionNotification(id, reportedBy, by, date, reason) {
 
 function sendAccountApprovalNotification(user, mobile) {
     if (mobile) {
-        const msg = '*ACCOUNT ACTIVATED*\n\n' +
-            'Welcome back, ' + user + '!\n' +
-            'Your access to the SBH CMS Portal is now active.\n\n' +
-            'âœ… *Status:* AUTHORIZED\n\n' +
+        const msg = '🎉 *ACCOUNT ACTIVATED*\n\n' +
+            'Greetings, ' + user + '!\n' +
+            'Your reach to the SBH CMS Portal is now authorized.\n\n' +
+            '🔒 *Status:* ACCESS GRANTED\n\n' +
             '*SBH Group Of Hospitals*\n' +
-            '_Automated System Notification_';
+            '_Automated Security System_';
         sendWhatsApp(mobile, msg);
     }
 }
@@ -1243,11 +1318,11 @@ function sendAccountApprovalNotification(user, mobile) {
 function sendReopenNotification(id, staff, by, remark) {
     const mob = getUserMobile(staff);
     if (mob) {
-        const msg = 'âš ï¸ *TICKET RE-OPENED*\n\n' +
-            'Previous resolution for ticket #' + id + ' has been flagged for review.\n\n' +
-            'ðŸ”¹ *Ticket ID:* ' + id + ' \n' +
-            'ðŸ‘¤ *Re-opened By:* ' + by + ' \n' +
-            'ðŸ’¬ *Remarks:* ' + remark + ' \n\n' +
+        const msg = '⚠️ *TICKET RE-OPENED*\n\n' +
+            'Previous resolution for ticket #' + id + ' has been flagged for further review.\n\n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
+            '👤 *Action By:* ' + (by || 'User') + ' \n' +
+            '💬 *Remarks:* ' + (remark || 'Need more verification') + ' \n\n' +
             'Immediate attention required.\n\n' +
             '*SBH Group Of Hospitals*\n' +
             '_Automated System Notification_';
@@ -1258,12 +1333,12 @@ function sendReopenNotification(id, staff, by, remark) {
 function sendForceCloseNotification(id, reportedBy, reason) {
     const mob = getUserMobile(reportedBy);
     if (mob) {
-        const msg = 'ðŸ”’ *MANAGEMENT CLOSURE*\n\n' +
+        const msg = '🔒 *MANAGEMENT CLOSURE*\n\n' +
             'Your complaint has been administratively closed.\n\n' +
-            'ðŸ”¹ *Ticket ID:* ' + id + ' \n' +
-            'ðŸ“ *Reason:* ' + (reason || 'Administrative Action') + ' \n\n' +
+            '🎫 *Ticket ID:* ' + id + ' \n' +
+            '📝 *Rationale:* ' + (reason || 'Direct Administrative Action') + ' \n\n' +
             '*SBH Group Of Hospitals*\n' +
-            '_Automated System Notification_';
+            '_Official Monitoring System_';
         sendWhatsApp(mob, msg);
     }
 }
@@ -1290,15 +1365,16 @@ function sendTransferNotification(id, oldDept, newDept, by, reason) {
 
     [...new Set(staffMobiles)].forEach(m => {
         if (m) {
-            const msg = 'ðŸ” *TICKET TRANSFERRED*\n\n' +
-                'A ticket has been routed to your unit.\n\n' +
-                'ðŸ”¹ *Ticket ID:* ' + id + ' \n' +
-                'ðŸ“ *From:* ' + oldDept + ' \n' +
-                'ðŸ“ *To:* ' + newDept + ' \n' +
-                'ðŸ‘¤ *Transferred By:* ' + by + ' \n' +
-                'ðŸ“ *Reason:* ' + reason + ' \n\n' +
+            const msg = '🔄 *TICKET ROUTED*\n\n' +
+                'A ticket has been transferred to your department.\n\n' +
+                '🎫 *Ticket ID:* ' + (id || 'N/A') + ' \n' +
+                '📤 *From:* ' + (oldDept || 'Unknown Store') + ' \n' +
+                '📥 *To:* ' + (newDept || 'Target Department') + ' \n' +
+                '👤 *Action By:* ' + (by || 'Admin') + ' \n' +
+                '📝 *Reason:* ' + (reason || 'Administrative Transfer') + ' \n\n' +
+                'Kindly review and process.\n\n' +
                 '*SBH Group Of Hospitals*\n' +
-                '_Automated System Notification_';
+                '_Centralized Routing System_';
             sendWhatsApp(m, msg);
             Utilities.sleep(800);
         }
@@ -1866,8 +1942,14 @@ function getDashboardStats(username, userDept, role) {
         }
 
         // Delay Count = Today > RegDate AND Status != Closed (Logic 15)
-        if (colMap.Delay && !isSolved) {
-            if (String(row[colMap.Delay - 1] || '').trim().toLowerCase() === 'yes') {
+        if (!isSolved) {
+            const explicitDelay = colMap.Delay && String(row[colMap.Delay - 1] || '').trim().toLowerCase() === 'yes';
+
+            // On-the-fly detection: Is Registered Date < Today (Midnight)?
+            const regDate = parseCustomDate(row[colMap.Date - 1]);
+            const isOverdue = !isNaN(regDate.getTime()) && regDate < startOfDay;
+
+            if (explicitDelay || s === 'delayed' || isOverdue) {
                 stats.delayed++;
             }
         }
@@ -1940,15 +2022,16 @@ function sendBoosterAction(payload) {
         }
     }
 
+
     // 2. Send WhatsApp Booster Template (To Dept Staff Only)
-    const boosterMsg = '[PRIORITY ACTION NOTICE]\n\n' +
-        'Ticket: ' + id + '\n' +
-        'Department: ' + dept + '\n\n' +
-        'Admin has requested immediate resolution.\n' +
-        'Reason: ' + reason + '\n\n' +
-        'Please address this case at the earliest.\n\n' +
-        'SBH Group Of Hospitals\n' +
-        '_Administrative Notice_';
+    const boosterMsg = '🚀 *PRIORITY ACTION NOTICE*\n\n' +
+        'Your department has received a Priority Booster for a pending case.\n\n' +
+        '🎫 *Ticket ID:* ' + (id || 'N/A') + '\n' +
+        '📍 *Department:* ' + (dept || 'General') + '\n\n' +
+        '📢 *Admin Directive:* ' + (reason || 'Immediate resolution requested.') + '\n\n' +
+        'Kindly address this case at the earliest.\n\n' +
+        '*SBH Group Of Hospitals*\n' +
+        '_Administrative Management System_';
 
     const mSheet = ss.getSheetByName('master');
     const mData = mSheet.getDataRange().getValues();
@@ -2023,7 +2106,7 @@ function fixMissingHeaders() {
         { name: 'data', headers: ['ID', 'Date', 'Time', 'Department', 'Description', 'Status', 'ReportedBy', 'ResolvedBy', 'Remark', 'Unit', 'History', 'TargetDate', 'Resolved Date', 'Rating'] },
         { name: 'master', headers: ['Username', 'Password', 'Role', 'Department', 'Mobile', 'Status', 'ProfilePhoto', 'LastLogin', 'LastLoginIP'] },
         { name: 'USER_PERFORMANCE', headers: ['Username', 'Solved Count', 'Rating Count', 'Avg Rating', 'Avg Speed Hours', 'Efficiency Score', 'Last Updated', 'Delay Count', 'Total Cases', 'R5', 'R4', 'R3', 'R2', 'R1'] },
-        { name: 'Delayed_Cases', headers: ['Ticket ID', 'Department', 'Registered Date', 'Registered Time', 'Delayed Date', 'Status'] },
+        { name: 'Delayed_Cases', headers: ['Ticket ID', 'Department', 'Registered Date', 'Registered Time', 'Delayed Date', 'Status', 'Notified'] },
         { name: 'BOOSTER_NOTICES', headers: ['Timestamp', 'TicketID', 'Department', 'Admin', 'Reason'] }
     ];
 

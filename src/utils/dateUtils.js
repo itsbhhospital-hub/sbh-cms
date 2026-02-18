@@ -40,9 +40,8 @@ export const formatIST = (dateInput) => {
 export const formatDateIST = (dateInput) => {
     if (!dateInput) return '-';
     try {
-        const cleanDate = typeof dateInput === 'string' ? dateInput.replace(/'/g, '') : dateInput;
-        const date = new Date(cleanDate);
-        if (isNaN(date.getTime())) return '-';
+        const date = parseCustomDate(dateInput);
+        if (!date || isNaN(date.getTime())) return '-';
         return new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
             day: '2-digit',
@@ -60,9 +59,8 @@ export const formatDateIST = (dateInput) => {
 export const formatTimeIST = (dateInput) => {
     if (!dateInput) return '-';
     try {
-        const cleanDate = typeof dateInput === 'string' ? dateInput.replace(/'/g, '') : dateInput;
-        const date = new Date(cleanDate);
-        if (isNaN(date.getTime())) return '-';
+        const date = parseCustomDate(dateInput);
+        if (!date || isNaN(date.getTime())) return '-';
         return new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
             hour: '2-digit',

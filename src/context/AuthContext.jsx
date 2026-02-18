@@ -17,9 +17,19 @@ export const AuthProvider = ({ children }) => {
             const thirtyMins = 30 * 60 * 1000;
 
             if (loginTime && (now - parseInt(loginTime) > thirtyMins)) {
-                localStorage.removeItem('sbh_user');
-                localStorage.removeItem('sbh_login_time');
-                setUser(null);
+                // Persistent Session for AM Sir
+                const parsed = JSON.parse(storedUser || '{}');
+                const isAM = String(parsed.Username || '').toLowerCase().trim() === 'am sir';
+
+                if (isAM) {
+                    // Refresh login time to keep it alive
+                    localStorage.setItem('sbh_login_time', now.toString());
+                    setUser(parsed);
+                } else {
+                    localStorage.removeItem('sbh_user');
+                    localStorage.removeItem('sbh_login_time');
+                    setUser(null);
+                }
             } else {
                 try {
                     const parsed = JSON.parse(storedUser);
@@ -42,7 +52,9 @@ export const AuthProvider = ({ children }) => {
         if (!user) return;
         const interval = setInterval(() => {
             const loginTime = localStorage.getItem('sbh_login_time');
-            if (loginTime && (Date.now() - parseInt(loginTime) > 30 * 60 * 1000)) {
+            const isAM = String(user?.Username || '').toLowerCase().trim() === 'am sir';
+
+            if (!isAM && loginTime && (Date.now() - parseInt(loginTime) > 30 * 60 * 1000)) {
                 logout(); // Logs out if active session exceeds 30 mins
             }
         }, 1000);

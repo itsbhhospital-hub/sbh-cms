@@ -24,9 +24,14 @@ const SessionTimer = () => {
 
             if (remaining <= 0) {
                 setTimeLeft("Session Expired");
-                // Optional: Trigger logout here if not handled by AuthContext
-                // logout(); 
             } else {
+                const isAM = String(user?.Username || '').toLowerCase().trim() === 'am sir';
+                if (isAM) {
+                    setTimeLeft("PERMANENT");
+                    setStatus('normal');
+                    return;
+                }
+
                 const m = Math.floor(remaining / 60000);
                 const s = Math.floor((remaining % 60000) / 1000);
                 setTimeLeft(`${m}m ${s}s`);

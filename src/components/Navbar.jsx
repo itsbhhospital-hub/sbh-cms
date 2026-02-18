@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { User, LogOut, Key, Shield, Building2, Phone, X, Check, Eye, EyeOff, Menu, Bell, Edit2, CheckCircle, ArrowRight, Clock, AlertTriangle, Calendar, Star, TrendingUp, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
@@ -53,7 +53,33 @@ const NotificationBell = memo(() => {
     const [isPolling, setIsPolling] = useState(false);
 
     const notifRef = useRef(null);
+    const historyScrollRef = useRef(null); // Ref for history modal scrolling
     useClickOutside(notifRef, () => setShowNotifications(false));
+
+    // 🟢 UI OVERHAUL: Memoized "Latest-First" Sorting
+    const sortedNotifications = useMemo(() => {
+        return [...notifications].sort((a, b) => {
+            const dateA = new Date(String(a.rawTime).replace(/'/g, ''));
+            const dateB = new Date(String(b.rawTime).replace(/'/g, ''));
+            const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+            const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+
+            // Priority 1: Timestamp (Descending)
+            if (timeB !== timeA) return timeB - timeA;
+
+            // Fallback: ID (Descending)
+            const idA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+            const idB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
+            return idB - idA;
+        });
+    }, [notifications]);
+
+    // 🟢 UI OVERHAUL: Auto-Scroll to Top for New Notifications
+    useEffect(() => {
+        if (showHistoryModal && historyScrollRef.current) {
+            historyScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [notifications.length, showHistoryModal]);
 
     // Notifications Polling
     useEffect(() => {
@@ -210,13 +236,6 @@ const NotificationBell = memo(() => {
                     });
                 }
 
-                // Strict Sorting: Newest DateTime -> Top (YYYY-MM-DD HH:MM:SS comparison)
-                allEvents.sort((a, b) => {
-                    const dateA = new Date(String(a.rawTime).replace(/'/g, ''));
-                    const dateB = new Date(String(b.rawTime).replace(/'/g, ''));
-                    return dateB - dateA;
-                });
-
                 setNotifications(allEvents);
             } catch (e) {
                 console.error("Notification processing error:", e);
@@ -244,8 +263,13 @@ const NotificationBell = memo(() => {
                     setShowHistoryModal(false);
                     navigate(`/my-complaints${n.viewParams}`);
                 }}
-                className={`p-4 bg-white hover:bg-[#f0f9f1] transition-all border border-[#f0f0f0] rounded-2xl cursor-pointer flex gap-3 group/item ${full ? 'mb-3' : 'mb-1 shadow-sm'}`}
+                className={`p-4 bg-white hover:bg-[#f0f9f1] transition-all border border-[#f0f0f0] rounded-2xl cursor-pointer flex gap-3 group/item ${full ? 'mb-3' : 'mb-1 shadow-sm'} relative overflow-hidden`}
             >
+                {/* 🟢 UNREAD INDICATOR (Visual Only) */}
+                {!full && i < 2 && (
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#2e7d32]"></div>
+                )}
+
                 <div className={`w-12 h-12 rounded-xl shrink-0 flex items-center justify-center border border-black/5 ${n.iconBg} group-hover/item:scale-110 transition-transform`}>
                     <n.icon size={20} strokeWidth={2.5} />
                 </div>
@@ -264,7 +288,7 @@ const NotificationBell = memo(() => {
                                 if (full) return timePart;
 
                                 // In popup, show "TODAY" or time if it's today
-                                if (datePart === todayStr) return timePart;
+                                if (datePart === todayStr) return `TODAY • ${timePart}`;
                                 return n.timeText;
                             })()}
                         </span>
@@ -321,12 +345,6 @@ const NotificationBell = memo(() => {
                                 </div>
                             </>
                         )}
-
-                        {full && (
-                            <div className="mt-2 text-[9px] font-black text-[#2e7d32] uppercase tracking-widest opacity-60">
-                                Date: {n.timeText.split('•')[0]}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -355,8 +373,8 @@ const NotificationBell = memo(() => {
                         <span className="text-[10px] font-black bg-white border border-[#dcdcdc] px-2.5 py-1 rounded-lg text-[#2e7d32]">{notifications.length}</span>
                     </div>
 
-                    <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-3 space-y-2 bg-white">
-                        {notifications.length === 0 ? (
+                    <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-3 space-y-2 bg-white scroll-smooth cursor-default">
+                        {sortedNotifications.length === 0 ? (
                             <div className="text-center py-12 opacity-50">
                                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-100">
                                     <Bell size={24} className="text-slate-300" />
@@ -364,7 +382,7 @@ const NotificationBell = memo(() => {
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Active Notifications</p>
                             </div>
                         ) : (
-                            notifications.slice(0, 5).map((n, i) => renderNotificationItem(n, i))
+                            sortedNotifications.slice(0, 5).map((n, i) => renderNotificationItem(n, i))
                         )}
                     </div>
 
@@ -389,7 +407,7 @@ const NotificationBell = memo(() => {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-[#dcdcdc] max-h-[80vh]"
                         >
-                            <div className="p-6 border-b border-[#f0f0f0] flex justify-between items-center bg-[#f8faf9] sticky top-0 z-10">
+                            <div className="p-6 border-b border-[#f0f0f0] flex justify-between items-center bg-[#f8faf9] sticky top-0 z-20">
                                 <div>
                                     <h2 className="text-lg font-black text-[#1f2d2a] leading-tight uppercase tracking-tight">Notification History</h2>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Full System Event Log</p>
@@ -402,16 +420,20 @@ const NotificationBell = memo(() => {
                                 </button>
                             </div>
 
-                            <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
-                                {notifications.length === 0 ? (
+                            {/* 🟢 UI OVERHAUL: 65vh Scroll Container with Smooth Scrolling */}
+                            <div
+                                ref={historyScrollRef}
+                                className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white h-[65vh] scroll-smooth pr-[6px]"
+                            >
+                                {sortedNotifications.length === 0 ? (
                                     <div className="text-center py-20">
                                         <p className="text-xs font-black text-slate-300 uppercase tracking-widest">No history available</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {/* Grouping by Date */}
+                                        {/* 🟢 UI OVERHAUL: Visual Date Grouping */}
                                         {Object.entries(
-                                            notifications.reduce((acc, n) => {
+                                            sortedNotifications.reduce((acc, n) => {
                                                 const date = n.timeText.split('•')[0].trim();
                                                 if (!acc[date]) acc[date] = [];
                                                 acc[date].push(n);
@@ -419,16 +441,22 @@ const NotificationBell = memo(() => {
                                             }, {})
                                         ).map(([date, items]) => (
                                             <div key={date} className="space-y-3">
-                                                <div className="sticky top-0 z-10 py-2 bg-white flex items-center gap-3">
-                                                    <div className="h-[1px] flex-1 bg-slate-100"></div>
+                                                <div className="sticky top-0 z-10 py-2 bg-white/95 backdrop-blur-sm flex items-center gap-3">
+                                                    <div className="h-[2px] flex-1 bg-slate-50"></div>
                                                     <span className="text-[10px] font-black text-[#2e7d32] bg-[#f0f9f1] px-4 py-1.5 rounded-xl uppercase tracking-[0.1em] border border-[#2e7d32]/20 shadow-sm">
                                                         {(() => {
                                                             const today = new Date();
                                                             const todayStr = `${today.getDate().toString().padStart(2, '0')} ${today.toLocaleString('en-IN', { month: 'short' }).toUpperCase()} ${today.getFullYear()}`;
-                                                            return date === todayStr ? 'TODAY' : date;
+                                                            const yesterday = new Date();
+                                                            yesterday.setDate(yesterday.getDate() - 1);
+                                                            const yesterdayStr = `${yesterday.getDate().toString().padStart(2, '0')} ${yesterday.toLocaleString('en-IN', { month: 'short' }).toUpperCase()} ${yesterday.getFullYear()}`;
+
+                                                            if (date === todayStr) return 'TODAY';
+                                                            if (date === yesterdayStr) return 'YESTERDAY';
+                                                            return date;
                                                         })()}
                                                     </span>
-                                                    <div className="h-[1px] flex-1 bg-slate-100"></div>
+                                                    <div className="h-[2px] flex-1 bg-slate-50"></div>
                                                 </div>
                                                 {items.map((n, i) => renderNotificationItem(n, i, true))}
                                             </div>
@@ -503,7 +531,7 @@ const Navbar = () => {
                                         e.target.onerror = null; // Prevent infinite loop
                                         e.target.src = '/logo.png'; // Fallback to original logo if wide fails
                                     }}
-                                    alt="SBH CMS"
+                                    alt="SBH Group Portal"
                                     className="h-10 w-auto object-contain"
                                 />
                             </div>
@@ -514,7 +542,7 @@ const Navbar = () => {
                                         e.target.onerror = null;
                                         e.target.src = '/logo.png';
                                     }}
-                                    alt="SBH CMS"
+                                    alt="SBH Group Portal"
                                     className="h-8 w-auto object-contain mr-1"
                                 />
                             </div>

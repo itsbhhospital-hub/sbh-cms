@@ -135,8 +135,11 @@ const normalizeRows = (rows) => {
         normalized.ComplaintID = findValue(['ComplaintID', 'TicketID', 'complaint_id', 'ID', 'Ticket']);
         normalized.TransferDate = findValue(['TransferDate', 'Transfer Time', 'transfer_time', 'Timestamp']);
         normalized.Reason = findValue(['Reason', 'Transfer Reason', 'Extension Reason', 'reason']);
-        normalized.ExtendedBy = normalize(findValue(['ExtendedBy', 'Extended By', 'extended_by']));
-        normalized.TargetDate = findValue(['TargetDate', 'Target Date', 'New Date', 'new_target_date']);
+        normalized.ExtendedBy = normalize(findValue(['ExtendedBy', 'Extended By', 'extended_by', 'User']));
+        normalized.OldTargetDate = findValue(['OldTargetDate', 'Old Target Date', 'old_target_date', 'Previous Date', 'previous_date', 'Old Date', 'prev_date', 'PreviousTargetDate']);
+        normalized.NewTargetDate = findValue(['NewTargetDate', 'New Target Date', 'new_target_date', 'New Date', 'new_date', 'TargetDate', 'Target Date', 'target_date']);
+        normalized.DiffDays = findValue(['DiffDays', 'Diff Days', 'diff_days', 'Days Added', 'days_added', 'Extension Days']);
+        normalized.ExtensionTime = findValue(['ExtensionTime', 'Extension Time', 'extension_time', 'Extension Date', 'extension_date', 'Timestamp', 'Date']);
 
         // Ensure Booster specifics are mapped to common keys
         if (!normalized.Admin) normalized.Admin = normalize(findValue(['Admin', 'Issued By', 'By']));
