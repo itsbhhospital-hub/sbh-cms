@@ -22,7 +22,7 @@ const GlobalLoader = () => {
                         <div className="relative">
                             {/* Logo Image */}
                             <motion.img
-                                src="/logo.png"
+                                src="/spinner_logo.png"
                                 alt="Loading..."
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
