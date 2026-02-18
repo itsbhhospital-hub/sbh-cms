@@ -316,7 +316,10 @@ const Dashboard = () => {
             }
 
             if (popupCategory === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
-            if (popupCategory === 'Extended') return status === 'extended' || status === 'extend';
+            if (popupCategory === 'Extended') {
+                const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
+                return status === 'extended' || status === 'extend' || hasTargetDate;
+            }
             return status === popupCategory.toLowerCase();
         });
     }, [sortedAllTickets, popupOpen, popupCategory, user]);
@@ -333,10 +336,11 @@ const Dashboard = () => {
 
     const StatCard = ({ icon: Icon, title, value, colorClass, bgClass, filterType }) => (
         <div
-            onClick={() => handleCardClick(filterType)}
-            className={`flex flex-col justify-between p-4 rounded-2xl bg-white border cursor-pointer relative overflow-hidden transition-all h-full
-                ${activeFilter === filterType && filterType !== 'Active Staff' ? 'border-[#2e7d32] border-2 shadow-sm' : 'border-[#dcdcdc] shadow-sm'} 
-                hover:border-[#2e7d32] active:scale-[0.98] group`}
+            onClick={() => filterType ? handleCardClick(filterType) : null}
+            className={`flex flex-col justify-between p-4 rounded-2xl bg-white border relative overflow-hidden transition-all h-full
+                ${filterType ? 'cursor-pointer active:scale-[0.98]' : 'cursor-default'}
+                ${activeFilter === filterType && filterType !== 'Active Staff' && filterType ? 'border-[#2e7d32] border-2 shadow-sm' : 'border-[#dcdcdc] shadow-sm'} 
+                ${filterType ? 'hover:border-[#2e7d32]' : ''} group`}
         >
             <div className={`absolute -right-2 -top-2 p-3 opacity-5 ${colorClass}`}>
                 <Icon size={48} />
@@ -646,9 +650,9 @@ const Dashboard = () => {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatCard icon={CheckCircle} title="Solved Cases" value={mySolved} colorClass="text-[#2e7d32]" bgClass="bg-[#cfead6]" filterType="Solved" />
-                    <StatCard icon={Timer} title="Avg Speed" value={mySpeed} colorClass="text-blue-600" bgClass="bg-blue-50" filterType="Solved" />
-                    <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType="Solved" />
-                    <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType="Active Staff" />
+                    <StatCard icon={Timer} title="Avg Speed" value={mySpeed} colorClass="text-blue-600" bgClass="bg-blue-50" filterType={null} />
+                    <StatCard icon={Activity} title="Quality Score" value={myRating} colorClass="text-amber-500" bgClass="bg-amber-50" filterType={null} />
+                    <StatCard icon={Shield} title="Efficiency Rank" value={myRank} colorClass="text-purple-600" bgClass="bg-purple-50" filterType={null} />
                 </div>
             </div>
 
