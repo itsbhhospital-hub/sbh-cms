@@ -152,7 +152,7 @@ const Dashboard = () => {
             // Breakdown
             if (status === 'pending' || status === 'in-progress') initial.pending++;
             if (status === 'transferred') initial.transferred++;
-            if (status === 'extended') initial.extended++;
+            if (status === 'extended' || status === 'extend') initial.extended++;
 
             // 3. DELAYED (Can be active)
             if (isDelayed) {
@@ -315,6 +315,7 @@ const Dashboard = () => {
             }
 
             if (popupCategory === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
+            if (popupCategory === 'Extended') return status === 'extended' || status === 'extend';
             return status === popupCategory.toLowerCase();
         });
     }, [sortedAllTickets, popupOpen, popupCategory, user]);

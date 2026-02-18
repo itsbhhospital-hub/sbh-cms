@@ -608,6 +608,9 @@ function updateComplaintStatus(payload) {
         actionLog = '[' + timestamp + '] Extended by ' + payload.ResolvedBy + ' to ' + (payload.TargetDate || 'N/A') + '. Remark: ' + (payload.Remark || 'No reason provided');
         if (colMap.TargetDate) sheet.getRange(rowIndex, colMap.TargetDate).setValue("'" + (payload.TargetDate || ''));
 
+        // 🟢 FIX: Explicitly update Status column to 'Extend' for Frontend Counting
+        if (colMap.Status) sheet.getRange(rowIndex, colMap.Status).setValue('Extend');
+
         // Reset Delay status on extension
         if (colMap.Delay) sheet.getRange(rowIndex, colMap.Delay).setValue('No');
 
@@ -1023,26 +1026,31 @@ function checkAndMoveToDelay() {
         // SKIP IF: Already Resolved, Closed, Solved
         if (['resolved', 'closed', 'solved', 'force close'].includes(normStatus)) continue;
 
-        // GET REGISTERED DATE
-        let regDateRaw = row[colMap.Date - 1];
-        if (!regDateRaw) continue;
+        // 🟢 PART 2: GET REFERENCE DATE (TargetDate else Registration Date)
+        let refDateRaw = colMap.TargetDate ? row[colMap.TargetDate - 1] : null;
+        let isUsingExtension = false;
 
-        // Self-Healing: If Date is actually a Date object (sometimes happens in Sheets)
-        let regDate;
-        if (regDateRaw instanceof Date) {
-            regDate = regDateRaw;
+        if (refDateRaw && String(refDateRaw).trim() !== '' && String(refDateRaw).toLowerCase() !== 'none') {
+            isUsingExtension = true;
         } else {
-            regDate = parseCustomDate(regDateRaw);
+            refDateRaw = row[colMap.Date - 1];
         }
 
-        const regDateStr = Utilities.formatDate(regDate, IST_TIMEZONE, "yyyy-MM-dd");
-        // FIX: If parse fails and returns 1970 or current year but wrong day, it causes issues.
-        // We trust the yyyy-MM-dd format for absolute comparison.
-        const regDateNormalized = new Date(regDateStr);
+        if (!refDateRaw) continue;
+
+        let refDate;
+        if (refDateRaw instanceof Date) {
+            refDate = refDateRaw;
+        } else {
+            refDate = parseCustomDate(refDateRaw);
+        }
+
+        const refDateStr = Utilities.formatDate(refDate, IST_TIMEZONE, "yyyy-MM-dd");
+        const refDateNormalized = new Date(refDateStr);
 
         // 🟢 STRICT DELAY LOGIC:
-        // IF Today > RegisteredDate (i.e., Registered Yesterday or Before)
-        if (todayDate > regDateNormalized) {
+        // IF Today > ReferenceDate (i.e., Deadline or Registration passed)
+        if (todayDate > refDateNormalized) {
 
             const ticketId = row[colMap.ID - 1];
             const dept = row[colMap.Department - 1];
