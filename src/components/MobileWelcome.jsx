@@ -90,11 +90,23 @@ const MobileWelcome = () => {
                         {/* Subtext */}
                         <motion.p
                             initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.4 }}
+                            animate={{ opacity: 1 }}
                             transition={{ duration: 1, delay: 1.5 }}
-                            className="mt-12 text-white/60 text-[10px] font-bold uppercase tracking-widest"
+                            className="mt-12 text-[10px] font-bold uppercase tracking-widest text-white/50"
                         >
-                            Infrastructure by Naman Mishra
+                            Infrastructure by{' '}
+                            <span
+                                style={{
+                                    background: 'linear-gradient(90deg, #ff6a00, #ee0979, #43e97b, #38f9d7)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text',
+                                    fontWeight: 900,
+                                    letterSpacing: '0.15em',
+                                }}
+                            >
+                                Naman Mishra
+                            </span>
                         </motion.p>
                     </div>
 
