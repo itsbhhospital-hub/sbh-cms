@@ -15,7 +15,8 @@ const MOCK_USERS = [
 
 // --- LOCAL STORAGE CACHE HELPERS ---
 const CACHE_PREFIX = 'sbh_cache_';
-const CACHE_DURATION = 20 * 1000; // 20 Seconds (Optimized for Live Feel)
+const CACHE_DURATION = 60 * 1000; // 60 Seconds (Optimized for Fast & Smooth Feel)
+const fetchingStatus = {}; // To prevent redundant parallel background fetches
 
 const getCachedData = (key) => {
     try {
@@ -97,7 +98,7 @@ const normalizeRows = (rows) => {
         };
 
         // Standard Schema Mapping
-        normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID']);
+        normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID', 'Complaint ID', 'Case ID', 'TicketNo', 'IDNo', 'Complaint_ID', 'Complaint', 'Ticket']);
         normalized.Date = findValue(['Date', 'Timestamp', 'Created Date']);
         normalized.Time = findValue(['Time', 'Registered Time', 'Created Time']);
         normalized.Department = normalize(findValue(['Department', 'Dept']));
@@ -169,16 +170,22 @@ const fetchSheetData = async (sheetName, forceRefresh = false, options = { silen
     const cached = getCachedData(sheetName);
 
     if (!forceRefresh && cached) {
-        // Background Refresh (Fire & Forget) - Retries not critical here
-        fetch(`${API_URL}?action=read&sheet=${sheetName}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.status !== 'error') {
-                    const normalized = normalizeRows(data);
-                    setCachedData(sheetName, normalized);
-                }
-            })
-            .catch(err => console.warn("Background refresh skipped:", err.message));
+        // Background Refresh (SWR) - Prevent redundant parallel fetches
+        if (!fetchingStatus[sheetName]) {
+            fetchingStatus[sheetName] = true;
+            fetch(`${API_URL}?action=read&sheet=${sheetName}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.status !== 'error') {
+                        const normalized = normalizeRows(data);
+                        setCachedData(sheetName, normalized);
+                    }
+                })
+                .catch(err => console.warn(`Background refresh skipped for ${sheetName}:`, err.message))
+                .finally(() => {
+                    delete fetchingStatus[sheetName];
+                });
+        }
 
         return cached;
     }
@@ -206,12 +213,14 @@ const fetchSheetData = async (sheetName, forceRefresh = false, options = { silen
             setCachedData(sheetName, normalized);
 
             if (!isSilent) window.dispatchEvent(new Event('sbh-loading-end'));
+            delete fetchingStatus[sheetName];
             return normalized;
 
         } catch (error) {
             console.warn(`Attempt failed for ${sheetName}. Retries left: ${retries - 1}. Error: ${error.message}`);
             retries--;
             if (retries === 0) {
+                delete fetchingStatus[sheetName];
                 if (!isSilent) window.dispatchEvent(new Event('sbh-loading-end'));
 
                 // Fallback logic
@@ -279,19 +288,25 @@ const fetchPaginatedData = async (action, params, force = false, silent = true) 
     const cached = getCachedData(cacheKey);
 
     if (!force && cached) {
-        // Background Refresh (SWR)
-        const query = new URLSearchParams(params).toString();
-        fetch(`${API_URL}?action=${action}&${query}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.status !== 'error') {
-                    if (data.data && Array.isArray(data.data.items)) {
-                        data.data.items = normalizeRows(data.data.items);
+        // Background Refresh (SWR) - Prevent redundant parallel fetches
+        if (!fetchingStatus[cacheKey]) {
+            fetchingStatus[cacheKey] = true;
+            const query = new URLSearchParams(params).toString();
+            fetch(`${API_URL}?action=${action}&${query}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.status !== 'error') {
+                        if (data.data && Array.isArray(data.data.items)) {
+                            data.data.items = normalizeRows(data.data.items);
+                        }
+                        setCachedData(cacheKey, data.data);
                     }
-                    setCachedData(cacheKey, data.data);
-                }
-            })
-            .catch(err => console.warn("Background pagination refresh skipped:", err.message));
+                })
+                .catch(err => console.warn(`Background pagination refresh skipped for ${cacheKey}:`, err.message))
+                .finally(() => {
+                    delete fetchingStatus[cacheKey];
+                });
+        }
 
         return cached;
     }
@@ -315,10 +330,12 @@ const fetchPaginatedData = async (action, params, force = false, silent = true) 
         setCachedData(cacheKey, data.data);
 
         if (!silent) window.dispatchEvent(new Event('sbh-loading-end'));
+        delete fetchingStatus[cacheKey];
         return data.data; // { items, total, page ... }
 
     } catch (error) {
         console.error("Pagination Fetch Error:", error);
+        delete fetchingStatus[cacheKey];
         if (!silent) window.dispatchEvent(new Event('sbh-loading-end'));
         return { items: [], total: 0, page: 1 };
     }

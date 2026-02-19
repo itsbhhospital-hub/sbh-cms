@@ -67,7 +67,7 @@ const MobileWelcome = () => {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.6 }}
-                                className="text-white text-2xl font-black uppercase tracking-[0.2em] mb-2"
+                                className="text-white text-2xl font-bold uppercase tracking-wider mb-2"
                             >
                                 Welcome To
                             </motion.h1>
@@ -81,7 +81,7 @@ const MobileWelcome = () => {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6, delay: 0.8 }}
-                                className="text-[#cfead6] text-3xl font-black uppercase tracking-tighter"
+                                className="text-[#cfead6] text-3xl font-bold uppercase tracking-tight"
                             >
                                 SBH Group
                             </motion.h2>
@@ -92,7 +92,7 @@ const MobileWelcome = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 0.4 }}
                             transition={{ duration: 1, delay: 1.5 }}
-                            className="mt-12 text-white/60 text-[10px] font-black uppercase tracking-[0.3em]"
+                            className="mt-12 text-white/60 text-[10px] font-bold uppercase tracking-widest"
                         >
                             Infrastructure by Naman Mishra
                         </motion.p>

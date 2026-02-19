@@ -96,73 +96,91 @@ const AddAsset = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <button
-                onClick={() => navigate('/assets')}
-                className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#2e7d32] transition-colors"
-            >
-                <ArrowLeft size={20} /> Back to Assets
-            </button>
+        <div className="max-w-4xl mx-auto space-y-6 pb-12">
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={() => navigate('/assets')}
+                    className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#2e7d32] transition-all bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-sm"
+                >
+                    <ArrowLeft size={16} /> Back to Assets
+                </button>
+                <div className="text-right hidden md:block">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Management</p>
+                    <p className="text-xs font-bold text-slate-500">Asset Registry v2.0</p>
+                </div>
+            </div>
 
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                <div className="bg-[#1f2d2a] p-8 text-white flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-black tracking-tight">Register New Asset</h1>
-                        <p className="text-slate-400 mt-1">Add machine details, serial numbers, and invoice records.</p>
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+                <div className="bg-white border-b border-slate-100 p-8 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-50 rounded-full -mr-24 -mt-24 opacity-50 blur-2xl"></div>
+                    <div className="relative z-10">
+                        <h1 className="text-2xl font-black text-slate-800 tracking-tight mb-1">Register New Asset</h1>
+                        <p className="text-slate-500 text-sm font-medium max-w-lg">Enter machine information and service cycles to maintain inventory.</p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                <form onSubmit={handleSubmit} className="p-8 space-y-10">
 
                     {/* Section 1: Basic Machine Details */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-black text-[#2e7d32] uppercase tracking-widest border-b border-slate-100 pb-2">Machine Identity</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Machine Name</label>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1 h-5 bg-emerald-500 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Machine Identity</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Machine Name</label>
                                 <input
                                     required
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-sm"
                                     placeholder="e.g. X-Ray Unit A1"
                                     value={formData.machineName}
                                     onChange={e => setFormData({ ...formData, machineName: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Serial Number</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Serial Number</label>
                                 <input
                                     required
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-sm"
                                     placeholder="SN-12345678"
                                     value={formData.serialNumber}
                                     onChange={e => setFormData({ ...formData, serialNumber: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Department</label>
-                                <select
-                                    required
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all appearance-none"
-                                    value={formData.department}
-                                    onChange={e => setFormData({ ...formData, department: e.target.value })}
-                                >
-                                    <option value="">Select Department</option>
-                                    <option value="Radiology">Radiology</option>
-                                    <option value="Pathology">Pathology</option>
-                                    <option value="OT">Operation Theatre (OT)</option>
-                                    <option value="ICU">ICU</option>
-                                    <option value="OPD">OPD</option>
-                                    <option value="General Ward">General Ward</option>
-                                    <option value="IT">IT / Server Room</option>
-                                </select>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label>
+                                <div className="relative">
+                                    <select
+                                        required
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all appearance-none shadow-sm"
+                                        value={formData.department}
+                                        onChange={e => setFormData({ ...formData, department: e.target.value })}
+                                    >
+                                        <option value="">Select Department</option>
+                                        <option value="Radiology">Radiology</option>
+                                        <option value="Pathology">Pathology</option>
+                                        <option value="OT">Operation Theatre (OT)</option>
+                                        <option value="ICU">ICU</option>
+                                        <option value="OPD">OPD</option>
+                                        <option value="General Ward">General Ward</option>
+                                        <option value="IT">IT / Server Room</option>
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Installed Location</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Installed Location</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all shadow-sm"
                                     placeholder="e.g. Room 304, 3rd Floor"
                                     value={formData.location}
                                     onChange={e => setFormData({ ...formData, location: e.target.value })}
@@ -173,83 +191,93 @@ const AddAsset = () => {
 
                     {/* Section 2: Purchase & Vendor Info */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-black text-[#2e7d32] uppercase tracking-widest border-b border-slate-100 pb-2">Purchase & Vendor</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Purchase Date</label>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Purchase & Vendor</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-blue-50/20 p-6 rounded-2xl border border-blue-50">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchase Date</label>
                                 <input
                                     required
                                     type="date"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
                                     value={formData.purchaseDate}
                                     onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Purchase Cost (₹)</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchase Cost (₹)</label>
                                 <input
                                     type="number"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
                                     placeholder="0.00"
                                     value={formData.purchaseCost}
                                     onChange={e => setFormData({ ...formData, purchaseCost: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Vendor Name</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor Name</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
                                     placeholder="Supplier Name"
                                     value={formData.vendorName}
                                     onChange={e => setFormData({ ...formData, vendorName: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2 md:col-span-3">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Vendor Contact (Phone/Email)</label>
+                            <div className="space-y-1.5 md:col-span-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor Contact</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
-                                    placeholder="Contact Details"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
+                                    placeholder="Phone or Email"
                                     value={formData.vendorContact}
                                     onChange={e => setFormData({ ...formData, vendorContact: e.target.value })}
                                 />
                             </div>
 
                             {/* RESPONSIBLE PERSON FIELDS */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit">Responsible Person Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
-                                    placeholder="e.g. Dr. Sharma"
-                                    value={formData.responsiblePerson}
-                                    onChange={e => setFormData({ ...formData, responsiblePerson: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-xs font-black text-indigo-800 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded w-fit">Responsible Person Mobile (For WhatsApp Alerts)</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
-                                    placeholder="e.g. 9876543210"
-                                    value={formData.responsibleMobile}
-                                    onChange={e => setFormData({ ...formData, responsibleMobile: e.target.value })}
-                                />
+                            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2 pt-4 border-t border-blue-100">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md w-fit mb-0.5">Responsible Person</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                        placeholder="e.g. Dr. Sharma"
+                                        value={formData.responsiblePerson}
+                                        onChange={e => setFormData({ ...formData, responsiblePerson: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md w-fit mb-0.5">Mobile (WhatsApp)</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                        placeholder="e.g. 9876543210"
+                                        value={formData.responsibleMobile}
+                                        onChange={e => setFormData({ ...formData, responsibleMobile: e.target.value })}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Section 3: Warranty & AMC */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-black text-[#2e7d32] uppercase tracking-widest border-b border-slate-100 pb-2">Warranty & Support</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Warranty Type</label>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Warranty & Support</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-amber-50/20 p-6 rounded-2xl border border-amber-50">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Warranty Type</label>
                                 <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-amber-500 transition-all shadow-sm"
                                     value={formData.warrantyType}
                                     onChange={e => setFormData({ ...formData, warrantyType: e.target.value })}
                                 >
@@ -260,82 +288,94 @@ const AddAsset = () => {
                                     <option value="5 Years">5 Years Premium</option>
                                 </select>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Warranty Expiry (Auto)</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Warranty Expiry</label>
                                 <input
                                     readOnly
                                     type="date"
-                                    className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-500 outline-none cursor-not-allowed"
+                                    className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 outline-none cursor-not-allowed shadow-inner"
                                     value={formData.warrantyExpiry}
                                 />
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">AMC Taken?</label>
-                                <select
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
-                                    value={formData.amcTaken}
-                                    onChange={e => setFormData({ ...formData, amcTaken: e.target.value })}
-                                >
-                                    <option value="No">No</option>
-                                    <option value="Yes">Yes</option>
-                                </select>
+                            <div className="md:col-span-2 mt-2 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-xs font-black text-slate-600">Maintenance (AMC)</label>
+                                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${formData.amcTaken === 'Yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                                        {formData.amcTaken === 'Yes' ? 'Active' : 'Not Selected'}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">AMC Taken?</label>
+                                        <select
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                                            value={formData.amcTaken}
+                                            onChange={e => setFormData({ ...formData, amcTaken: e.target.value })}
+                                        >
+                                            <option value="No">No</option>
+                                            <option value="Yes">Yes</option>
+                                        </select>
+                                    </div>
+                                    {formData.amcTaken === 'Yes' && (
+                                        <>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">AMC Start</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all shadow-sm"
+                                                    value={formData.amcStart}
+                                                    onChange={e => setFormData({ ...formData, amcStart: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">AMC Expiry</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all shadow-sm"
+                                                    value={formData.amcExpiry}
+                                                    onChange={e => setFormData({ ...formData, amcExpiry: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cost (₹)</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all shadow-sm"
+                                                    value={formData.amcAmount}
+                                                    onChange={e => setFormData({ ...formData, amcAmount: e.target.value })}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                            {formData.amcTaken === 'Yes' && (
-                                <>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">AMC Start</label>
-                                        <input
-                                            type="date"
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
-                                            value={formData.amcStart}
-                                            onChange={e => setFormData({ ...formData, amcStart: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">AMC Expiry</label>
-                                        <input
-                                            type="date"
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
-                                            value={formData.amcExpiry}
-                                            onChange={e => setFormData({ ...formData, amcExpiry: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest">AMC Cost (₹)</label>
-                                        <input
-                                            type="number"
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
-                                            value={formData.amcAmount}
-                                            onChange={e => setFormData({ ...formData, amcAmount: e.target.value })}
-                                        />
-                                    </div>
-                                </>
-                            )}
                         </div>
                     </div>
 
                     {/* Section 4: Service & Uploads */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-black text-[#2e7d32] uppercase tracking-widest border-b border-slate-100 pb-2">Service & Initial Status</h3>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1 h-5 bg-emerald-600 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Service & Status</h3>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Current Service Date (Install Date)</label>
+                            <div className="space-y-1.5 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Install Date</label>
                                 <input
                                     type="date"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all shadow-sm"
                                     value={formData.currentServiceDate}
                                     onChange={e => setFormData({ ...formData, currentServiceDate: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-[#2e7d32] uppercase tracking-widest">Next Service Due (Critical)</label>
+                            <div className="space-y-1.5 bg-emerald-50/30 p-5 rounded-2xl border border-emerald-100">
+                                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1">Next Service Due</label>
                                 <input
                                     required
                                     type="date"
-                                    className="w-full bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 font-black text-emerald-800 outline-none focus:border-[#2e7d32] transition-all"
+                                    className="w-full bg-white border border-emerald-200 rounded-xl px-4 py-2.5 text-sm font-black text-emerald-800 outline-none focus:border-emerald-500 transition-all shadow-sm"
                                     value={formData.nextServiceDate}
                                     onChange={e => setFormData({ ...formData, nextServiceDate: e.target.value })}
                                 />
@@ -343,51 +383,62 @@ const AddAsset = () => {
                         </div>
 
                         {/* File Upload */}
-                        <div className="space-y-2 mt-4">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Purchase Invoice / Installation Report</label>
-                            <div className="relative border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:bg-slate-50 transition-all group cursor-pointer">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentation (Invoice / Report)</label>
+                            <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:bg-slate-50 hover:border-emerald-300 transition-all group cursor-pointer bg-slate-50/20">
                                 <input
                                     type="file"
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     onChange={handleFileChange}
                                     accept="application/pdf,image/*"
                                 />
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-[#cfead6] transition-colors">
-                                        {fileName ? <CheckCircle className="text-[#2e7d32]" /> : <UploadCloud className="text-slate-400 group-hover:text-[#2e7d32]" />}
+                                <div className="flex items-center justify-center gap-4">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${fileName ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 shadow-sm border border-slate-100'}`}>
+                                        {fileName ? <CheckCircle size={18} /> : <UploadCloud size={18} />}
                                     </div>
-                                    {fileName ? (
-                                        <p className="text-sm font-bold text-[#2e7d32]">{fileName}</p>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm font-bold text-slate-600">Click to upload invoice</p>
-                                            <p className="text-xs text-slate-400">PDF or Images only</p>
-                                        </>
-                                    )}
+                                    <div className="text-left">
+                                        {fileName ? (
+                                            <p className="text-sm font-black text-emerald-600">{fileName}</p>
+                                        ) : (
+                                            <>
+                                                <p className="text-sm font-bold text-slate-600">Upload purchase invoice or reports</p>
+                                                <p className="text-[10px] text-slate-400">PDF, JPG or PNG (Max 5MB)</p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Remarks */}
-                        <div className="space-y-2 mt-4">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Initial Remarks</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Condition Notes</label>
                             <textarea
                                 rows="3"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-700 outline-none focus:border-[#2e7d32] transition-all resize-none"
-                                placeholder="Any initial condition notes..."
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all resize-none shadow-sm"
+                                placeholder="Any machine specific details..."
                                 value={formData.remark}
                                 onChange={e => setFormData({ ...formData, remark: e.target.value })}
                             ></textarea>
                         </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full py-4 rounded-xl font-black text-white uppercase tracking-widest shadow-xl transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 ${loading ? 'bg-slate-400' : 'bg-[#1f2d2a] hover:bg-[#2e7d32]'}`}
-                    >
-                        {loading ? 'Creating Asset...' : <><Save size={20} /> Register Asset Now</>}
-                    </button>
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`px-8 py-3 rounded-xl font-black text-white uppercase tracking-widest shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm ${loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-800 hover:bg-emerald-700'}`}
+                        >
+                            {loading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>Registering...</span>
+                                </>
+                            ) : (
+                                <><Save size={16} /> Register Asset</>
+                            )}
+                        </button>
+                    </div>
 
                 </form>
             </div >
@@ -395,24 +446,24 @@ const AddAsset = () => {
             {/* Success Popup */}
             {
                 successId && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <CheckCircle size={40} className="text-[#2e7d32]" />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-300">
+                            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <CheckCircle size={32} className="text-emerald-600" />
                             </div>
-                            <h2 className="text-2xl font-black text-[#1f2d2a] mb-2">Asset Registered!</h2>
-                            <p className="text-slate-500 font-medium mb-6">Successfully added to the system.</p>
+                            <h2 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Asset Registered!</h2>
+                            <p className="text-slate-500 text-sm font-bold mb-8">Successfully added to system inventory.</p>
 
-                            <div className="bg-slate-50 rounded-xl p-4 mb-8 border border-slate-200">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Asset ID</p>
-                                <p className="text-3xl font-black text-[#2e7d32] tracking-tight">{successId}</p>
+                            <div className="bg-slate-50 rounded-2xl p-4 mb-8 border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Asset ID</p>
+                                <p className="text-2xl font-black text-emerald-600">{successId}</p>
                             </div>
 
                             <button
                                 onClick={() => navigate('/assets')}
-                                className="w-full py-3 rounded-xl font-bold text-white bg-[#1f2d2a] hover:bg-[#2e7d32] transition-colors"
+                                className="w-full py-3 rounded-xl font-black text-white bg-slate-800 hover:bg-emerald-600 transition-all uppercase tracking-widest text-xs"
                             >
-                                Back to Assets
+                                Continue
                             </button>
                         </div>
                     </div>

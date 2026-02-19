@@ -480,6 +480,14 @@ const Navbar = () => {
     const { setMobileOpen } = useLayout();
     const navigate = useNavigate();
 
+    // Millisecond Loading Helper
+    const pulseNavigate = (path) => {
+        const loader = document.getElementById('pulse-loader');
+        if (loader) loader.style.display = 'block';
+        setTimeout(() => { if (loader) loader.style.display = 'none'; }, 600);
+        navigate(path);
+    };
+
     // UI States
     const [isOpen, setIsOpen] = useState(false);
 
@@ -619,7 +627,7 @@ const Navbar = () => {
                                     <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-lg border border-[#dcdcdc] overflow-hidden z-[200]">
                                         <div className="p-2 space-y-1">
                                             <button
-                                                onClick={() => { setIsOpen(false); setShowProfilePanel(true); }}
+                                                onClick={() => { setIsOpen(false); setShowProfilePanel(true); pulseNavigate('#'); }}
                                                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-[#2e7d32] transition-all group/item"
                                             >
                                                 <div className="bg-slate-100 group-hover/item:bg-white p-2 rounded-lg transition-all">

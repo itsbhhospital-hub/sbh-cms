@@ -57,7 +57,6 @@ function setupAssetsSheet() {
         "AMC Taken",           // 23 [NEW]
         "AMC Amount",          // 24 [NEW]
         "Location",            // 25 [NEW]
-        "Location",            // 25 [NEW]
         "Department",          // 26 [NEW]
         "Keywords",            // 27 [NEW]
         "Description",         // 28 [NEW]
@@ -172,13 +171,32 @@ function addAsset(data) {
     const invoiceFolder = assetFolder.createFolder("Purchase Invoice");
     assetFolder.createFolder("Service History");
 
-    // 2. Handle Purchase Invoice
+    // 2. Handle Purchase Invoice - FAIL-SAFE (Invoice always saves, PDF conversion is optional)
     let invoiceLink = "";
     if (data.invoiceFile && data.invoiceName) {
-        const fileBlob = Utilities.newBlob(Utilities.base64Decode(data.invoiceFile), data.invoiceType, data.invoiceName);
-        const file = invoiceFolder.createFile(fileBlob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        invoiceLink = file.getUrl();
+        try {
+            // Start with original blob (ALWAYS SAFE)
+            let fileBlob = Utilities.newBlob(Utilities.base64Decode(data.invoiceFile), data.invoiceType, data.invoiceName);
+            let finalName = data.invoiceName;
+
+            // ATTEMPT PDF CONVERSION (Only for images - safe fallback)
+            try {
+                const converted = convertToPdfBlob(fileBlob);
+                if (converted.getContentType() === 'application/pdf') {
+                    fileBlob = converted;
+                    finalName = finalName.replace(/\.[^.]+$/, '') + ".pdf";
+                }
+            } catch (convErr) {
+                console.warn("Invoice PDF conversion skipped, saving original: " + convErr.toString());
+            }
+
+            fileBlob.setName(finalName);
+            const file = invoiceFolder.createFile(fileBlob);
+            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            invoiceLink = file.getUrl();
+        } catch (e) {
+            console.error("Invoice Drive upload failed: " + e.toString());
+        }
     }
 
     const qrData = id;
@@ -238,16 +256,45 @@ function addAsset(data) {
     sheet.appendRow(row);
 
     // Notify
-    // Notify
-    const template = `*🆕 New Asset Added*
-🆔 *ID:* ${id}
+    // Notify Detailed Info
+    const template = `*🆕 NEW ASSET REGISTERED* 🏥
+    
+🆔 *Asset ID:* \`${id}\`
 ⚙️ *Machine:* ${data.machineName}
-📍 *Location:* ${data.location}
-💰 *Cost:* ₹${data.purchaseCost}
-${data.parentId ? `🔄 *Replacement for:* ${data.parentId}` : ''}
-🔗 *View:* ${assetFolder.getUrl()}`;
+🔢 *Serial No:* ${data.serialNumber || 'N/A'}
 
-    sendWhatsAppMessage(CONFIG.WHATSAPP.ADMIN_PHONE, CONFIG.WHATSAPP.ADMIN_NAME, template);
+📍 *Location:* ${data.location || 'N/A'}
+🏢 *Department:* ${data.department || 'N/A'}
+
+💰 *Purchase Info:*
+📅 Date: ${formatDate(data.purchaseDate)}
+💵 Cost: ₹${Number(data.purchaseCost || 0).toLocaleString()}
+🤝 Vendor: ${data.vendorName || 'N/A'}
+
+🛡️ *Service & Warranty:*
+⌛ Warranty: ${data.warrantyType || 'None'} (${formatDate(data.warrantyExpiry)})
+📄 AMC: ${data.amcTaken === 'Yes' ? 'Active' : 'None'}
+🔧 Next Service: *${formatDate(data.nextServiceDate)}*
+
+👤 *Responsible Person:*
+👤 Name: ${data.responsiblePerson || 'N/A'}
+📱 Mobile: ${data.responsibleMobile || 'N/A'}
+
+📝 *Description:*
+${data.description || 'No description provided.'}
+${data.keywords ? `🏷️ *Keywords:* ${data.keywords}` : ''}
+
+${data.parentId ? `🔄 *Replacement for:* \`${data.parentId}\`` : ''}
+
+🔗 *Inventory Link:* ${assetFolder.getUrl()}`;
+
+    // Send to Admin
+    sendWhatsAppMessage(CONFIG.WHATSAPP.ADMIN_PHONE, CONFIG.WHATSAPP.ADMIN_NAME, template, invoiceLink);
+
+    // Send to Responsible Person
+    if (data.responsibleMobile) {
+        sendWhatsAppMessage(data.responsibleMobile, data.responsiblePerson || "User", template, invoiceLink);
+    }
 
     // TRIGGER AI UDPATE IMMEDIATELY for this ID (Optional, or wait for cron)
     // For now, we trust the cron or next read.
@@ -703,7 +750,11 @@ function getAssetDetails(id) {
                     date: formatDate(new Date(logs[i][1])),
                     details: logs[i][4] + (logs[i][3] ? ` (Cost: ₹${logs[i][3]})` : ""),
                     cost: logs[i][3],
-                    fileUrl: logs[i][5] || ""
+                    fileUrl: logs[i][5] || "",
+                    location: logs[i][6] || "",
+                    department: logs[i][7] || "",
+                    serviceVendor: logs[i][8] || "",
+                    responsiblePerson: logs[i][9] || ""
                 });
             }
         }
@@ -764,7 +815,7 @@ function getAssetDetails(id) {
     history.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Return Data Object
-    return {
+    const result = {
         status: "success",
         data: {
             id: row[assetIdColIndex],
@@ -795,9 +846,46 @@ function getAssetDetails(id) {
             keywords: getVal("Keywords"),
             description: getVal("Description"),
             responsiblePerson: getVal("Responsible Person"),
-            responsibleMobile: getVal("Responsible Mobile")
+            responsibleMobile: getVal("Responsible Mobile"),
+            // Replacement Origin Details (Fetch from Parent if exists)
+            parentMachineName: "",
+            parentSerialNumber: ""
         }
     };
+
+    // ✅ SMART SANITIZE: Auto-detect and fix swapped Responsible Person / Mobile
+    // If responsiblePerson looks like a phone number (all digits), swap them.
+    const rPerson = result.data.responsiblePerson ? result.data.responsiblePerson.toString() : "";
+    const rMobile = result.data.responsibleMobile ? result.data.responsibleMobile.toString() : "";
+    const isPhoneNumber = (str) => /^[\d\s\+\-\(\)]{7,15}$/.test(str.trim());
+    const isTimestamp = (str) => /\d{4}-\d{2}-\d{2}T/.test(str); // ISO timestamp check
+
+    if (isPhoneNumber(rPerson) && !isPhoneNumber(rMobile)) {
+        // Names and mobiles are swapped
+        result.data.responsiblePerson = rMobile;
+        result.data.responsibleMobile = rPerson;
+    }
+
+    // If responsibleMobile looks like a timestamp (ISO date), clear it
+    if (isTimestamp(result.data.responsibleMobile ? result.data.responsibleMobile.toString() : "")) {
+        result.data.responsibleMobile = "";
+    }
+
+    // If responsiblePerson looks like a timestamp, clear it
+    if (isTimestamp(result.data.responsiblePerson ? result.data.responsiblePerson.toString() : "")) {
+        result.data.responsiblePerson = "";
+    }
+
+    // Link Parent Meta if exists
+    if (result.data.parentId) {
+        const parentRow = allData.find(r => r[assetIdColIndex] == result.data.parentId);
+        if (parentRow) {
+            result.data.parentMachineName = parentRow[map["Machine Name"] - 1];
+            result.data.parentSerialNumber = parentRow[map["Serial Number"] - 1];
+        }
+    }
+
+    return result;
 }
 
 function getPublicAssetDetails(id) {
@@ -910,7 +998,7 @@ function addServiceRecord(data) {
     if (rowIndex === -1) return { status: "error", message: "Asset Not Found" };
     const realRowIndex = rowIndex + 1;
 
-    // 1. Upload Logic (Existing - Unchanged mostly)
+    // 1. Upload Logic - FAIL-SAFE (File always saves, PDF conversion is optional)
     let fileUrl = "";
     if (data.serviceFile && data.serviceFileName) {
         try {
@@ -925,11 +1013,28 @@ function addServiceRecord(data) {
             const dateStr = formatDate(new Date(data.serviceDate));
             let cycleFolder = serviceHistoryFolder.createFolder(dateStr + (data.cost ? ` - ₹${data.cost}` : ""));
 
-            const blob = Utilities.newBlob(Utilities.base64Decode(data.serviceFile), data.serviceFileType, data.serviceFileName);
+            // Start with original blob (ALWAYS SAFE)
+            let blob = Utilities.newBlob(Utilities.base64Decode(data.serviceFile), data.serviceFileType, data.serviceFileName);
+            let finalName = data.serviceFileName;
+
+            // ATTEMPT PDF CONVERSION (Only for images - safe fallback)
+            try {
+                const converted = convertToPdfBlob(blob);
+                if (converted.getContentType() === 'application/pdf') {
+                    blob = converted;
+                    finalName = finalName.replace(/\.[^.]+$/, '') + ".pdf";
+                }
+            } catch (convErr) {
+                console.warn("PDF conversion skipped, saving original: " + convErr.toString());
+            }
+
+            blob.setName(finalName);
             const file = cycleFolder.createFile(blob);
             file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
             fileUrl = file.getUrl();
-        } catch (e) { console.log(e); }
+        } catch (e) {
+            console.error("Drive upload failed: " + e.toString());
+        }
     }
 
     // 2. Update Asset Sheet using Map
@@ -995,28 +1100,56 @@ function addServiceRecord(data) {
 
     logsSheet.appendRow(rowData);
 
-    // Send WhatsApp with extended info (To Admin)
-    sendWhatsAppAlert(`🛠 Service/Update:\nAsset: ${data.id}\nType: ${data.serviceType || "Paid"}\nCost: ₹${data.cost || 0}\nLoc: ${data.location || "NA"}\nBy: ${data.responsiblePerson || "NA"}`);
+    // Send Professional WhatsApp Update (To Admin/L2)
+    const adminMsg = `🛠️ *SERVICE COMPLETED* 🏥
+
+Asset: *${data.machineName || data.id}*
+🆔 ID: \`${data.id}\`
+📅 Date: ${formatDate(data.serviceDate)}
+
+🔧 Type: ${data.serviceType || "Paid"}
+💰 Cost: ₹${Number(data.cost || 0).toLocaleString()}
+📍 Loc: ${data.location || "N/A"}
+🏢 Dept: ${data.department || "N/A"}
+
+👤 By: ${data.responsiblePerson || "N/A"}
+🕒 Next Due: *${formatDate(data.nextServiceDate)}*
+
+📝 Remark: ${data.remark}
+
+*SBH Group Of Hospitals* 🏥`;
+
+    sendWhatsAppAlert(adminMsg, null, fileUrl);
 
     // Send to Responsible Person (if available)
     if (data.responsibleMobile) {
-        sendWhatsAppAlert(`🛠 Service Update For Your Asset:\nAsset: ${data.id} (${data.machineName || ""})\nType: ${data.serviceType || "Paid"}\nRemark: ${data.remark}`, data.responsibleMobile);
+        const userMsg = `✅ *SERVICE LOGGED - ${data.machineName || data.id}* ✅
+
+Hello *${data.responsiblePerson || "Sir/Madam"}*,
+Your asset service has been successfully registered.
+
+⚙️ Machine: *${data.machineName || data.id}*
+📅 Service Date: ${formatDate(data.serviceDate)}
+🕒 Next Service: *${formatDate(data.nextServiceDate)}*
+
+📑 *Report:* Attached below (converted to PDF).
+
+Thank you for ensuring maintenance!
+**SBH Group Of Hospitals** 🏥`;
+
+        sendWhatsAppAlert(userMsg, data.responsibleMobile, fileUrl);
     }
 
     return { status: "success", message: "Service Record Added" };
 }
 
 /* --- UTILS --- */
-function sendWhatsAppAlert(message, specificNumber) {
+function sendWhatsAppAlert(message, specificNumber, fileUrl) {
     const phone = specificNumber || CONFIG.WHATSAPP.ADMIN_PHONE;
     if (!phone) return;
-    try {
-        const payload = { username: CONFIG.WHATSAPP.USERNAME, password: CONFIG.WHATSAPP.PASS, receiver: phone, msg: message };
-        const queryString = Object.keys(payload).map(key => key + '=' + encodeURIComponent(payload[key])).join('&');
-        UrlFetchApp.fetch(CONFIG.WHATSAPP.API_URL + '?' + queryString, { method: 'get', muteHttpExceptions: true });
-    } catch (e) {
-        console.error(e);
-    }
+
+    // Use the main message function for consistency
+    return sendWhatsAppMessage(phone, "", message, fileUrl);
 }
 
 /****************************************************************
@@ -1025,6 +1158,7 @@ function sendWhatsAppAlert(message, specificNumber) {
 
 function setupMasterRepair() {
     setupMasterUpgrade(); // Dept Master
+    setupNotificationConfig(); // Notification Master
     // Ensure Service Logs Sheet
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     let logsSheet = ss.getSheetByName("service_logs");
@@ -1033,6 +1167,24 @@ function setupMasterRepair() {
         logsSheet.appendRow(["Asset ID", "Service Date", "Type", "Cost", "Remark", "File URL"]);
         logsSheet.setFrozenRows(1);
         logsSheet.getRange(1, 1, 1, 6).setFontWeight("bold");
+    }
+}
+
+function setupNotificationConfig() {
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    let configSheet = ss.getSheetByName("notification_config");
+    if (!configSheet) {
+        configSheet = ss.insertSheet("notification_config");
+        configSheet.appendRow(["Role", "Name", "Mobile Number"]);
+        configSheet.setFrozenRows(1);
+        configSheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+
+        // Initial L1/L2 configuration
+        const defaults = [
+            ["L1 Director", "AM Sir", "9644404741"],
+            ["L2 Officer", "VP Sir", "9644404741"]
+        ];
+        configSheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
     }
 }
 
@@ -1096,93 +1248,101 @@ function checkDailyReminders() {
     const assetSheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     const deptSheet = ss.getSheetByName("department_master");
 
-    const assets = getData(assetSheet);
-    const departments = deptSheet.getDataRange().getValues();
-    // Create Map: DeptName -> Mobile
-    const deptMap = {};
-    for (let i = 1; i < departments.length; i++) {
-        if (departments[i][0]) deptMap[departments[i][0].toLowerCase()] = departments[i][2];
+    // Auto-create config if missing
+    let configSheet = ss.getSheetByName("notification_config");
+    if (!configSheet) {
+        setupNotificationConfig();
+        configSheet = ss.getSheetByName("notification_config");
     }
+
+    const assets = getData(assetSheet);
+    const deptData = deptSheet ? deptSheet.getDataRange().getValues() : [];
+    const configData = configSheet ? configSheet.getDataRange().getValues() : [];
+
+    // Maps
+    const deptMap = {};
+    for (let i = 1; i < deptData.length; i++) {
+        if (deptData[i][0]) deptMap[deptData[i][0].toLowerCase()] = deptData[i][2];
+    }
+
+    let L1_PHONE = "9644404741", L1_NAME = "AM Sir";
+    let L2_PHONE = "9644404741", L2_NAME = "VP Sir";
+
+    configData.forEach(row => {
+        if (row[0] === "L1 Director") { L1_PHONE = row[2]; L1_NAME = row[1]; }
+        if (row[0] === "L2 Officer") { L2_PHONE = row[2]; L2_NAME = row[1]; }
+    });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const L1_PHONE = "9425616267"; // Director
-    const L2_PHONE = "9644404741"; // Officer
-
     assets.forEach(asset => {
-        if (asset.status === "Retired" || asset.status === "Replaced" || asset.status === "Dead") return;
+        if (["Retired", "Replaced", "Dead"].includes(asset.status)) return;
 
-        // --- SERVICE LOGIC ---
-        // Rule: Due if 6 months passed since last service
-        // Logic: specific date check.
+        const respMobile = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
+        const respName = asset.responsiblePerson || "Responsible Person";
+
+        // --- 1. SERVICE REMINDERS ---
         let lastService = asset.currentServiceDate ? new Date(asset.currentServiceDate) : (asset.purchaseDate ? new Date(asset.purchaseDate) : null);
-        let nextServiceDue = null;
-
         if (lastService) {
-            nextServiceDue = new Date(lastService);
-            nextServiceDue.setMonth(nextServiceDue.getMonth() + 6);
-        } else {
-            // Fallback if no dates: maybe use created date?
-            // If completely empty, skip service checks
-        }
+            let nextDue = new Date(lastService);
+            nextDue.setMonth(nextDue.getMonth() + 6);
+            nextDue.setHours(0, 0, 0, 0);
 
-        if (nextServiceDue) {
-            nextServiceDue.setHours(0, 0, 0, 0);
-            const diffTime = nextServiceDue - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
 
-            // 1. Service Due Soon (20 days before)
             if (diffDays <= 20 && diffDays >= 0) {
-                // Determine Phone: Prefer Responsible Person, then Dept Head, then L2
-                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
-                const msg = `⚠️ SERVICE REMINDER\nAsset: ${asset.id}\nMachine: ${asset.machineName}\nDept: ${asset.department}\nDue Date: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
-
-                // Send Daily? Yes.
-                sendWhatsAppAlert(msg, deptPhone);
-            }
-
-            // 2. Service Overdue (Expired)
-            if (diffDays < 0) {
-                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
-                const msg = `🚨 SERVICE OVERDUE ALERT\nAsset: ${asset.id}\nImmediate Action Required.\nDue was: ${formatDate(nextServiceDue)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
-                sendWhatsAppAlert(msg, deptPhone);
-
-                // ESCALATION
+                const msg = `🛠️ *EQUIPMENT MAINTENANCE ALERT* 🛠️\n\nHello *${respName}*,\nThis is a professional reminder from **SBH Group of Hospitals**.\n\n📌 *Asset Details:*\n🆔 ID: \`${asset.id}\` \n⚙️ Machine: *${asset.machineName}*\n📍 Location: ${asset.location}\n\n🕒 *Status:* Service is Due on *${formatDate(nextDue)}*\n\n✅ Please ensure the service is completed to maintain optimal performance.\n\n*SBH Group Of Hospitals* 🏥`;
+                sendWhatsAppAlert(msg, respMobile);
+            } else if (diffDays < 0) {
                 const overdueDays = Math.abs(diffDays);
-                if (overdueDays === 10) {
-                    sendWhatsAppAlert(`escalation: L2 Officer Alert\nService Overdue 10 Days\nAsset: ${asset.id}`, L2_PHONE);
+                let msg = `🚨 *SERVICE OVERDUE ALERT* 🚨\n\nAsset: *${asset.machineName}* (\`${asset.id}\`)\nImmediate Action Required.\nDue was: ${formatDate(nextDue)}\n\n*SBH Group of Hospitals*`;
+
+                if (overdueDays === 7) {
+                    sendWhatsAppAlert(`🚨 *OVERDUE ESCALATION (L2)* 🚨\n\nAsset \`${asset.id}\` service is overdue by 7 days.\nResponsible: ${respName}\nLoc: ${asset.location}`, L2_PHONE);
+                } else if (overdueDays === 15) {
+                    sendWhatsAppAlert(`🔥 *CRITICAL L1 ESCALATION* 🔥\n\nAsset \`${asset.id}\` service is overdue by 15 days!\nLocation: ${asset.location}`, L1_PHONE);
                 }
-                if (overdueDays === 15) {
-                    sendWhatsAppAlert(`CRITICAL ESCALATION: L1 Director Alert\nService Overdue 15 Days\nAsset: ${asset.id}`, L1_PHONE);
-                }
+                sendWhatsAppAlert(msg, respMobile);
             }
         }
 
-        // --- AMC LOGIC ---
+        // --- 2. AMC & WARRANTY LOGIC ---
+        const amcActive = (asset.amcTaken === "Yes" && asset.amcExpiry && new Date(asset.amcExpiry) > today);
+
+        // AMC Reminders
         if (asset.amcTaken === "Yes" && asset.amcExpiry) {
             const amcExpiry = new Date(asset.amcExpiry);
             amcExpiry.setHours(0, 0, 0, 0);
-            const diffTime = amcExpiry - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil((amcExpiry - today) / (1000 * 60 * 60 * 24));
 
-            // 1. Expiring Soon (30 days)
             if (diffDays <= 30 && diffDays >= 0) {
-                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
-                const msg = `⏳ AMC RENEWAL REMINDER\nAsset: ${asset.id}\nAMC Expire Date: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals\nAutomated Generated`;
-                sendWhatsAppAlert(msg, deptPhone);
-            }
-
-            // 2. Expired
-            if (diffDays < 0) {
-                const deptPhone = asset.responsibleMobile || deptMap[(asset.department || "").toLowerCase()] || L2_PHONE;
-                const msg = `⛔ AMC EXPIRED ALERT\nAsset: ${asset.id}\nExpired on: ${formatDate(amcExpiry)}\n\nSBH Group Of Hospitals`;
-                sendWhatsAppAlert(msg, deptPhone);
-
-                // Escalation
+                const msg = `⏳ *AMC RENEWAL REMINDER* ⏳\n\nHello *${respName}*,\nThe AMC for *${asset.machineName}* (\`${asset.id}\`) is ending on *${formatDate(amcExpiry)}*.\n\n👉 Please initiate **AMC Renewal** to avoid service disruptions.\n\n*SBH Group Of Hospitals* 🏥`;
+                sendWhatsAppAlert(msg, respMobile);
+            } else if (diffDays < 0) {
                 const overdueDays = Math.abs(diffDays);
-                if (overdueDays === 10) sendWhatsAppAlert(`Escalation L2: AMC Expired 10 Days\nAsset: ${asset.id}`, L2_PHONE);
-                if (overdueDays === 15) sendWhatsAppAlert(`CRITICAL L1: AMC Expired 15 Days\nAsset: ${asset.id}`, L1_PHONE);
+                if (overdueDays === 7) sendWhatsAppAlert(`🚨 *AMC EXPIRED ESCALATION (L2)* 🚨\nAsset \`${asset.id}\` AMC expired 7 days ago.`, L2_PHONE);
+                if (overdueDays === 15) sendWhatsAppAlert(`🔥 *AMC CRITICAL L1 ESCALATION* 🔥\nAsset \`${asset.id}\` AMC expired 15 days ago!`, L1_PHONE);
+                const msg = `⛔ *AMC EXPIRED ALERT* ⛔\n\nAsset: \`${asset.id}\`\nExpired on: ${formatDate(amcExpiry)}\n\n*SBH Group of Hospitals*`;
+                sendWhatsAppAlert(msg, respMobile);
+            }
+        }
+
+        // WARRANTY Reminders (Suppressed if AMC is active)
+        if (!amcActive && asset.warrantyExpiry) {
+            const wExpiry = new Date(asset.warrantyExpiry);
+            const pDate = asset.purchaseDate ? new Date(asset.purchaseDate) : null;
+            wExpiry.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((wExpiry - today) / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 30 && diffDays >= 0) {
+                const msg = `🛡️ *WARRANTY EXPIRY ALERT* 🛡️\n\nHello *${respName}*,\nYour asset *${asset.machineName}* (\`${asset.id}\`) warranty is approaching expiry.\n\n📌 *Details:*\n� Purchased: ${formatDate(pDate)}\n⌛ Warranty Ends: *${formatDate(wExpiry)}*\n\n⚠️ *Action Required:*\nPlease initiate **Warranty/AMC Renewal** to maintain protected coverage.\n\n*SBH Group Of Hospitals* 🏥`;
+                sendWhatsAppAlert(msg, respMobile);
+            } else if (diffDays < 0) {
+                if (Math.abs(diffDays) < 30) {
+                    const msg = `⚠️ *WARRANTY EXPIRED* ⚠️\n\nAsset: \`${asset.id}\` - *${asset.machineName}*\n\n📌 *Timeline:*\nPurchase: ${formatDate(pDate)}\nExpiry: ${formatDate(wExpiry)}\n\n👉 *Note:* No active AMC detected. Maintenance costs will now be out-of-pocket. Please renew AMC immediately.\n\n**SBH Group of Hospitals**`;
+                    sendWhatsAppAlert(msg, respMobile);
+                }
             }
         }
     });
@@ -1197,16 +1357,73 @@ function formatDate(date) {
 }
 
 /* --- UTILS --- */
-function sendWhatsAppMessage(mobile, name, message) {
+function sendWhatsAppMessage(mobile, name, message, fileUrl) {
     try {
-        const url = `${CONFIG.WHATSAPP.API_URL}?username=${encodeURIComponent(CONFIG.WHATSAPP.USERNAME)}&password=${encodeURIComponent(CONFIG.WHATSAPP.PASS)}&receiverMobileNo=${matchPhone(mobile)}&receiverName=${encodeURIComponent(name)}&message=${encodeURIComponent(message)}`;
+        const payload = {
+            username: CONFIG.WHATSAPP.USERNAME,
+            password: CONFIG.WHATSAPP.PASS,
+            receiverMobileNo: matchPhone(mobile),
+            receiverName: name || "",
+            message: message
+        };
 
-        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-        console.log("WhatsApp Sent to " + mobile + ": " + response.getContentText());
+        if (fileUrl) {
+            // API Expects filePathUrl for media (documents/images/etc)
+            payload.filePathUrl = fileUrl;
+        }
+
+        const options = {
+            method: 'post',
+            payload: payload,
+            muteHttpExceptions: true
+        };
+
+        const response = UrlFetchApp.fetch(CONFIG.WHATSAPP.API_URL, options);
+        console.log("WhatsApp API Response: " + response.getContentText());
         return response.getContentText();
     } catch (e) {
-        console.error("WhatsApp Error: " + e.toString());
+        console.error("WhatsApp Global Error: " + e.toString());
         return "Error";
+    }
+}
+
+/**
+ * 🛠️ CONVERT IMAGE TO PDF
+ * Uses Google Docs as temporary engine
+ */
+function convertToPdfBlob(blob) {
+    const contentType = blob.getContentType();
+
+    // Only convert if it's an image
+    if (contentType.indexOf('image/') === -1) return blob;
+
+    try {
+        const tempDoc = DocumentApp.create('Temp_PDF_Conversion_' + new Date().getTime());
+        const body = tempDoc.getBody();
+        body.setMarginTop(30).setMarginBottom(30).setMarginLeft(30).setMarginRight(30);
+
+        const image = body.appendImage(blob);
+
+        // Fit to page (A4 width is approx 540pt with margins)
+        const maxWidth = 540;
+        if (image.getWidth() > maxWidth) {
+            const ratio = maxWidth / image.getWidth();
+            image.setWidth(maxWidth);
+            image.setHeight(image.getHeight() * ratio);
+        }
+
+        tempDoc.saveAndClose();
+
+        const pdfBlob = tempDoc.getAs('application/pdf');
+
+        // Cleanup temp file
+        const fileId = tempDoc.getId();
+        DriveApp.getFileById(fileId).setTrashed(true);
+
+        return pdfBlob;
+    } catch (e) {
+        console.error("PDF Conversion Failure: " + e.toString());
+        return blob; // Fallback to original image
     }
 }
 

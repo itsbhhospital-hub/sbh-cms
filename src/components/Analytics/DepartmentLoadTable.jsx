@@ -27,7 +27,7 @@ const DepartmentLoadTable = ({ data }) => {
                                 ></div>
                             </div>
                             <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">
-                                <span>{d.solved} Unit Resolutions</span>
+                                <span>{d.solved} Unit Solved</span>
                                 {d.delayed > 0 && <span className="text-rose-500">{d.delayed} Threshold Violations</span>}
                             </div>
                         </div>

@@ -66,7 +66,7 @@ const WorkReport = () => {
         return list.sort((a, b) => (b.stats?.efficiency || 0) - (a.stats?.efficiency || 0));
     }, [userMetrics, searchTerm]);
 
-    if (intLoading) return <div className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">Loading Analytics...</div>;
+    if (intLoading) return <div className="p-10 text-center text-slate-400 font-bold uppercase tracking-wider">Loading Analytics...</div>;
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 space-y-6">
@@ -84,7 +84,7 @@ const WorkReport = () => {
                                     / Staff List
                                 </button>
                             </div>
-                            <h1 className="text-2xl md:text-3xl font-black mb-2 uppercase tracking-tight">{selectedUser.Username}</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold mb-2 uppercase tracking-tight">{selectedUser.Username}</h1>
                             <div className="flex flex-wrap gap-4 text-xs font-bold uppercase tracking-widest text-[#2e7d32]/70">
                                 <span className="flex items-center gap-2"><Building2 size={14} /> {selectedUser.Department}</span>
                                 <span className="flex items-center gap-2"><Shield size={14} /> {selectedUser.Role}</span>
@@ -93,8 +93,8 @@ const WorkReport = () => {
                         </div>
                         <div className="text-right">
                             <div className="bg-[#b8dfc2] p-4 rounded-xl border border-[#2e7d32]/10">
-                                <p className="text-[10px] text-[#2e7d32] font-black uppercase mb-1 tracking-widest leading-none">Global Efficiency Rank</p>
-                                <div className="text-3xl font-black text-[#1f2d2a] flex items-center justify-end gap-2">
+                                <p className="text-[10px] text-[#2e7d32] font-bold uppercase mb-1 tracking-wider leading-none">Global Efficiency Rank</p>
+                                <div className="text-3xl font-bold text-[#1f2d2a] flex items-center justify-end gap-2">
                                     #{filteredUsers.findIndex(x => x.Username === selectedUser.Username) + 1}
                                 </div>
                             </div>
@@ -105,27 +105,27 @@ const WorkReport = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8 -mt-8 relative z-10">
                         {/* 1. Solved Cases */}
                         <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all group">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Total Impact</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Total Impact</p>
                             <div className="flex items-end justify-between">
-                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.resolved}</h4>
-                                <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Solved</div>
+                                <h4 className="text-4xl font-bold text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.resolved}</h4>
+                                <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-bold px-2 py-1 rounded uppercase tracking-wider">Solved</div>
                             </div>
                         </div>
 
                         {/* 2. Avg Rating */}
                         <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Quality Score</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Quality Score</p>
                             <div className="flex items-end justify-between">
-                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.avgRating} <span className="text-amber-400 text-2xl">★</span></h4>
-                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{selectedUser.stats.ratingCount} Ratings</div>
+                                <h4 className="text-4xl font-bold text-[#1f2d2a] leading-none tracking-tighter">{selectedUser.stats.avgRating} <span className="text-amber-400 text-2xl">★</span></h4>
+                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">{selectedUser.stats.ratingCount} Ratings</div>
                             </div>
                         </div>
 
                         {/* 3. Speed */}
                         <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Avg Speed</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Avg Speed</p>
                             <div className="flex items-end justify-between">
-                                <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{Number(selectedUser.stats.avgSpeed).toFixed(1)} <span className="text-sm text-slate-400 font-bold ml-1">HRS</span></h4>
+                                <h4 className="text-4xl font-bold text-[#1f2d2a] leading-none tracking-tighter">{Number(selectedUser.stats.avgSpeed).toFixed(1)} <span className="text-sm text-slate-400 font-bold ml-1">HRS</span></h4>
                                 <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
                                     <Clock size={20} />
                                 </div>
@@ -135,9 +135,9 @@ const WorkReport = () => {
                         {/* 4. Efficiency (Dark) */}
                         <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-xl shadow-slate-200 transition-all group overflow-hidden relative">
                             <TrendingUp className="absolute right-0 bottom-0 text-[#2e7d32]/10 w-24 h-24 -mr-4 -mb-4 rotate-12" />
-                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-4 relative z-10">Efficiency Rating</p>
+                            <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-4 relative z-10">Efficiency Rating</p>
                             <div className="flex items-end justify-between relative z-10">
-                                <h4 className="text-5xl font-black text-white leading-none tracking-tighter">{Number(selectedUser.stats.efficiency).toFixed(0)}</h4>
+                                <h4 className="text-5xl font-bold text-white leading-none tracking-tighter">{Number(selectedUser.stats.efficiency).toFixed(0)}</h4>
                             </div>
                         </div>
                     </div>
@@ -205,15 +205,15 @@ const WorkReport = () => {
                 <>
                     <div className="flex flex-col md:flex-row justify-between items-end gap-6 p-10 bg-[#1f2d2a] rounded-[2.5rem] shadow-none text-white relative overflow-hidden">
                         <div className="relative z-10">
-                            <span className="bg-[#2e7d32] text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 inline-block shadow-lg shadow-black/20">Resource Metrics</span>
-                            <h1 className="text-3xl md:text-4xl font-black mb-2 uppercase tracking-tight text-white">Personnel Analytics</h1>
-                            <p className="text-xs text-emerald-400/90 font-black uppercase tracking-widest">Monitoring hospital service efficiency standards</p>
+                            <span className="bg-[#2e7d32] text-white px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-4 inline-block shadow-lg shadow-black/20">Resource Metrics</span>
+                            <h1 className="text-3xl md:text-4xl font-bold mb-2 uppercase tracking-tight text-white">Personnel Analytics</h1>
+                            <p className="text-xs text-emerald-400/90 font-bold uppercase tracking-wider">Monitoring hospital service efficiency standards</p>
                         </div>
                         <div className="relative z-10 w-full md:w-auto">
                             <div className="relative group">
                                 <Search className="absolute left-4 top-4 text-slate-500 group-focus-within:text-[#2e7d32] transition-colors" size={20} />
                                 <input
-                                    className="pl-12 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-600 font-black text-xs uppercase tracking-widest focus:bg-white/10 outline-none w-full md:w-72 transition-all"
+                                    className="pl-12 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-600 font-bold text-xs uppercase tracking-wider focus:bg-white/10 outline-none w-full md:w-72 transition-all"
                                     placeholder="Filter by Name/Dept..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -226,7 +226,7 @@ const WorkReport = () => {
                     {/* USER LIST CONTAINER WITH SCROLLING */}
                     <div className="bg-white border border-[#dcdcdc] rounded-2xl p-4 md:p-6">
                         <div className="flex items-center justify-between mb-6 px-2">
-                            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                 <Users size={16} /> Hospital Medical Staff ({filteredUsers.length})
                             </h2>
                         </div>
@@ -244,27 +244,27 @@ const WorkReport = () => {
                                         </div>
                                         <div className="flex items-center gap-1 bg-[#f8faf9] px-2 py-1 rounded-lg border border-[#dcdcdc]">
                                             <TrendingUp size={12} className="text-[#2e7d32]" />
-                                            <span className="text-[10px] font-black text-[#1f2d2a]">RANK #{i + 1}</span>
+                                            <span className="text-[10px] font-bold text-[#1f2d2a]">RANK #{i + 1}</span>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <h3 className="font-black text-base text-[#1f2d2a] mb-0.5 tracking-tight uppercase truncate">{u.Username}</h3>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 truncate">{u.Department}</p>
+                                        <h3 className="font-bold text-base text-[#1f2d2a] mb-0.5 tracking-tight uppercase truncate">{u.Username}</h3>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4 truncate">{u.Department}</p>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 mt-2">
                                         <div className="text-center">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Solved</p>
-                                            <p className="font-black text-sm text-[#1f2d2a]">{u.stats.resolved}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Solved</p>
+                                            <p className="font-bold text-sm text-[#1f2d2a]">{u.stats.resolved}</p>
                                         </div>
                                         <div className="text-center border-x border-slate-100 px-1">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Rating</p>
-                                            <p className="font-black text-sm text-amber-600">{u.stats.avgRating}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Rating</p>
+                                            <p className="font-bold text-sm text-amber-600">{u.stats.avgRating}</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Score</p>
-                                            <p className="font-black text-sm text-[#2e7d32]">{Number(u.stats.efficiency).toFixed(0)}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Score</p>
+                                            <p className="font-bold text-sm text-[#2e7d32]">{Number(u.stats.efficiency).toFixed(0)}</p>
                                         </div>
                                     </div>
                                 </div>

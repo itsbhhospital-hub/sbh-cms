@@ -10,47 +10,38 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
         if (isOpen) setCurrentPage(1);
     }, [isOpen, title]);
 
-    // Memoize paginated data for performance
-    const paginatedData = useMemo(() => {
-        const sorted = [...complaints].sort((a, b) => {
+    // 🟢 OPTIMIZED: Sort once, Slice often
+    const sortedComplaints = useMemo(() => {
+        const mode = (title || '').trim();
+        return [...complaints].sort((a, b) => {
             let dateA, dateB;
-            // Use title as the filter context (Open, Solved, Delayed, etc.)
-            const mode = (title || '').trim();
-
             if (mode === 'Solved') {
-                dateA = new Date(String(a.ResolvedDate || a.Resolved_Date || a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.ResolvedDate || b.Resolved_Date || b.Date || '').replace(/'/g, ''));
+                dateA = new Date(String(a.ResolvedDate || a.Date || '').replace(/'/g, ''));
+                dateB = new Date(String(b.ResolvedDate || b.Date || '').replace(/'/g, ''));
             } else if (mode === 'Transferred') {
-                // Try LatestTransfer object if available, otherwise Date
                 const tDateA = a.LatestTransfer?.TransferDate || a.TransferDate;
                 const tDateB = b.LatestTransfer?.TransferDate || b.TransferDate;
                 dateA = new Date(String(tDateA || a.Date || '').replace(/'/g, ''));
                 dateB = new Date(String(tDateB || b.Date || '').replace(/'/g, ''));
-            } else if (mode === 'Delayed') {
-                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
-            } else if (mode === 'Pending') {
-                dateA = new Date(String(a.Date || '').replace(/'/g, ''));
-                dateB = new Date(String(b.Date || '').replace(/'/g, ''));
             } else {
-                // Default: Registered Date
                 dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
                 dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
             }
 
             if (isNaN(dateA.getTime())) return 1;
             if (isNaN(dateB.getTime())) return -1;
-
             if (dateB - dateA !== 0) return dateB - dateA;
 
-            // Tie-Breaker: TICKET ID
             const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
             const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
             return idB - idA;
         });
+    }, [complaints, title]);
+
+    const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
-        return sorted.slice(start, start + itemsPerPage);
-    }, [complaints, currentPage, title]);
+        return sortedComplaints.slice(start, start + itemsPerPage);
+    }, [sortedComplaints, currentPage]);
 
     const totalPages = Math.ceil(complaints.length / itemsPerPage);
 
@@ -90,36 +81,40 @@ const DashboardPopup = ({ isOpen, onClose, title, complaints, onTrack }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {paginatedData.map((c) => (
-                                        <tr key={c.ID} className="hover:bg-[#f0f9f1] transition-colors group">
-                                            <td className="p-4 py-4 font-black text-xs text-slate-400">#{c.ID}</td>
-                                            <td className="p-4 py-4">
-                                                <p className="text-sm font-bold text-[#1f2d2a] line-clamp-1">{c.Description}</p>
-                                            </td>
-                                            <td className="p-4 py-4 text-center">
-                                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#2e7d32] bg-[#cfead6]/30 px-2 py-1 rounded border border-[#2e7d32]/10 uppercase tracking-tight">
-                                                    <Building2 size={12} /> {c.Department}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 py-4 text-center">
-                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${c.Status === 'Open' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                    c.Status === 'Solved' || c.Status === 'Closed' ? 'bg-[#cfead6] text-[#2e7d32] border-[#2e7d32]/20' :
-                                                        c.Status === 'Pending' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                            'bg-slate-100 text-slate-600 border-slate-200'
-                                                    }`}>
-                                                    {c.Status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 py-4 text-right">
-                                                <button
-                                                    onClick={() => onTrack(c)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dcdcdc] text-[#2e7d32] font-black text-[10px] rounded-lg hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32] transition-all uppercase tracking-widest active:scale-95"
-                                                >
-                                                    <Activity size={12} /> Details
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {paginatedData.map((c, idx) => {
+                                        const ticketId = c.ID || c.id || c['Ticket ID'] || c.ComplaintID || 'N/A';
+                                        const uniqueKey = `${ticketId}-${idx}`;
+                                        return (
+                                            <tr key={uniqueKey} className="hover:bg-[#f0f9f1] transition-colors group">
+                                                <td className="p-4 py-4 font-black text-xs text-slate-400">#{ticketId}</td>
+                                                <td className="p-4 py-4">
+                                                    <p className="text-sm font-bold text-[#1f2d2a] line-clamp-1">{c.Description}</p>
+                                                </td>
+                                                <td className="p-4 py-4 text-center">
+                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#2e7d32] bg-[#cfead6]/30 px-2 py-1 rounded border border-[#2e7d32]/10 uppercase tracking-tight">
+                                                        <Building2 size={12} /> {c.Department}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 py-4 text-center">
+                                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${c.Status === 'Open' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                        c.Status === 'Solved' || c.Status === 'Closed' ? 'bg-[#cfead6] text-[#2e7d32] border-[#2e7d32]/20' :
+                                                            c.Status === 'Pending' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                'bg-slate-100 text-slate-600 border-slate-200'
+                                                        }`}>
+                                                        {c.Status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 py-4 text-right">
+                                                    <button
+                                                        onClick={() => onTrack(c)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dcdcdc] text-[#2e7d32] font-black text-[10px] rounded-lg hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32] transition-all uppercase tracking-widest active:scale-95"
+                                                    >
+                                                        <Activity size={12} /> Details
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

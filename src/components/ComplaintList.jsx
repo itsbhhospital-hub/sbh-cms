@@ -31,31 +31,31 @@ const PerformanceWidget = ({ user, userStats }) => {
     return (
         <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                <p className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest">Your Impact</p>
+                <p className="text-[10px] font-bold text-slate-400 mb-4 uppercase tracking-wider">Your Impact</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{stats.myResolvedCount}</h3>
-                    <div className="bg-[#cfead6] text-[#2e7d32] px-2.5 py-1 rounded-lg text-[10px] font-black border border-[#2e7d32]/10 uppercase tracking-widest">Solved</div>
+                    <h3 className="text-3xl font-bold text-[#1f2d2a] leading-none tracking-tight">{stats.myResolvedCount}</h3>
+                    <div className="bg-[#cfead6] text-[#2e7d32] px-2.5 py-1 rounded-lg text-[10px] font-bold border border-[#2e7d32]/10 uppercase tracking-wider">Solved</div>
                 </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                <p className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest">Avg Speed</p>
+                <p className="text-[10px] font-bold text-slate-400 mb-4 uppercase tracking-wider">Avg Speed</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none tracking-tight">{userStats?.avgSpeedHours || '-'}<span className="text-sm font-black text-slate-400 ml-1 uppercase">hrs</span></h3>
+                    <h3 className="text-3xl font-bold text-[#1f2d2a] leading-none tracking-tight">{userStats?.avgSpeedHours || '-'}<span className="text-sm font-bold text-slate-400 ml-1 uppercase">hrs</span></h3>
                     <div className="p-2 bg-[#f8faf9] rounded-lg border border-[#dcdcdc] text-slate-400"><Clock size={16} strokeWidth={2.5} /></div>
                 </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] shadow-none">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quality Score</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-4">Quality Score</p>
                 <div className="flex items-end justify-between">
-                    <h3 className="text-3xl font-black text-[#1f2d2a] leading-none flex items-center gap-2 tracking-tight">
+                    <h3 className="text-3xl font-bold text-[#1f2d2a] leading-none flex items-center gap-2 tracking-tight">
                         {stats.avgRating} <Star size={24} className="text-amber-400 fill-amber-400" />
                     </h3>
                 </div>
             </div>
             <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-none text-white flex flex-col justify-between relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 text-[#2e7d32]"><BarChart3 size={64} /></div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#2e7d32]/80 mb-4">Efficiency Rank</p>
-                <h3 className="text-3xl font-black text-white relative z-10 leading-none tracking-tight">{stats.efficiency}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#2e7d32]/80 mb-4">Efficiency Rank</p>
+                <h3 className="text-3xl font-bold text-white relative z-10 leading-none tracking-tight">{stats.efficiency}</h3>
             </div>
         </div>
     );
@@ -69,7 +69,9 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
             case 'Open': return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20';
             case 'Solved':
             case 'Closed':
-            case 'Resolved': return 'bg-[#cfead6] text-[#2e7d32] ring-1 ring-inset ring-[#2e7d32]/20';
+            case 'Resolved':
+            case 'Done':
+            case 'Fixed': return 'bg-[#cfead6] text-[#2e7d32] ring-1 ring-inset ring-[#2e7d32]/20';
             case 'Transferred': return 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20';
             case 'Force Close': return 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20';
             default: return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200';
@@ -83,9 +85,9 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
         >
             <td className="p-4 py-4">
                 <div className="flex flex-col gap-1">
-                    <span className="font-mono text-[10px] font-black text-slate-300" translate="no">#{complaint.ID}</span>
+                    <span className="font-mono text-[10px] font-bold text-slate-300" translate="no">#{complaint.ID}</span>
                     {aiDecision?.priority && (
-                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-tighter w-fit shadow-none ${aiDecision.priority.color}`}>
+                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-bold uppercase tracking-tighter w-fit shadow-none ${aiDecision.priority.color}`}>
                             {aiDecision.priority.label}
                         </span>
                     )}
@@ -93,15 +95,15 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
             </td>
             <td className="p-4 py-4">
                 <div className="flex flex-col">
-                    <span className="text-xs font-black text-[#1f2d2a] line-clamp-1 group-hover:text-[#2e7d32] transition-colors tracking-tight flex items-center gap-2 uppercase">
+                    <span className="text-xs font-bold text-[#1f2d2a] line-clamp-1 group-hover:text-[#2e7d32] transition-colors tracking-tight flex items-center gap-2 uppercase">
                         {complaint.Description}
                         {aiDecision?.delayRisk && (
-                            <span className="text-[9px] text-rose-500 font-black animate-pulse flex items-center gap-0.5">
+                            <span className="text-[9px] text-rose-500 font-bold animate-pulse flex items-center gap-0.5">
                                 <Zap size={10} fill="currentColor" /> AI Risk
                             </span>
                         )}
                     </span>
-                    <span className="text-[10px] text-slate-400 md:hidden font-black uppercase tracking-widest mt-1">
+                    <span className="text-[10px] text-slate-400 md:hidden font-bold uppercase tracking-wider mt-1">
                         {formatIST(complaint.Date)}
                     </span>
                 </div>
@@ -123,17 +125,17 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
             <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
                     <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase text-slate-300 tracking-widest mb-0.5">Released By</span>
-                        <span className="text-[11px] font-black text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.LatestTransfer.TransferredBy || 'Unknown'}</span>
+                        <span className="text-[9px] font-bold uppercase text-slate-300 tracking-wider mb-0.5">Released By</span>
+                        <span className="text-[11px] font-bold text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.LatestTransfer.TransferredBy || 'Unknown'}</span>
                     </div>
                 ) : (
-                    <span className="text-[11px] font-black text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.Unit}</span>
+                    <span className="text-[11px] font-bold text-[#1f2d2a] uppercase tracking-tight truncate">{complaint.Unit}</span>
                 )}
             </td>
             <td className="p-4 py-4 hidden md:table-cell">
                 {complaint.LatestTransfer ? (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase whitespace-nowrap">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-tight block uppercase whitespace-nowrap">
                             {formatIST(complaint.LatestTransfer.TransferDate).split('•')[0].trim()}
                         </span>
                         <span className="text-[9px] font-mono text-slate-300 tracking-tight">
@@ -142,7 +144,7 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
                     </div>
                 ) : (
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 tracking-tight block uppercase whitespace-nowrap">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-tight block uppercase whitespace-nowrap">
                             {formatIST(complaint.Date).split('•')[0].trim()}
                         </span>
                         <span className="text-[9px] font-mono text-slate-300 tracking-tight">
@@ -152,7 +154,7 @@ const ComplaintRow = memo(({ complaint, onClick, aiDecision }) => {
                 )}
             </td>
             <td className="p-4 py-4 text-right">
-                <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border border-transparent ${getStatusStyle(complaint.Status)}`}>
+                <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[9px] font-bold tracking-wider uppercase border border-transparent ${getStatusStyle(complaint.Status)}`}>
                     {complaint.Status}
                 </span>
             </td>
@@ -169,22 +171,22 @@ const ComplaintCard = memo(({ complaint, onClick, aiDecision }) => (
         <div className={`absolute top-0 left-0 w-1.5 h-full ${complaint.Status === 'Open' ? 'bg-amber-500' : complaint.Status === 'Solved' || complaint.Status === 'Closed' ? 'bg-[#2e7d32]' : 'bg-slate-300'}`} />
         <div className="flex justify-between items-start mb-3 pl-2">
             <div className="flex flex-col gap-1.5">
-                <span translate="no" className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border border-transparent tracking-widest w-fit ${complaint.Status === 'Open' ? 'bg-amber-50 text-amber-700' : 'bg-[#cfead6] text-[#2e7d32]'}`}>
+                <span translate="no" className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border border-transparent tracking-wider w-fit ${complaint.Status === 'Open' ? 'bg-amber-50 text-amber-700' : 'bg-[#cfead6] text-[#2e7d32]'}`}>
                     {complaint.Status}
                 </span>
                 {aiDecision?.priority && (
-                    <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-widest w-fit ${aiDecision.priority.color}`}>
+                    <span className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-bold uppercase tracking-wider w-fit ${aiDecision.priority.color}`}>
                         {aiDecision.priority.label}
                     </span>
                 )}
             </div>
             <span translate="no" className="text-[10px] font-bold text-slate-300 tracking-widest">#{complaint.ID}</span>
         </div>
-        <h4 className="font-black text-[#1f2d2a] text-sm mb-3 line-clamp-2 pl-2 tracking-tight uppercase flex items-center gap-2 group-hover:text-[#2e7d32] transition-colors">
+        <h4 className="font-bold text-[#1f2d2a] text-sm mb-3 line-clamp-2 pl-2 tracking-tight uppercase flex items-center gap-2 group-hover:text-[#2e7d32] transition-colors">
             {complaint.Description}
             {aiDecision?.delayRisk && <Zap size={12} className="text-rose-500 fill-rose-500 animate-pulse" />}
         </h4>
-        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-2">
             <Building2 size={12} className="text-[#2e7d32]" /> {complaint.Department}
         </div>
     </div>
@@ -481,31 +483,34 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
     };
 
     const enrichedComplaints = useMemo(() => {
-        const safeTransferLogs = Array.isArray(transferLogs) ? transferLogs : [];
-        const base = complaints.map(c => {
-            const transferRecord = safeTransferLogs
-                .filter(l => String(l.ComplaintID || l.complaint_id || l.ID || '').trim() === String(c.ID).trim())
-                .sort((a, b) => new Date(String(b.TransferDate || b.transfer_time).replace(/'/g, '')) - new Date(String(a.TransferDate || a.transfer_time).replace(/'/g, '')))[0];
+        const transferMap = {};
+        if (Array.isArray(transferLogs)) {
+            transferLogs.forEach(l => {
+                const id = String(l.ComplaintID || l.complaint_id || l.ID || '').trim();
+                const current = transferMap[id];
+                const transferDate = new Date(String(l.TransferDate || l.transfer_time).replace(/'/g, ''));
+                if (!current || transferDate > new Date(String(current.TransferDate || current.transfer_time).replace(/'/g, ''))) {
+                    transferMap[id] = l;
+                }
+            });
+        }
 
-            return transferRecord ? { ...c, LatestTransfer: transferRecord } : c;
+        const base = complaints.map(c => {
+            const latest = transferMap[String(c.ID).trim()];
+            return latest ? { ...c, LatestTransfer: latest } : c;
         });
 
-        // Universal Latest-First Sort (Timestamp DESC > Ticket ID DESC)
-        return [...base].sort((a, b) => {
+        return base.sort((a, b) => {
             const dateA = parseCustomDate(a.Timestamp || a.Date);
             const dateB = parseCustomDate(b.Timestamp || b.Date);
-
             const timeA = dateA ? dateA.getTime() : 0;
             const timeB = dateB ? dateB.getTime() : 0;
-
             if (timeB !== timeA) return timeB - timeA;
-
-            // Tie-breaker: Ticket ID (Numeric)
             const idA = parseInt(String(a.ID).replace(/\D/g, '')) || 0;
             const idB = parseInt(String(b.ID).replace(/\D/g, '')) || 0;
             return idB - idA;
         });
-    }, [complaints, transferLogs, filter]);
+    }, [complaints, transferLogs]);
 
     const displayComplaints = enrichedComplaints;
 
@@ -602,9 +607,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {displayComplaints.map(complaint => (
+                                    {displayComplaints.map((complaint, idx) => (
                                         <ComplaintRow
-                                            key={complaint.ID}
+                                            key={`${complaint.ID}-${idx}`}
                                             complaint={complaint}
                                             aiDecision={getAiCaseDecision(complaint)}
                                             onClick={openDetailModal}
@@ -616,9 +621,9 @@ const ComplaintList = ({ onlyMyComplaints = false, onlySolvedByMe = false, custo
                     </div>
 
                     <div ref={listRef} className="md:hidden h-[70vh] overflow-y-auto scroll-smooth pr-[6px]">
-                        {displayComplaints.map(complaint => (
+                        {displayComplaints.map((complaint, idx) => (
                             <ComplaintCard
-                                key={complaint.ID}
+                                key={`${complaint.ID}-${idx}-mobile`}
                                 complaint={complaint}
                                 aiDecision={getAiCaseDecision(complaint)}
                                 onClick={openDetailModal}

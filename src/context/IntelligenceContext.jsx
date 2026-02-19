@@ -1,485 +1,332 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { sheetsService } from '../services/googleSheets';
+import { assetsService } from '../services/assetsService';
 import { useAuth } from './AuthContext';
-import { runAIAnalysis } from '../services/aiCore'; // 🧠 AI IMPORT
+import { runAIAnalysis } from '../services/aiCore';
+
+import { normalize, safeNumber } from '../utils/dataUtils';
 
 const IntelligenceContext = createContext(null);
 
-const normalize = (val) => String(val || '').toLowerCase().trim();
-const safeNumber = (val) => {
-    const num = parseFloat(val);
-    return isNaN(num) ? 0 : num;
+// --- DASHBOARD HELPERS ---
+const findField = (item, prefixes) => {
+    if (!item) return null;
+    const keys = Object.keys(item);
+    for (const p of prefixes) {
+        const found = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === p.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        if (found) return item[found];
+    }
+    return null;
+};
+
+const parseDateSafe = (d) => {
+    if (!d) return null;
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? null : parsed;
 };
 
 export const IntelligenceProvider = ({ children }) => {
     const { user } = useAuth();
+    const lastDataHash = useRef('');
 
     // ------------------------------------------------------------------
     // RAW DATA STATE
     // ------------------------------------------------------------------
     const [allTickets, setAllTickets] = useState([]);
+    const [assets, setAssets] = useState([]);
     const [stats, setStats] = useState({
         open: 0, pending: 0, solved: 0, transferred: 0, extended: 0, delayed: 0, activeStaff: 0
     });
+    const [assetStats, setAssetStats] = useState({
+        total: 0, risk: 0, void: 0, serviceDue: 0, healthy: 0
+    });
+    const [trendStats, setTrendStats] = useState([]);
     const [users, setUsers] = useState([]);
     const [boosters, setBoosters] = useState([]);
     const [allRatings, setAllRatings] = useState([]);
 
-    // System Monitor
     const [loading, setLoading] = useState(true);
     const [lastSync, setLastSync] = useState(null);
 
     // ------------------------------------------------------------------
-    // INTELLIGENCE METRICS (Computed)
+    // INTELLIGENCE METRICS
     // ------------------------------------------------------------------
     const [hospitalHealth, setHospitalHealth] = useState(100);
     const [stressIndex, setStressIndex] = useState(0);
-    const [predictedDelays, setPredictedDelays] = useState([]); // Simple list for Dashboard
-
-    // Director/Analytics Metrics
-    const [deptRisks, setDeptRisks] = useState({}); // Detailed Dept Stats (Object)
-    const [deptStats, setDeptStats] = useState([]); // Detailed Dept Stats (Array)
-    const [flowStats, setFlowStats] = useState({ open: 0, solved: 0, delayed: 0, transferred: 0 });
+    const [predictedDelays, setPredictedDelays] = useState([]);
+    const [deptRisks, setDeptRisks] = useState({});
+    const [deptStats, setDeptStats] = useState([]);
+    const [flowStats, setFlowStats] = useState({ open: 0, solved: 0, delayed: 0, transferred: 0, efficiency: 0, activeStaff: 0 });
     const [staffStats, setStaffStats] = useState([]);
     const [delayRisks, setDelayRisks] = useState([]);
     const [alerts, setAlerts] = useState([]);
-    // AI Auto System Recommendations
     const [aiRecommendations, setAiRecommendations] = useState({ booster: null, delayWarning: null });
-
-    // 🧠 AI METRICS
     const [aiRiskReport, setAiRiskReport] = useState([]);
     const [aiDeptLoad, setAiDeptLoad] = useState({});
     const [aiStaffScores, setAiStaffScores] = useState({});
+    const [loadWarnings, setLoadWarnings] = useState([]);
+    const [deptTrends, setDeptTrends] = useState([]);
+    const [lastAiPulse, setLastAiPulse] = useState(new Date());
 
-    // ------------------------------------------------------------------
-    // LOCAL CACHING & FETCH LOCKING
-    // ------------------------------------------------------------------
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Initial Load from Cache (Instant UI)
-    useEffect(() => {
-        try {
-            const cachedTickets = sessionStorage.getItem('sbh_tickets_cache');
-            const cachedStats = sessionStorage.getItem('sbh_stats_cache');
-            const cachedStaff = sessionStorage.getItem('sbh_staff_cache');
-
-            if (cachedTickets) setAllTickets(JSON.parse(cachedTickets));
-            if (cachedStats) setStats(JSON.parse(cachedStats));
-            if (cachedStaff) setStaffStats(JSON.parse(cachedStaff));
-
-            if (cachedTickets) setLoading(false);
-        } catch (e) {
-            console.warn("Failed to load cache", e);
-        }
-    }, []);
-
     // ------------------------------------------------------------------
-    // 1. DATA SYNC ENGINE (20s Cycle)
+    // ANALYSIS ENGINE (PERFORMANCE OPTIMIZED)
     // ------------------------------------------------------------------
-    const refreshIntelligence = async () => {
-        if (!user || isRefreshing) return;
-        setIsRefreshing(true);
-        try {
-            const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(String(user.Role).toLowerCase());
-
-            // Fetch Core Data + PRE-CALCULATED Performance Sheet
-            const [statsData, fetchedUsers, allData, boosterData, ratingsData, perfData] = await Promise.all([
-                sheetsService.getDashboardStats(user.Username, user.Department, user.Role),
-                isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
-                sheetsService.getComplaints(false, true),
-                sheetsService.getBoosters(true, true).catch(() => []),
-                sheetsService.getRatings(false, true).catch(() => []),
-                sheetsService.getAllUserPerformance(false, true).catch(() => []) // NEW: Single Source
-            ]);
-
-            if (statsData) setStats(prev => ({ ...prev, ...statsData }));
-            if (fetchedUsers) setUsers(fetchedUsers);
-            if (boosterData) setBoosters(boosterData);
-            if (ratingsData) setAllRatings(ratingsData);
-
-            let currentStaffStats = [];
-
-            // Populate Staff Stats directly from Sheet (Source of Truth)
-            if (perfData && Array.isArray(perfData)) {
-                // Normalize keys just in case
-                const mappedStats = perfData.map(p => ({
-                    Username: p.Username,
-                    resolved: parseInt(p.TotalSolved || p.Solved || 0),
-                    avgRating: parseFloat(p.AverageRating || p.Rating || 0),
-                    ratingCount: parseInt(p.RatingCount || 0),
-                    avgSpeed: parseFloat(p.AvgSpeed || p.AvgResolutionTime || 0),
-                    rank: p.Rank || '-',
-                    efficiency: parseFloat(p.Efficiency || 0),
-                    delayed: parseInt(p.Delayed || 0),
-                    // Keep breakdown for compatibility if needed, or default to 0s
-                    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-                }));
-                setStaffStats(mappedStats);
-                currentStaffStats = mappedStats;
-            }
-
-            if (allData) {
-                setAllTickets(allData);
-                // Trigger Systems Analysis (Risk, Flow, etc.) - user stats removed
-                analyzeSystem(allData, ratingsData || [], currentStaffStats);
-            }
-
-            setLastSync(new Date());
-
-            // Update Frontend Cache
-            sessionStorage.setItem('sbh_tickets_cache', JSON.stringify(allData || []));
-            sessionStorage.setItem('sbh_stats_cache', JSON.stringify(statsData || {}));
-            sessionStorage.setItem('sbh_staff_cache', JSON.stringify(currentStaffStats || []));
-
-        } catch (e) {
-            console.warn("Intelligence Sync Failed:", e);
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
-
-    useEffect(() => {
-        let interval;
-        if (user) {
-            refreshIntelligence().finally(() => setLoading(false));
-            interval = setInterval(refreshIntelligence, 20000); // 20s Live Pulse
-        }
-        return () => clearInterval(interval);
-    }, [user]);
-
-    // ------------------------------------------------------------------
-    // 2. UNIFIED ANALYSIS ENGINE
-    // ------------------------------------------------------------------
-    // ------------------------------------------------------------------
-    // 2. UNIFIED ANALYSIS ENGINE (With Master Efficiency Formula)
-    // ------------------------------------------------------------------
-    const analyzeSystem = (tickets, ratings, currentStaffStats) => {
-        if (!tickets) return;
-
-        // 🧠 MODULE 13: NO FALSE ZERO DATA
-        if (tickets.length === 0 && !loading && lastSync) {
-            // If data exists in sheet but here is 0, force re-sync
-            // We use a small timeout to avoid infinite loops if it's genuinely empty
-            console.warn("🧠 AI DETECT: Potential False Zero. Scheduling Re-sync...");
-            setTimeout(() => refreshIntelligence(), 2000);
-        }
-
-        // 🧠 1. RUN AI CORE PREDICTIONS
-        const aiResults = runAIAnalysis(tickets, currentStaffStats);
-
-        // 🧠 MODULE 14: ZERO-SPAM PROTECTION
-        // Compare new AI results with previous state to avoid re-rendering/notifying if identical
-        if (JSON.stringify(aiResults.riskReport) !== JSON.stringify(aiRiskReport)) {
-            setAiRiskReport(aiResults.riskReport);
-        }
-        if (JSON.stringify(aiResults.deptLoad) !== JSON.stringify(aiDeptLoad)) {
-            setAiDeptLoad(aiResults.deptLoad);
-        }
-        // Staff scores update less frequently, but we check anyway
-        setAiStaffScores(aiResults.staffScores);
+    const analyzeSystem = useCallback((tickets, ratings, assetsData, usersList) => {
+        if (!tickets || !usersList) return;
 
         const now = new Date();
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // A. Base Counters
         let health = 100;
         let stress = 0;
-        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, extended: 0, efficiency: 0 };
+        const flow = { open: 0, solved: 0, delayed: 0, transferred: 0, extended: 0, efficiency: 0, activeStaff: 0 };
         const depts = {};
         const predictions = [];
         const detailedRisks = [];
-        const alertList = [];
 
-        // B. Staff Map Init (Ensure all users are tracked)
         const staffMap = {};
         const initStaff = (name) => {
             const nName = normalize(name);
-            if (!nName) return;
+            if (!nName) return null;
             if (!staffMap[nName]) {
-                const userObj = users.find(u => normalize(u.Username) === nName);
+                const userObj = usersList.find(u => normalize(u.Username) === nName);
                 staffMap[nName] = {
                     name: userObj ? userObj.Username : name,
-                    Username: userObj ? userObj.Username : name, // Use Capital U
-                    username: nName, // Keep for legacy if needed by other components
+                    Username: userObj ? userObj.Username : name,
                     dept: userObj ? userObj.Department : 'Unknown',
                     solved: 0,
+                    resolved: 0,
                     ratings: [],
                     active: 0,
-                    delayCount: 0,
+                    delayed: 0,
                     speedTotalMinutes: 0,
                     speedCount: 0,
-                    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, total: 0 }
+                    R5: 0, R4: 0, R3: 0, R2: 0, R1: 0,
+                    ratingCount: 0
                 };
             }
             return staffMap[nName];
         };
 
-        // Initialize from Users list first
-        users.forEach(u => initStaff(u.Username));
+        // Initialize from Users list
+        for (let i = 0; i < usersList.length; i++) {
+            initStaff(usersList[i].Username);
+        }
 
-        // C. Ticket Processing
-        tickets.forEach(t => {
-            const status = String(t.Status || '').toLowerCase().trim();
-            const dept = t.Department || 'General';
-            const date = t.Date ? new Date(t.Date) : null;
-            const solvedDate = t.ResolvedDate ? new Date(t.ResolvedDate) : null;
-
-            // Safe Date Parsing for Speed Calc
-            const regTime = (date && !isNaN(date.getTime())) ? date.getTime() : 0;
-            const closeTime = (solvedDate && !isNaN(solvedDate.getTime())) ? solvedDate.getTime() : 0;
-
-            const isActive = !['solved', 'closed', 'resolved', 'force close'].includes(status);
-            const isSolved = ['solved', 'closed', 'resolved', 'force close'].includes(status);
-            const resolver = normalize(t.ResolvedBy);
-
-            // 🟢 REAL-TIME DELAY DETECTION (Module 7)
-            // A case is Delayed if:
-            // 1. Explicitly marked as Delay='Yes' by backend schedule
-            // 2. Status is 'delayed' (Legacy support)
-            // 3. Breached TargetDate
-            // 4. Registered BEFORE Today (Midnight IST)
-            const delayValue = String(t.Delay || '').toLowerCase().trim();
-            const regDateForDelay = t.Date ? new Date(t.Date) : null;
-            const isOverdueByDate = (regDateForDelay && !isNaN(regDateForDelay.getTime())) && regDateForDelay < startOfDay;
-
-            let isOverdueByTarget = false;
-            if (t.TargetDate) {
-                const targetDate = new Date(t.TargetDate);
-                if (!isNaN(targetDate.getTime()) && new Date() > targetDate) {
-                    isOverdueByTarget = true;
+        // Process Ratings
+        ratings.forEach(r => {
+            const resolver = normalize(r.ResolvedBy || r.Resolver);
+            const score = parseInt(r.Rating || r.Stars || 0);
+            if (resolver && score > 0) {
+                const s = initStaff(resolver);
+                if (s) {
+                    s.ratings.push(score);
+                    s.ratingCount++;
+                    if (score === 5) s.R5++;
+                    else if (score === 4) s.R4++;
+                    else if (score === 3) s.R3++;
+                    else if (score === 2) s.R2++;
+                    else if (score === 1) s.R1++;
                 }
             }
+        });
 
-            const isDelayed = delayValue === 'yes' || status === 'delayed' || isOverdueByTarget || isOverdueByDate;
+        // Process Tickets
+        for (let i = 0; i < tickets.length; i++) {
+            const t = tickets[i];
+            const status = normalize(t.Status || '');
+            const dept = t.Department || 'General';
+            const date = parseDateSafe(t.Date || t.Timestamp);
+            const regTime = date ? date.getTime() : 0;
 
-            // Dept Init
+            const isSolved = ['solved', 'closed', 'resolved', 'force close', 'done', 'fixed'].includes(status);
+            const isActive = !isSolved;
+            const resolver = normalize(t.ResolvedBy);
+
+            const isDelayed = normalize(t.Delay) === 'yes' ||
+                status === 'delayed' ||
+                (isActive && regTime > 0 && regTime < startOfDay.getTime());
+
             if (!depts[dept]) depts[dept] = { open: 0, solved: 0, pending: 0, delayed: 0, extended: 0, transfers: 0 };
 
             if (isActive) {
-                // 🟢 FIX: Count ALL active as Open Flow
                 flow.open++;
-
-                // Breakdown by specific status for Dept Stats
-                if (status === 'open') {
-                    depts[dept].open++;
-                } else if (['pending', 'in-progress', 're-open'].includes(status)) {
-                    depts[dept].pending++;
-                } else if (status === 'extend' || status === 'extended') {
-                    depts[dept].extended++;
-                    flow.extended++;
-                } else {
-                    // For other active statuses (like 'delayed' or unmapped), count as open in dept too?
-                    // User said "Open panel should count: status != Closed".
-                    // So let's count them as open if not pending/transferred
-                    if (status !== 'transferred') depts[dept].open++;
+                if (resolver) {
+                    const s = initStaff(resolver);
+                    if (s) s.active++;
                 }
 
-                // Additional Check for TargetDate (even if status is not 'extend')
+                if (status === 'open') depts[dept].open++;
+                else if (['pending', 'in-progress', 're-open'].includes(status)) depts[dept].pending++;
+                else if (status === 'transferred') { depts[dept].transfers++; flow.transferred++; }
+
                 const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
-                if (hasTargetDate && status !== 'extend' && status !== 'extended') {
+                if (status === 'extended' || status === 'extend' || hasTargetDate) {
                     depts[dept].extended++;
                     flow.extended++;
                 }
 
-                // 🟢 FIX: Delayed Logic INSIDE Active Block
                 if (isDelayed) {
                     depts[dept].delayed++;
-                    flow.delayed++; // Global Delay Count
-                }
-
-                // Risk Predictions
-                if (regTime > 0) {
-                    const hrsOpen = (now.getTime() - regTime) / (1000 * 60 * 60);
-                    if (hrsOpen > 18 && !isDelayed) { // Don't double count if already delayed?
-                        predictions.push({ id: t.ID, dept: dept, reason: 'Open > 18hrs', chance: 'High' });
-                        stress += 2;
-                        detailedRisks.push({ ...t, riskLevel: 'HIGH', hours: hrsOpen.toFixed(1) });
-                    } else if (hrsOpen > 12) {
-                        stress += 1;
-                        if (hrsOpen > 18) detailedRisks.push({ ...t, riskLevel: 'MEDIUM', hours: hrsOpen.toFixed(1) });
+                    flow.delayed++;
+                    if (resolver) {
+                        const s = initStaff(resolver);
+                        if (s) s.delayed++;
                     }
                 }
-            } else if (isSolved) {
-                depts[dept].solved++;
-                if (solvedDate && solvedDate >= startOfDay) flow.solved++;
 
-                // Staff Stats: Solved & Speed
+                if (regTime > 0) {
+                    const hrsOpen = (now - regTime) / 3600000;
+                    if (hrsOpen > 18) {
+                        predictions.push({ id: t.ID, dept, reason: 'Open > 18hrs' });
+                        stress += 2;
+                        detailedRisks.push({ ...t, riskLevel: 'HIGH', hours: hrsOpen.toFixed(1) });
+                    }
+                }
+            } else {
+                depts[dept].solved++;
+                flow.solved++;
                 if (resolver) {
                     const s = initStaff(resolver);
                     if (s) {
                         s.solved++;
-                        if (closeTime > regTime && regTime > 0) {
-                            const diffMins = (closeTime - regTime) / (1000 * 60);
-                            s.speedTotalMinutes += diffMins;
+                        s.resolved++;
+                        const solvedDate = parseDateSafe(t.ResolvedDate);
+                        if (solvedDate && regTime > 0) {
+                            s.speedTotalMinutes += (solvedDate.getTime() - regTime) / 60000;
                             s.speedCount++;
                         }
                     }
                 }
-
-                // Track if it WAS delayed
-                if (isDelayed && resolver) {
-                    const s = initStaff(resolver);
-                    if (s) s.delayCount++;
-                }
-
-            } else if (status === 'transferred') {
-                depts[dept].transfers++;
-                flow.transferred++;
             }
-            // Removed redundant 'delayed' check since it's handled in isActive
-        });
-
-        // D. Ratings Integration
-        if (ratings && Array.isArray(ratings)) {
-            ratings.forEach(r => {
-                const rawStaff = r.ResolvedBy || r['Staff Name'] || r.Resolver;
-                // Use safeNumber helper logic inline if simple
-                const val = parseFloat(r.Rating);
-                const rating = isNaN(val) ? 0 : val;
-                const staff = initStaff(rawStaff);
-
-                if (staff && rating > 0) {
-                    staff.ratings.push(rating);
-                    if (rating >= 1 && rating <= 5) {
-                        staff.breakdown[Math.floor(rating)]++;
-                    }
-                }
-            });
         }
 
-        // E. FINAL EFFICIENCY CALCULATION (40/30/30)
-        const finalStaffStats = Object.values(staffMap).map(s => {
-            const avgRating = s.ratings.length ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length) : 0;
+        // Staff Analysis
+        const processedStaff = Object.values(staffMap).map(s => {
+            const avgRating = s.ratingCount > 0 ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratingCount) : 0;
+            const avgSpeedHours = s.speedCount > 0 ? (s.speedTotalMinutes / s.speedCount / 60) : 0;
 
-            // Speed (Hours)
-            const avgSpeedMins = s.speedCount > 0 ? (s.speedTotalMinutes / s.speedCount) : 0;
-            const avgSpeedHours = avgSpeedMins / 60;
+            const ratingWeight = (avgRating / 5) * 50;
+            const volumeWeight = Math.min(30, (s.solved / 10) * 30);
+            const speedWeight = s.speedCount > 0 ? Math.max(0, 20 - (avgSpeedHours / 4) * 20) : 10;
 
-            // Scores
-            const scoreRating = (avgRating / 5) * 100; // 0-100
-            const scoreSpeed = Math.max(0, 100 - (avgSpeedHours * 2)); // 0-100 (50hrs = 0)
-            const scoreSolved = Math.min(100, s.solved * 5); // 0-100 (20 tickets = 100)
-
-            // Formula: 40% Rating + 30% Speed + 30% Solved
-            const efficiency = (scoreRating * 0.4) + (scoreSpeed * 0.3) + (scoreSolved * 0.3);
+            const efficiency = ratingWeight + volumeWeight + speedWeight;
+            if (s.active > 0) flow.activeStaff++;
 
             return {
                 ...s,
                 avgRating: avgRating.toFixed(1),
-                ratingCount: s.ratings.length,
                 avgSpeed: avgSpeedHours.toFixed(1),
-                efficiency: efficiency.toFixed(1),
-                resolved: s.solved,
-                delayed: s.delayCount,
-                R5: s.breakdown[5],
-                R4: s.breakdown[4],
-                R3: s.breakdown[3],
-                R2: s.breakdown[2],
-                R1: s.breakdown[1]
+                efficiency: parseFloat(efficiency.toFixed(1))
             };
         });
 
-        // Global Ranking
-        finalStaffStats.sort((a, b) => {
-            if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
-            return b.resolved - a.resolved;
-        });
-        finalStaffStats.forEach((s, idx) => s.rank = idx + 1);
+        // 🟢 CALCULATE GLOBAL RANKING & SORT
+        const rankedStaffList = processedStaff
+            .sort((a, b) => b.efficiency - a.efficiency)
+            .map((s, idx) => ({ ...s, rank: idx + 1 }));
 
-        // Calculate Global Efficiency for AI Center
-        const globalEfficiency = finalStaffStats.length ? (finalStaffStats.reduce((a, b) => a + parseFloat(b.efficiency), 0) / finalStaffStats.length).toFixed(1) : 0;
-        flow.efficiency = globalEfficiency;
+        // Asset Analytics
+        if (assetsData && Array.isArray(assetsData)) {
+            const aStats = { total: assetsData.length, risk: 0, void: 0, serviceDue: 0, healthy: 0 };
+            assetsData.forEach(a => {
+                const amcTaken = normalize(findField(a, ['AMCTaken', 'AMC'])) === 'yes';
+                const amcExpiry = parseDateSafe(findField(a, ['AMCExpiry', 'AMCExpiryDate', 'AMCDate', 'ExpiryDate']));
+                const nextService = parseDateSafe(findField(a, ['NextServiceDate', 'NextService', 'ServiceDue']));
+                const health = a.aiHealthScore ?? 100;
 
-        // F. Alerts
-        if (stress > 50) health = Math.max(0, health - 20);
-        if (tickets.length > 500) health -= 10;
-        if (health < 60) alertList.push({ type: 'critical', msg: 'System Stress Level High' });
-        if (predictions.length > 5) alertList.push({ type: 'warning', msg: 'Multiple SLA Breaches Predicted' });
-
-        // H. AI AUTOMATION (Master Prompt Part 11)
-        // 1. Smart Priority Booster (Pending > 6hrs)
-        // Find best candidate: Oldest pending ticket > 6hrs, not yet regular delay
-        let bestBooster = null;
-        const boosterCandidates = tickets.filter(t => {
-            if (!t.Date || ['solved', 'closed', 'delayed'].includes(String(t.Status).toLowerCase())) return false;
-            const tDate = new Date(t.Date);
-            if (isNaN(tDate.getTime())) return false;
-            const diffHrs = (now - tDate) / (1000 * 60 * 60);
-            return diffHrs > 6;
-        });
-
-        if (boosterCandidates.length > 0) {
-            // Sort by oldest first
-            boosterCandidates.sort((a, b) => new Date(a.Date) - new Date(b.Date));
-            const top = boosterCandidates[0];
-            bestBooster = {
-                TicketID: top.ID,
-                Reason: 'Pending > 6 hours. Boost required to prevent delay.',
-                Admin: 'AI Auto-System'
-            };
-        }
-
-        // 2. Delay Prevention Alert (Pre-Midnight Warning)
-        // Warn if a ticket registered TODAY is still open and it's late (e.g. > 8 PM)
-        let delayWarn = null;
-        const currentHour = now.getHours();
-        if (currentHour >= 20) { // After 8 PM
-            const potentialDelays = tickets.filter(t => {
-                const status = String(t.Status).toLowerCase();
-                if (['solved', 'closed', 'delayed'].includes(status)) return false;
-                if (!t.Date) return false;
-                // Check if registered today
-                const tDate = new Date(t.Date);
-                const isToday = tDate.toDateString() === now.toDateString();
-                return isToday;
+                if (health > 80) aStats.healthy++;
+                if (amcTaken && amcExpiry) {
+                    const diffDays = Math.ceil((amcExpiry - now) / 864e5);
+                    if (diffDays < 0) aStats.void++;
+                    else if (diffDays <= 30) aStats.risk++;
+                }
+                if (nextService) {
+                    const diffDays = Math.ceil((nextService - now) / 864e5);
+                    if (diffDays <= 0) aStats.serviceDue++;
+                }
             });
-
-            if (potentialDelays.length > 0) {
-                delayWarn = {
-                    count: potentialDelays.length,
-                    msg: `⚠ ${potentialDelays.length} cases may become delayed tomorrow. Resolve ASAP.`
-                };
-            }
+            setAssetStats(aStats);
         }
 
-        // G. Update State
+        // Trend Analysis
+        const trends = {};
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            trends[d.toDateString()] = { date: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }), tickets: 0 };
+        }
+        tickets.forEach(t => {
+            const tDate = parseDateSafe(t.Date || t.date || t.Timestamp);
+            if (tDate) {
+                const dateKey = tDate.toDateString();
+                if (trends[dateKey]) trends[dateKey].tickets++;
+            }
+        });
+
+        // Heatmap Trend Analysis (Last 7 Days)
+        const heatmapTrends = [];
+        const daysToMap = 7;
+        const deptsInSystem = Object.keys(depts);
+
+        for (let i = daysToMap - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+            const snapshot = { name: label };
+
+            deptsInSystem.forEach(dept => {
+                const count = tickets.filter(t => {
+                    const tDate = parseDateSafe(t.Date || t.Timestamp);
+                    return tDate &&
+                        tDate.toDateString() === d.toDateString() &&
+                        normalize(t.Department) === normalize(dept);
+                }).length;
+                snapshot[dept] = count;
+            });
+            heatmapTrends.push(snapshot);
+        }
+
+        // 🧠 RUN AI CORE ANALYSIS
+        const aiResults = runAIAnalysis(tickets, rankedStaffList);
+
+        // Load Warnings (Staff with > 5 active cases)
+        const warnings = rankedStaffList
+            .filter(s => s.active > 5)
+            .map(s => ({ name: s.name, count: s.active }));
+
+        // --- BATCHED STATE UPDATES ---
         setHospitalHealth(health);
-        setStressIndex(stress);
+        setStressIndex(Math.min(100, stress));
         setPredictedDelays(predictions);
         setDeptRisks(depts);
-        setDeptStats(Object.entries(depts).map(([name, stats]) => ({ name, ...stats })));
+        setDeptStats(Object.entries(depts).map(([name, s]) => ({ name, ...s })));
         setFlowStats(flow);
-        // Global Latest-First Sorting for Risks
-        detailedRisks.sort((a, b) => {
-            const dateA = new Date(String(a.Date || a.Timestamp || '').replace(/'/g, ''));
-            const dateB = new Date(String(b.Date || b.Timestamp || '').replace(/'/g, ''));
-            return dateB - dateA;
-        });
-
+        setStaffStats(rankedStaffList);
+        setTrendStats(Object.values(trends));
+        setAiRiskReport(aiResults.riskReport);
+        setAiDeptLoad(aiResults.deptLoad);
+        setAiStaffScores(aiResults.staffScores);
         setDelayRisks(detailedRisks);
-        setStaffStats(finalStaffStats);
-        setAlerts(alertList);
-        setAiRecommendations({ booster: bestBooster, delayWarning: delayWarn });
-    };
+        setDeptTrends(heatmapTrends);
+        setLoadWarnings(warnings);
+        setLastAiPulse(new Date());
+    }, []);
 
-
-    // ------------------------------------------------------------------
-    // 3. EXPOSED HELPERS
-    // ------------------------------------------------------------------
-    const getAiCaseDecision = (ticket) => {
+    const getAiCaseDecision = useCallback((ticket) => {
         const regDateStr = ticket.Date || ticket.Timestamp;
         let priority = { label: 'Normal', color: 'bg-slate-100 text-slate-500' };
         let delayRisk = false;
 
         if (!regDateStr) return { priority, delayRisk };
-
         const regDate = new Date(regDateStr);
         if (isNaN(regDate.getTime())) return { priority, delayRisk };
 
         const hrsOpen = (new Date() - regDate) / (1000 * 60 * 60);
-        const status = String(ticket.Status).toLowerCase();
-        const isDelayed = String(ticket.Delay).toLowerCase() === 'yes' || status === 'delayed';
+        const status = normalize(ticket.Status);
+        const isDelayed = normalize(ticket.Delay) === 'yes' || status === 'delayed';
 
         if (isDelayed) {
             priority = { label: 'Delayed', color: 'bg-rose-100 text-rose-600' };
@@ -494,89 +341,107 @@ export const IntelligenceProvider = ({ children }) => {
             priority = { label: 'Safe', color: 'bg-[#cfead6] text-[#2e7d32]' };
         }
 
-        if (predictedDelays.find(p => String(p.id) === String(ticket.ID))) {
+        const tid = String(ticket.ID || ticket.id);
+        if (predictedDelays.find(p => String(p.id) === tid)) {
             delayRisk = true;
             if (priority.label === 'Safe') priority = { label: 'Predicted Delay', color: 'bg-orange-50 text-orange-600' };
         }
 
         return { priority, delayRisk };
-    };
+    }, [predictedDelays]);
 
-    const getCrisisRisk = () => {
+    const getTransferSuggestion = useCallback((ticket) => {
+        if (!ticket || !ticket.Description) return null;
+        const desc = normalize(ticket.Description);
+        if (desc.includes('computer') || desc.includes('printer') || desc.includes('internet') || desc.includes('wifi')) return 'IT';
+        if (desc.includes('clean') || desc.includes('dust') || desc.includes('garbage')) return 'HOUSE KEEPING';
+        if (desc.includes('light') || desc.includes('fan') || desc.includes('ac ') || desc.includes('leak')) return 'MAINTENANCE';
+        if (desc.includes('medicine') || desc.includes('tablet')) return 'PHARMACY';
+        return null;
+    }, []);
+
+    const getResolverRecommendation = useCallback((department) => {
+        if (!department) return null;
+        const targetDept = normalize(department);
+        const deptStaffNames = users
+            .filter(u => normalize(u.Department) === targetDept)
+            .map(u => normalize(u.Username));
+
+        if (deptStaffNames.length === 0) return null;
+        const bestPerformer = staffStats
+            .filter(s => deptStaffNames.includes(normalize(s.Username)))
+            .sort((a, b) => b.efficiency - a.efficiency)[0];
+        return bestPerformer ? bestPerformer.Username : null;
+    }, [users, staffStats]);
+
+    const refreshIntelligence = useCallback(async () => {
+        if (!user || isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            const isAdmin = ['admin', 'super_admin', 'superadmin'].includes(normalize(user.Role));
+            const [statsData, fetchedUsers, allData, boosterData, ratingsData, assetsData] = await Promise.all([
+                sheetsService.getDashboardStats(user.Username, user.Department, user.Role),
+                isAdmin ? sheetsService.getUsers() : Promise.resolve([]),
+                sheetsService.getComplaints(false, true),
+                sheetsService.getBoosters(true, true).catch(() => []),
+                sheetsService.getRatings(false, true).catch(() => []),
+                assetsService.getAssets().catch(() => [])
+            ]);
+
+            if (allData) {
+                const cleanedData = allData.filter(t => {
+                    const idCandidate = t.ID || t.id || t['Ticket ID'] || t.ComplaintID || t.Complaint_ID || t.Complaint_id || '';
+                    const desc = t.Description || t.description || t.Complaint || '';
+                    const cleanId = String(idCandidate).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    return (cleanId !== '' && cleanId !== 'na' && cleanId !== 'undefined') || String(desc).trim() !== '';
+                }).map(t => {
+                    const rawId = t.ID || t.id || t['Ticket ID'] || t.ComplaintID || t.Complaint_ID || t.Complaint_id || '';
+                    const cleanId = String(rawId).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const finalId = (cleanId !== '' && cleanId !== 'na' && cleanId !== 'undefined') ? rawId : 'N/A';
+                    return { ...t, ID: finalId };
+                });
+
+                setAllTickets(cleanedData);
+                analyzeSystem(cleanedData, ratingsData, assetsData, fetchedUsers || users);
+            }
+
+            // --- BATCHED STATE UPDATES ---
+            if (statsData) setStats(prev => ({ ...prev, ...statsData }));
+            if (fetchedUsers) setUsers(fetchedUsers);
+            if (boosterData) setBoosters(boosterData);
+            if (ratingsData) setAllRatings(ratingsData);
+            if (assetsData) setAssets(assetsData);
+            setLastSync(new Date());
+        } catch (e) {
+            console.error("Sync Failed", e);
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [user, isRefreshing, analyzeSystem, users]);
+
+    useEffect(() => {
+        if (user) {
+            refreshIntelligence().finally(() => setLoading(false));
+            const timer = setInterval(refreshIntelligence, 45000);
+            return () => clearInterval(timer);
+        }
+    }, [user]);
+
+    const getCrisisRisk = useCallback(() => {
         if (stressIndex > 70) return 'CRITICAL';
         if (stressIndex > 40) return 'ELEVATED';
         return 'NORMAL';
-    };
-
-    const getTransferSuggestion = (ticket) => {
-        if (!ticket || !ticket.Description) return null;
-        const desc = String(ticket.Description).toLowerCase();
-
-        if (desc.includes('computer') || desc.includes('printer') || desc.includes('internet') || desc.includes('wifi') || desc.includes('software')) return 'IT';
-        if (desc.includes('clean') || desc.includes('dust') || desc.includes('garbage') || desc.includes('washroom')) return 'HOUSE KEEPING';
-        if (desc.includes('light') || desc.includes('fan') || desc.includes('ac ') || desc.includes('power') || desc.includes('leak')) return 'MAINTENANCE';
-        if (desc.includes('medicine') || desc.includes('tablet') || desc.includes('drug')) return 'PHARMACY';
-        if (desc.includes('bill') || desc.includes('payment') || desc.includes('refund')) return 'BILLING';
-        if (desc.includes('salary') || desc.includes('leave') || desc.includes('attendance')) return 'HR';
-
-        return null;
-    };
-
-    const getResolverRecommendation = (department) => {
-        if (!department) return null;
-        const targetDept = String(department).toLowerCase().trim();
-
-        // 1. Identify all staff in this department
-        const deptStaffNames = users
-            .filter(u => String(u.Department || '').toLowerCase().trim() === targetDept)
-            .map(u => String(u.Username).toLowerCase());
-
-        if (deptStaffNames.length === 0) return null;
-
-        // 2. Find the highest ranked staff member from this department in our performance stats
-        // staffStats is already sorted by Efficiency desc
-        const bestPerformer = staffStats.find(s => deptStaffNames.includes(String(s.name).toLowerCase()));
-
-        if (bestPerformer) return bestPerformer.name;
-
-        // 3. Fallback: If no stats, return the first staff member
-        const firstUser = users.find(u => String(u.Department || '').toLowerCase().trim() === targetDept);
-        return firstUser ? firstUser.Username : null;
-    };
+    }, [stressIndex]);
 
     return (
         <IntelligenceContext.Provider value={{
-            allTickets,
-            stats,
-            users,
-            boosters,
-            allRatings,
-            lastSync,
-            loading,
-
-            // Intelligence
-            hospitalHealth,
-            deptRisks,
-            deptStats,
-            predictedDelays,
-            stressIndex,
-            crisisRisk: getCrisisRisk(),
-            getAiCaseDecision,
-            getTransferSuggestion,
-            getResolverRecommendation,
-            refreshIntelligence,
-
-            // Advanced Analytics (Ported)
-            flowStats,
-            staffStats,
-            delayRisks,
-            alerts,
-            aiRecommendations, // Expose AI Logic
-
-            // 🧠 EXPOSED AI METRICS
-            aiRiskReport,
-            aiDeptLoad,
-            aiStaffScores
+            allTickets, stats, users, boosters, allRatings, lastSync, loading,
+            hospitalHealth, deptRisks, deptStats, predictedDelays, stressIndex,
+            crisisRisk: getCrisisRisk(), flowStats, staffStats, delayRisks, alerts,
+            aiRecommendations, aiRiskReport, aiDeptLoad, aiStaffScores, loadWarnings,
+            deptTrends, lastAiPulse,
+            assets, assetStats, trendStats, refreshIntelligence,
+            getAiCaseDecision, getTransferSuggestion, getResolverRecommendation
         }}>
             {children}
         </IntelligenceContext.Provider>

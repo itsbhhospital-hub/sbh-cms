@@ -109,7 +109,7 @@ const AICommandCenter = () => {
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-5xl font-black tracking-tight leading-none">{flowStats?.solved || 0}</p>
-                                <p className="text-[10px] font-black uppercase text-[#cfead6]/60 tracking-[0.2em] mt-2">Total Resolutions</p>
+                                <p className="text-[10px] font-black uppercase text-[#cfead6]/60 tracking-[0.2em] mt-2">Total Solved</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-5xl font-black tracking-tight leading-none">{flowStats?.efficiency || 0}%</p>

@@ -3,16 +3,19 @@ import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useLoading } from '../context/LoadingContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Plus, ClipboardList, CheckCircle,
-    Clock, LogOut, ChevronLeft, ChevronRight, Menu,
-    Users, BarChart3, ShieldCheck, Key, FileText, Share2, Hospital, X, Zap, Wrench, Building2
+    Clock, LogOut, ChevronDown, ChevronRight, Menu,
+    Users, BarChart3, ShieldCheck, Key, FileText, Share2, Hospital, X, Zap, Wrench, Building2,
+    Settings, Briefcase, ChevronUp, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 
-const SessionTimer = memo(({ collapsed }) => {
+const SessionTimer = memo(({ collapsed, hidden }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
     useEffect(() => {
+        if (hidden) return;
         const updateTimer = () => {
             const loginTime = localStorage.getItem('sbh_login_time');
             if (!loginTime) return;
@@ -29,11 +32,13 @@ const SessionTimer = memo(({ collapsed }) => {
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [hidden]);
+
+    if (hidden) return null;
 
     if (collapsed) {
         return (
-            <div className="w-12 h-12 rounded-2xl bg-[#cfead6] flex items-center justify-center text-[#2e7d32] border border-[#dcdcdc] font-mono text-[10px] font-black">
+            <div className="w-12 h-12 rounded-2xl bg-[#cfead6] flex items-center justify-center text-[#2e7d32] border border-[#dcdcdc] font-mono text-[10px] font-bold shadow-sm">
                 {timeLeft.split(':')[0]}m
             </div>
         );
@@ -44,10 +49,81 @@ const SessionTimer = memo(({ collapsed }) => {
             <div className="flex items-center gap-3">
                 <Clock size={16} className="text-[#2e7d32]" />
                 <div>
-                    <p className="text-[9px] font-black text-[#2e7d32] tracking-widest leading-none mb-1 opacity-60 uppercase">Session Secure</p>
-                    <p className="text-[11px] font-black text-[#1f2d2a] leading-none tracking-[0.2em] font-mono uppercase">{timeLeft || '30:00'}</p>
+                    <p className="text-[9px] font-bold text-[#2e7d32] tracking-wider leading-none mb-1 opacity-60 uppercase">Session Secure</p>
+                    <p className="text-[11px] font-bold text-[#1f2d2a] leading-none tracking-widest font-mono uppercase">{timeLeft || '30:00'}</p>
                 </div>
             </div>
+        </div>
+    );
+});
+
+const NavItem = memo(({ to, icon: Icon, label, isSubItem = false, collapsed, mobileOpen, isHovered, setMobileOpen }) => {
+    const { showLoader } = useLoading();
+    return (
+        <NavLink
+            to={to}
+            onClick={() => {
+                setMobileOpen(false);
+                showLoader(true); // Trigger immediate green loader
+            }}
+            className={({ isActive }) => `
+            relative flex items-center gap-3 transition-[background-color,color,transform] duration-200
+            font-bold uppercase tracking-wider mb-1 text-[10px]
+            ${isSubItem ? 'px-4 py-2.5 mx-2 rounded-lg font-medium' : 'px-4 py-3 mx-2 rounded-xl'}
+            ${isActive
+                    ? 'bg-[#2e7d32] text-white shadow-md transform scale-[1.02]'
+                    : 'text-[#1f2d2a] hover:bg-[#b8dfc2]/30 opacity-80 hover:opacity-100 hover:translate-x-1'
+                }
+        `}
+        >
+            {({ isActive }) => (
+                <>
+                    <Icon
+                        size={isSubItem ? 16 : 18}
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className={isActive ? 'text-white' : 'text-[#2e7d32] flex-shrink-0'}
+                    />
+                    {(!collapsed || mobileOpen || isHovered) && (
+                        <span className="truncate transition-opacity duration-200">{label}</span>
+                    )}
+                </>
+            )}
+        </NavLink>
+    );
+});
+
+const CollapsibleCategory = memo(({ icon: Icon, label, children, isOpen, onToggle, collapsed }) => {
+    return (
+        <div className="mb-2">
+            <button
+                onClick={onToggle}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-[background-color,color,opacity] duration-200
+                font-bold uppercase tracking-wider text-[10px]
+                ${isOpen ? 'bg-[#2e7d32]/5 text-[#2e7d32]' : 'text-[#1f2d2a] opacity-70 hover:opacity-100'}`}
+            >
+                <div className="flex items-center gap-3">
+                    <Icon size={18} className="text-[#2e7d32] flex-shrink-0" />
+                    {!collapsed && <span>{label}</span>}
+                </div>
+                {!collapsed && (
+                    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                        <ChevronDown size={14} />
+                    </motion.div>
+                )}
+            </button>
+            <AnimatePresence>
+                {isOpen && !collapsed && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "circOut" }}
+                        className="overflow-hidden bg-[#2e7d32]/5 rounded-xl mt-1 mx-2 py-1"
+                    >
+                        {children}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 });
@@ -59,58 +135,31 @@ const Sidebar = () => {
     const { showLoader } = useLoading();
     const [isHovered, setIsHovered] = useState(false);
 
+    const isSuperAdmin = ['SUPERADMIN', 'SUPER_ADMIN'].includes(String(user?.Role || '').toUpperCase().trim()) || user?.Username === 'AM Sir';
+    const isAdmin = isSuperAdmin || String(user?.Role || '').toLowerCase().trim() === 'admin';
+
+    // Menu Expansion State
+    const [openMenus, setOpenMenus] = useState({
+        cms: location.pathname === '/cms-panel' || ['/new-complaint', '/my-complaints', '/case-transfer', '/extended-cases', '/solved-by-me', '/ai-command-center'].some(p => location.pathname === p),
+        assets: ['/director', '/assets', '/assets/add', '/service-team'].some(p => location.pathname.startsWith(p)),
+        management: ['/user-management', '/work-report', '/change-password'].some(p => location.pathname === p)
+    });
+
     useEffect(() => {
         setMobileOpen(false);
     }, [location, setMobileOpen]);
 
-    const adminMenuItems = [
-        { path: '/service-team', name: 'Services', icon: Wrench },
-        { path: '/assets', name: 'Assets', icon: Building2 },
-        { path: '/user-management', name: 'User Management', icon: Users },
-        { path: '/work-report', name: 'User Work Report', icon: BarChart3 },
-        { path: '/change-password', name: 'Change Password', icon: Key },
-    ];
+    const toggleMenu = (key) => {
+        setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
+    };
 
-    const NavItem = ({ to, icon: Icon, label }) => (
-        <NavLink
-            to={to}
-            onClick={() => {
-                setMobileOpen(false);
-            }}
-            className={({ isActive }) => `
-                relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-all 
-                font-black uppercase tracking-widest mb-1 text-[10px]
-                ${isActive
-                    ? 'bg-[#2e7d32] text-white shadow-none ring-1 ring-white/10'
-                    : 'text-[#1f2d2a] hover:bg-[#b8dfc2] transition-all opacity-80 hover:opacity-100'
-                }
-            `}
-        >
-            {({ isActive }) => (
-                <>
-                    <Icon
-                        size={18}
-                        strokeWidth={isActive ? 2.5 : 2}
-                        className={`relative z-10 transition-colors ${isActive ? 'text-[#2e7d32]' : 'text-[#2e7d32] opacity-80'}`}
-                    />
-
-                    {(!collapsed || mobileOpen || isHovered) && (
-                        <span className="relative z-10">{label}</span>
-                    )}
-
-                    {isActive && (
-                        <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#2e7d32] shadow-none" />
-                    )}
-                </>
-            )}
-        </NavLink>
-    );
+    const isActualCollapsed = collapsed && !isHovered && !mobileOpen;
 
     return (
         <>
             {mobileOpen && (
                 <div
-                    className="md:hidden fixed inset-0 z-[140] bg-slate-900/40"
+                    className="md:hidden fixed inset-0 z-[140] bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
                     onClick={() => setMobileOpen(false)}
                 />
             )}
@@ -118,75 +167,124 @@ const Sidebar = () => {
             <aside
                 onMouseEnter={() => !mobileOpen && setIsHovered(true)}
                 onMouseLeave={() => !mobileOpen && setIsHovered(false)}
-                className={`fixed md:sticky top-0 left-0 z-[150] h-[100dvh] 
+                className={`fixed md:sticky top-0 left-0 z-[150] h-[calc(100dvh-42px)] 
                 bg-[#cfead6] border-r border-[#dcdcdc] shadow-sm
-                flex flex-col justify-between transition-all duration-150 ease-in-out
-                ${mobileOpen ? 'translate-x-0 w-[80%] max-w-[300px]' : collapsed && !isHovered ? 'w-[80px] -translate-x-0' : 'translate-x-0 w-[260px]'}
-                ${!mobileOpen && 'hidden md:flex flex-col'}`}
+                flex flex-col justify-between
+                ${mobileOpen ? 'translate-x-0 w-[80%] max-w-[300px]' : isActualCollapsed ? 'w-20' : 'w-[280px]'}
+                ${!mobileOpen && 'hidden md:flex -translate-x-full md:translate-x-0'}`}
             >
                 {/* Header */}
-                <div className="h-20 flex items-center justify-start px-6 border-b border-[#2e7d32]/10 mb-4 relative shrink-0 bg-white/30">
+                <div className="h-20 flex items-center justify-between px-6 border-b border-[#2e7d32]/10 mb-4 bg-white/30 shrink-0 relative">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-10 bg-white rounded-xl flex items-center justify-center shadow-none p-1.5 border border-[#dcdcdc]">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1.5 border border-[#dcdcdc] shadow-sm">
                             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                         </div>
-                        {(!collapsed || mobileOpen || isHovered) && (
-                            <span className="font-black text-xl text-[#1f2d2a] tracking-tighter uppercase">
-                                SBH <span className="text-[#2e7d32]">CMS</span>
+                        {(!isActualCollapsed || mobileOpen || isHovered) && (
+                            <span className="font-bold text-lg text-[#1f2d2a] tracking-tight uppercase transition-opacity duration-200">
+                                SBH <span className="text-[#2e7d32]">PORTAL</span>
                             </span>
                         )}
                     </div>
+
+                    {/* Pro Toggle Button (Desktop Only) */}
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-[#dcdcdc] rounded-full items-center justify-center text-[#2e7d32] shadow-sm hover:bg-[#2e7d32] hover:text-white transition-all z-[160] active:scale-90"
+                        title={collapsed ? "Expand Menu" : "Collapse Menu"}
+                    >
+                        {collapsed ? <ChevronsRight size={14} strokeWidth={3} /> : <ChevronsLeft size={14} strokeWidth={3} />}
+                    </button>
+
+                    {/* Mobile Close Button */}
+                    <button
+                        onClick={() => setMobileOpen(false)}
+                        className="md:hidden p-2 text-[#2e7d32] hover:bg-[#b8dfc2]/30 rounded-lg transition-colors"
+                    >
+                        <X size={24} />
+                    </button>
                 </div>
 
                 {/* Navigation Section */}
-                <nav className="px-2 py-2 overflow-y-auto custom-scrollbar flex-1">
-                    <div className="mb-4 px-4 text-[9px] font-black text-[#2e7d32] uppercase tracking-[0.2em] leading-none opacity-60">
-                        {(!collapsed || mobileOpen || isHovered) && 'Standard Services'}
-                    </div>
+                <nav className="px-2 py-2 overflow-y-auto custom-scrollbar flex-1 space-y-1">
+                    {/* HOME STANDALONE */}
+                    <NavItem
+                        to="/"
+                        icon={Zap}
+                        label="Home"
+                        collapsed={isActualCollapsed}
+                        mobileOpen={mobileOpen}
+                        isHovered={isHovered}
+                        setMobileOpen={setMobileOpen}
+                    />
 
-                    <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                    <NavItem to="/new-complaint" icon={Plus} label="New Ticket" />
-                    <NavItem to="/my-complaints" icon={ClipboardList} label="Complaint Desk" />
-                    <NavItem to="/case-transfer" icon={Share2} label="Case Transfer" />
-                    <NavItem to="/extended-cases" icon={Clock} label="Extended Cases" />
-                    <NavItem to="/solved-by-me" icon={CheckCircle} label="Solved By Me" />
+                    {/* CMS CATEGORY */}
+                    <CollapsibleCategory
+                        icon={ClipboardList}
+                        label="CMS Services"
+                        collapsed={isActualCollapsed}
+                        isOpen={openMenus.cms}
+                        onToggle={() => toggleMenu('cms')}
+                    >
+                        <NavItem to="/cms-panel" icon={LayoutDashboard} label="CMS Overview" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/new-complaint" icon={Plus} label="New Ticket" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/my-complaints" icon={ClipboardList} label="Complaint Desk" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/case-transfer" icon={Share2} label="Case Transfer" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/extended-cases" icon={Clock} label="Extended Cases" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/solved-by-me" icon={CheckCircle} label="Solved By Me" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        {isSuperAdmin && (
+                            <NavItem to="/ai-command-center" icon={Zap} label="AI Center" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        )}
+                    </CollapsibleCategory>
 
-                    {(user.Username === 'AM Sir' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
-                        <NavItem to="/ai-command-center" icon={Zap} label="AI Command Center" />
-                    )}
+                    {/* ASSETS CATEGORY */}
+                    <CollapsibleCategory
+                        icon={Building2}
+                        label="Asset Management"
+                        collapsed={isActualCollapsed}
+                        isOpen={openMenus.assets}
+                        onToggle={() => toggleMenu('assets')}
+                    >
+                        <NavItem to="/director" icon={BarChart3} label="Asset Intel" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/assets" icon={Building2} label="Asset Registry" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/assets/add" icon={Plus} label="New Asset" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        <NavItem to="/service-team" icon={Wrench} label="Services" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                    </CollapsibleCategory>
 
-                    {(user.Role?.toLowerCase() === 'admin' || user.Role?.toUpperCase() === 'SUPER_ADMIN') && (
-                        <>
-                            <div className="mt-6 mb-2 px-4 text-[11px] font-bold text-[#2e7d32] uppercase tracking-wider leading-none opacity-80">
-                                {(!collapsed || mobileOpen || isHovered) && 'System Management'}
-                            </div>
-                            {adminMenuItems.map((item) => (
-                                <NavItem key={item.path} to={item.path} icon={item.icon} label={item.name} />
-                            ))}
-                        </>
+                    {/* MANAGEMENT CATEGORY */}
+                    {isAdmin && (
+                        <CollapsibleCategory
+                            icon={Settings}
+                            label="Administration"
+                            collapsed={isActualCollapsed}
+                            isOpen={openMenus.management}
+                            onToggle={() => toggleMenu('management')}
+                        >
+                            <NavItem to="/user-management" icon={Users} label="Users" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                            <NavItem to="/work-report" icon={FileText} label="Work Report" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                            <NavItem to="/change-password" icon={Key} label="Security" isSubItem collapsed={isActualCollapsed} mobileOpen={mobileOpen} isHovered={isHovered} setMobileOpen={setMobileOpen} />
+                        </CollapsibleCategory>
                     )}
                 </nav>
 
                 {/* Footer Section */}
                 <div className="p-3 flex flex-col justify-end shrink-0 border-t border-[#2e7d32]/10 bg-white/20">
-                    {(!collapsed || mobileOpen || isHovered) ? (
-                        <div className="flex flex-col gap-3">
-                            <SessionTimer />
-
+                    {(!isActualCollapsed || mobileOpen || isHovered) ? (
+                        <div className="flex flex-col gap-3 transition-opacity duration-200">
+                            <SessionTimer hidden={isSuperAdmin} />
                             <button
                                 onClick={logout}
-                                className="w-full flex items-center justify-center gap-3 p-4 bg-white text-rose-600 font-black text-[10px] uppercase tracking-widest rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all active:scale-95 group"
+                                className="w-full flex items-center justify-center gap-3 p-4 bg-white text-rose-600 font-bold text-[10px] uppercase tracking-wider rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all duration-200 active:scale-95 shadow-sm"
                             >
                                 <LogOut size={18} />
-                                <span>Sign Out</span>
+                                <span>Logout</span>
                             </button>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center gap-3">
-                            <SessionTimer collapsed />
+                        <div className="flex flex-col items-center gap-3 transition-opacity duration-200">
+                            <SessionTimer collapsed hidden={isSuperAdmin} />
                             <button
                                 onClick={logout}
-                                className="p-4 bg-white text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all active:scale-90"
+                                className="p-4 bg-white text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-50 transition-all duration-200 active:scale-90 shadow-sm"
                                 title="Logout"
                             >
                                 <LogOut size={20} strokeWidth={2.5} />

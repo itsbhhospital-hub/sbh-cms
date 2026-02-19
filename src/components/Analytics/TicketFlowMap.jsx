@@ -22,7 +22,7 @@ const TicketFlowMap = ({ stats }) => {
                         <CheckCircle className="text-emerald-600" size={24} />
                     </div>
                     <div className="text-2xl font-black text-slate-800">{stats.solved}</div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase">Resolved</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Solved</div>
                 </div>
 
                 {/* Delayed */}

@@ -55,6 +55,30 @@ function setupDailyTrigger() {
 
 // --- MASTER HELPERS (NEW) ---
 
+function getHeaderRowIndex(data) {
+    if (!data || data.length === 0) return 0;
+    let bestRow = 0;
+    let maxMatches = -1;
+
+    // Scan first 15 rows for potential headers (logos/titles often take top rows)
+    for (let r = 0; r < Math.min(data.length, 15); r++) {
+        const rowStr = data[r].join(' ').toLowerCase();
+        let matches = 0;
+        // Key indicators of a header row
+        const indicators = ['date', 'status', 'id', 'ticket', 'desc', 'dept', 'reporter', 'resolved', 'unit', 'remark'];
+        indicators.forEach(k => {
+            if (rowStr.includes(k)) matches++;
+        });
+
+        // The real header row will usually have at least 3-4 of these
+        if (matches > maxMatches) {
+            maxMatches = matches;
+            bestRow = r;
+        }
+    }
+    return maxMatches >= 2 ? bestRow : 0;
+}
+
 function parseCustomDate(dateStr) {
     if (!dateStr) return new Date();
     // Handle "dd-MM-yyyy..." format which new Date() hates
@@ -359,23 +383,28 @@ function normalize(str) {
 function findCol(headers, target) {
     const t = normalize(target);
     for (let i = 0; i < headers.length; i++) {
+        if (!headers[i]) continue;
         const h = normalize(headers[i]);
         if (h === t) return i + 1;
-        if (t === 'id' && (h === 'tid' || h === 'ticketid' || h === 'complaintid' || h.includes('uniqueid'))) return i + 1;
+
+        // 🚨 CRITICAL: AGGRESSIVE ID MAPPING
+        if (t === 'id') {
+            if (h === 'tid' || h === 'ticketid' || h === 'complaintid' || h === 'ticketno' || h === 'idno' || h.includes('uniqueid')) return i + 1;
+            if (h === 'id' || h === 'ticket') return i + 1;
+            if (h.replace(/[^a-z]/g, '') === 'id') return i + 1; // Match "T.ID", "Case ID" etc
+            if (h === 'complaint' && !headers.some(hx => normalize(hx) === 'id')) return i + 1; // Last resort
+        }
+
         if (t === 'mobile' && (h.includes('phone') || h.includes('mobile'))) return i + 1;
-        if (t === 'department' && (h === 'dept' || h === 'department')) return i + 1;
-        if (t === 'reportedby' && (h.includes('user') || h.includes('reported'))) return i + 1;
+        if (t === 'department' && (h === 'dept' || h === 'department' || h === 'section')) return i + 1;
+        if (t === 'reportedby' && (h.includes('user') || h.includes('reported') || h === 'by')) return i + 1;
         if (t === 'resolveddate' && (h.includes('resolved') && h.includes('date'))) return i + 1;
         if (t === 'targetdate' && (h.includes('target') || h.includes('deadline'))) return i + 1;
-        if (t === 'rating' && (h === 'rating' || h === 'stars')) return i + 1;
-        if (t === 'username' && (h === 'name' || h === 'username' || h === 'user name')) return i + 1;
-        // NEW COLUMNS MAPPING
-        if (t === 'profilephoto' && (h === 'profilephoto' || h === 'profileimage' || h === 'profileimageurl')) return i + 1;
-        if (t === 'lastloginip' && (h === 'lastloginip' || h === 'ipaddress')) return i + 1;
-        if (t === 'lastlogindate' && (h === 'lastlogindate')) return i + 1;
-        if (t === 'lastlogintime' && (h === 'lastlogintime')) return i + 1;
-        if (t === 'lastlogin' && (h === 'lastlogin')) return i + 1;
-        if (t === 'delay' && (h === 'delay')) return i + 1;
+        if (t === 'rating' && (h === 'rating' || h === 'stars' || h === 'feedback')) return i + 1;
+        if (t === 'username' && (h === 'name' || h === 'username' || h === 'user name' || h === 'staffname')) return i + 1;
+        if (t === 'profilephoto' && (h === 'profilephoto' || h === 'profileimage' || h === 'profileimageurl' || h === 'photo')) return i + 1;
+        if (t === 'lastloginip' && (h === 'lastloginip' || h === 'ipaddress' || h === 'ip')) return i + 1;
+        if (t === 'delay' && (h === 'delay' || h === 'isdelayed' || h === 'delayed')) return i + 1;
     }
     return -1;
 }
@@ -406,15 +435,36 @@ function readData(sheetName) {
     }
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    if (data.length === 0) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
+
+    const headerRowIndex = getHeaderRowIndex(data);
+    const headers = data[headerRowIndex];
     const map = getColMap(headers);
     const strictNorm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    let filteredRows = data.slice(1);
+    const filteredRows = data.slice(headerRowIndex + 1).filter(row => {
+        const idRaw = map.ID ? String(row[map.ID - 1] || '').trim() : '';
+        const desc = map.Description ? String(row[map.Description - 1] || '').trim() : '';
+        const user = map.Username ? String(row[map.Username - 1] || '').trim() : '';
+
+        const id = idRaw.toLowerCase();
+        const isInvalidId = id === '' || id === 'n/a' || id === '#n/a' || id === 'undefined' || id === 'null';
+
+        // Keep row if:
+        // 1. It has a valid ID (for 'data' sheet)
+        // 2. OR it has a Description (for 'data' sheet)
+        // 3. OR it has a Username (for 'master' sheet)
+        return (map.ID && !isInvalidId) || desc !== '' || user !== '';
+    });
 
     return ContentService.createTextOutput(JSON.stringify(filteredRows.map(row => {
         const obj = {};
-        headers.forEach((h, i) => obj[h || ('Col' + i)] = row[i]);
+        // Map columns correctly based on headers
+        headers.forEach((h, i) => {
+            const key = String(h || '').trim();
+            if (key) obj[key] = row[i];
+            else obj['Col' + i] = row[i];
+        });
         return obj;
     }))).setMimeType(ContentService.MimeType.JSON);
 }
@@ -465,22 +515,12 @@ function createComplaint(payload) {
     if (!sheet) return response('error', 'Sheet "data" not found.');
 
     let data = sheet.getDataRange().getValues();
-    let headerRowIndex = 0;
-
-    // Smart Header Detection
-    for (let r = 0; r < Math.min(data.length, 5); r++) {
-        const rowStr = data[r].join(' ').toLowerCase();
-        if (rowStr.includes('date') && (rowStr.includes('desc') || rowStr.includes('status'))) {
-            headerRowIndex = r;
-            break;
-        }
-    }
-
+    const headerRowIndex = getHeaderRowIndex(data);
     let headers = data.length > headerRowIndex ? data[headerRowIndex] : [];
     let colMap = getColMap(headers);
 
     // Self Healing
-    const essentialCols = ['Unit', 'History', 'TargetDate', 'Resolved Date', 'Rating', 'Time', 'Delay'];
+    const essentialCols = ['ID', 'Date', 'Time', 'Department', 'Description', 'Status', 'ReportedBy', 'Unit', 'History', 'TargetDate', 'Resolved Date', 'Rating', 'Delay'];
     let mappingUpdated = false;
     essentialCols.forEach(colName => {
         if (!colMap[colName]) {
@@ -545,16 +585,10 @@ function createComplaint(payload) {
 
 function updateComplaintStatus(payload) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('data');
+    if (!sheet) return response('error', 'Sheet "data" not found.');
     let data = sheet.getDataRange().getValues();
 
-    let headerRowIndex = 0;
-    for (let r = 0; r < Math.min(data.length, 5); r++) {
-        const rowStr = data[r].join(' ').toLowerCase();
-        if (rowStr.includes('date') && (rowStr.includes('desc') || rowStr.includes('status'))) {
-            headerRowIndex = r;
-            break;
-        }
-    }
+    const headerRowIndex = getHeaderRowIndex(data);
 
     const headers = data[headerRowIndex];
     let colMap = getColMap(headers);
@@ -996,7 +1030,10 @@ function checkAndMoveToDelay() {
     if (!sheet) return;
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    if (data.length === 0) return;
+
+    const headerRowIndex = getHeaderRowIndex(data);
+    const headers = data[headerRowIndex];
     const colMap = getColMap(headers);
 
     // 1. SETUP DATE REFERENCE (IST - Date Only)
@@ -1018,7 +1055,7 @@ function checkAndMoveToDelay() {
     let updatesMade = false;
 
     // 3. SCAN ALL TICKETS
-    for (let i = 1; i < data.length; i++) {
+    for (let i = headerRowIndex + 1; i < data.length; i++) {
         const row = data[i];
         const status = String(row[colMap.Status - 1] || '').trim();
         const normStatus = status.toLowerCase();
@@ -1045,15 +1082,23 @@ function checkAndMoveToDelay() {
             refDate = parseCustomDate(refDateRaw);
         }
 
-        const refDateStr = Utilities.formatDate(refDate, IST_TIMEZONE, "yyyy-MM-dd");
-        const refDateNormalized = new Date(refDateStr);
+        const refDateStr = Utilities.formatDate(refDate, IST_TIMEZONE, "dd MMM yyyy");
+        const refDateNormalized = new Date(Utilities.formatDate(refDate, IST_TIMEZONE, "yyyy-MM-dd"));
+        const regDateStr = refDateStr; // Alias for logging
 
         // 🟢 STRICT DELAY LOGIC:
         // IF Today > ReferenceDate (i.e., Deadline or Registration passed)
         if (todayDate > refDateNormalized) {
-
-            const ticketId = row[colMap.ID - 1];
+            const ticketIdIdx = colMap.ID || colMap.TicketID || colMap.complaintid;
+            const ticketId = ticketIdIdx ? String(row[ticketIdIdx - 1] || '').trim() : '';
             const dept = row[colMap.Department - 1];
+
+            // 🟢 VALIDATION: Skip if Ticket ID is missing or invalid (Prevents Spamming)
+            if (!ticketId || ticketId.toLowerCase() === 'undefined' || ticketId.toLowerCase() === 'null') continue;
+
+            // Skip rows that look like empty placeholders (No Department or Description)
+            const desc = colMap.Description ? String(row[colMap.Description - 1] || '').trim() : '';
+            if (!dept && !desc) continue;
 
             // A) UPDATE DELAY COLUMN IN DATA SHEET -> 'Yes'
             if (colMap.Delay) {
@@ -1660,11 +1705,13 @@ function getComplaintsPaginated(page, limit, deptFilter, statusFilter, search, r
     if (!sheet) return response('error', 'Data sheet missing');
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    if (data.length === 0) return response('error', 'Data empty');
 
-    // Map columns
+    const headerRowIndex = getHeaderRowIndex(data);
+    const headers = data[headerRowIndex];
     const colMap = getColMap(headers);
-    const dateIdx = (findCol(headers, 'Date') || findCol(headers, 'Timestamp')) - 1;
+
+    const dateIdx = (colMap.Date || colMap.Time) - 1;
     const idIdx = colMap.ID - 1;
     const deptIdx = colMap.Department - 1;
     const statusIdx = colMap.Status - 1;
@@ -1722,13 +1769,13 @@ function getComplaintsPaginated(page, limit, deptFilter, statusFilter, search, r
         if (match && statusFilter && statusFilter !== 'All Status' && statusFilter !== 'All') {
             const s = normalize(row[statusIdx]);
             if (statusFilter === 'Solved') {
-                if (s !== 'solved' && s !== 'closed' && s !== 'resolved' && s !== 'force close') match = false;
+                if (s !== 'solved' && s !== 'closed' && s !== 'resolved' && s !== 'force close' && s !== 'done' && s !== 'fixed') match = false;
             } else if (statusFilter === 'Open') {
-                if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close') match = false;
+                if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close' || s === 'done' || s === 'fixed') match = false;
             } else if (statusFilter === 'Delayed') {
                 // 🟢 STRICT DELAY FILTER: Use 'Delay' column = 'Yes'
                 const delayVal = String(row[colMap.Delay - 1] || '').trim().toLowerCase();
-                if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close') match = false;
+                if (s === 'closed' || s === 'resolved' || s === 'solved' || s === 'force close' || s === 'done' || s === 'fixed') match = false;
                 else if (delayVal !== 'yes') match = false;
             } else if (statusFilter === 'Extended') {
                 if (s !== 'extended' && s !== 'extend') match = false;
@@ -1901,7 +1948,10 @@ function getDashboardStats(username, userDept, role) {
     if (!sheet) return response('error', 'Data sheet missing');
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    if (data.length === 0) return response('error', 'Data sheet empty');
+
+    const headerRowIndex = getHeaderRowIndex(data);
+    const headers = data[headerRowIndex];
     const colMap = getColMap(headers);
     const isAdmin = (role || '').toUpperCase() === 'ADMIN' || (role || '').toUpperCase() === 'SUPER_ADMIN' || (role || '').toUpperCase() === 'SUPERADMIN';
     const normalizedDept = normalize(userDept);
@@ -1919,7 +1969,7 @@ function getDashboardStats(username, userDept, role) {
     var startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    for (var i = 1; i < data.length; i++) {
+    for (var i = headerRowIndex + 1; i < data.length; i++) {
         var row = data[i];
         var dept = normalize(row[colMap.Department - 1]);
         var reporter = normalize(row[colMap.ReportedBy - 1]);
@@ -1975,14 +2025,18 @@ function getComplaintById(id) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('data');
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    const headerRowIndex = getHeaderRowIndex(data);
+    const headers = data[headerRowIndex];
     const colMap = getColMap(headers);
     const searchId = String(id).toLowerCase().trim();
 
-    for (let i = 1; i < data.length; i++) {
+    for (let i = headerRowIndex + 1; i < data.length; i++) {
         if (String(data[i][colMap.ID - 1]).toLowerCase().trim() === searchId) {
             const obj = {};
-            headers.forEach(function (h, idx) { obj[h] = data[i][idx]; });
+            headers.forEach(function (h, idx) {
+                const key = String(h || '').trim() || ('Col' + idx);
+                obj[key] = data[i][idx];
+            });
             return response('success', 'Ticket Found', obj);
         }
     }
@@ -2147,7 +2201,7 @@ function fixCorruptedTimestamps() {
  * Synchronizes overdue tickets to the Delayed_Cases sheet.
  */
 function syncDelayedSheet() {
-    checkPendingStatus(); // Reuse existing robust logic
+    checkAndMoveToDelay(); // Reuse existing robust logic
 }
 
 /**

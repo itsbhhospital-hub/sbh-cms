@@ -5,7 +5,7 @@ const LoadingContext = createContext();
 
 export const LoadingProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(false);
-    // const [minTimeElapsed, setMinTimeElapsed] = useState(false); // Refactored for smarter logic
+    const [isSystemLoading, setIsSystemLoading] = useState(false);
     const location = useLocation();
 
     // Refs to manage timers without re-renders
@@ -13,9 +13,11 @@ export const LoadingProvider = ({ children }) => {
     const minDisplayTimerRef = useRef(null);
     const startTimeRef = useRef(null);
 
-    const showLoader = (immediate = false) => {
+    const showLoader = (immediate = false, isSystem = false) => {
         // Clear any pending clear timers
         if (minDisplayTimerRef.current) clearTimeout(minDisplayTimerRef.current);
+
+        if (isSystem) setIsSystemLoading(true);
 
         if (immediate) {
             setIsLoading(true);
@@ -39,37 +41,36 @@ export const LoadingProvider = ({ children }) => {
         }
 
         // 2. If loader is currently visible, ensure minimum display time (800ms)
+        const cleanup = () => {
+            setIsLoading(false);
+            setIsSystemLoading(false);
+            startTimeRef.current = null;
+        };
+
         if (isLoading && startTimeRef.current) {
             const elapsed = Date.now() - startTimeRef.current;
-            const MIN_DISPLAY_TIME = 800; // "Mini Loading" duration
+            const MIN_DISPLAY_TIME = 800;
 
             if (elapsed < MIN_DISPLAY_TIME) {
                 const remaining = MIN_DISPLAY_TIME - elapsed;
-                minDisplayTimerRef.current = setTimeout(() => {
-                    setIsLoading(false);
-                    startTimeRef.current = null;
-                }, remaining);
+                minDisplayTimerRef.current = setTimeout(cleanup, remaining);
             } else {
-                setIsLoading(false);
-                startTimeRef.current = null;
+                cleanup();
             }
+        } else {
+            cleanup();
         }
     };
 
-    // Auto-hide loader on Route Configuration (Instant navigation feels better)
-    // But we might want "Mini Loading" for page switches?
-    // User said: "Page switch -> mini loading".
-    // So distinct logic for routes? Use 'immediate' for output.
-    useEffect(() => {
-        // When location changes, force a quick show then hide? 
-        // Or just trust the component loading logic?
-        // Let's reset smart timers.
-        hideLoader();
-    }, [location]);
+    // We remove the automatic hide on location change to allow pages to 
+    // control when the loader disappears (e.g. after data fetch).
+    // useEffect(() => {
+    //     hideLoader();
+    // }, [location]);
 
     // Event Listener Bridge with Smart Logic
     useEffect(() => {
-        const handleStart = (e) => showLoader(e.detail?.immediate);
+        const handleStart = (e) => showLoader(e.detail?.immediate, e.detail?.isSystem);
         const handleEnd = () => hideLoader();
 
         window.addEventListener('sbh-loading-start', handleStart);
@@ -82,7 +83,7 @@ export const LoadingProvider = ({ children }) => {
     }, [isLoading]);
 
     return (
-        <LoadingContext.Provider value={{ isLoading, showLoader, hideLoader }}>
+        <LoadingContext.Provider value={{ isLoading, isSystemLoading, showLoader, hideLoader }}>
             {children}
         </LoadingContext.Provider>
     );

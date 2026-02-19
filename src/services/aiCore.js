@@ -10,8 +10,7 @@
  * 🚫 STRICT: NO BACKEND DEPENDENCIES. PURE MATH.
  */
 
-// --- UTILS ---
-const normalize = (val) => String(val || '').toLowerCase().trim();
+import { normalize } from '../utils/dataUtils';
 
 const parseDate = (dateStr) => {
     if (!dateStr) return null;
@@ -105,20 +104,23 @@ export const calculateWorkloadParams = (tickets, dept) => {
 // --- MODULE 4: STAFF PERFORMANCE AI SCORE ---
 export const calculateStaffAIScore = (staffStats) => {
     // Formula: (Solved * 0.4) + (Rating * 10 * 0.4) + (SpeedFactor * 0.2) - (DelayPenalty)
-    const { resolved, avgRating, avgSpeed, delayed } = staffStats;
+    const resolved = parseFloat(staffStats.resolved || staffStats.Solved || 0);
+    const avgRating = parseFloat(staffStats.avgRating || staffStats.Rating || 0);
+    const avgSpeed = parseFloat(staffStats.avgSpeed || staffStats.AvgSpeed || 24);
+    const delayed = parseFloat(staffStats.delayed || staffStats.Delayed || 0);
 
     // Normalize Speed (Lower is better). Assume 2h is perfect (100), 48h is bad (0)
     // Map 2h->100, 48h->0. Linear: y = -2.17x + 104
-    let speedScore = Math.max(0, Math.min(100, 104 - (2.17 * (avgSpeed || 24))));
+    let speedScore = Math.max(0, Math.min(100, 104 - (2.17 * avgSpeed)));
 
     // Rating Score (0-5 -> 0-100)
-    let ratingScore = (avgRating || 0) * 20;
+    let ratingScore = avgRating * 20;
 
     // Volume Score (Logarithmic - 100 cases is significantly harder than 10)
-    let volumeScore = Math.min(100, (resolved || 0) * 2); // Cap at 50 cases for max points?
+    let volumeScore = Math.min(100, resolved * 2); // Cap at 50 cases for max points?
 
     // Delay Penalty
-    let penalty = (delayed || 0) * 15;
+    let penalty = delayed * 15;
 
     let rawScore = (volumeScore * 0.3) + (ratingScore * 0.4) + (speedScore * 0.3) - penalty;
     return Math.max(0, Math.min(100, Math.round(rawScore)));

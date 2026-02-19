@@ -25,7 +25,7 @@ const StaffRankingCard = ({ staff }) => {
                             </div>
                             <div>
                                 <p className="text-[11px] font-black text-[#1f2d2a] uppercase tracking-tight group-hover:text-[#2e7d32] transition-colors">{s.name}</p>
-                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{s.solved} Resolutions</p>
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{s.solved} Solved</p>
                             </div>
                         </div>
                         <div className="text-right">

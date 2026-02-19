@@ -1,13 +1,17 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useLoading } from './LoadingContext';
 import { sheetsService, getGoogleDriveDirectLink } from '../services/googleSheets';
+import { normalize } from '../utils/dataUtils';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { showLoader, hideLoader } = useLoading();
 
     useEffect(() => {
+        showLoader(true, true); // Trigger system-level loader for initial boot
         // Check local storage for persisted session
         const storedUser = localStorage.getItem('sbh_user');
         const loginTime = localStorage.getItem('sbh_login_time');
@@ -19,7 +23,7 @@ export const AuthProvider = ({ children }) => {
             if (loginTime && (now - parseInt(loginTime) > thirtyMins)) {
                 // Persistent Session for AM Sir
                 const parsed = JSON.parse(storedUser || '{}');
-                const isAM = String(parsed.Username || '').toLowerCase().trim() === 'am sir';
+                const isAM = normalize(parsed.Username) === 'amsir';
 
                 if (isAM) {
                     // Refresh login time to keep it alive
@@ -40,11 +44,11 @@ export const AuthProvider = ({ children }) => {
                     setUser(parsed);
                 } catch (e) {
                     console.error("Failed to parse stored user", e);
-                    setUser(null);
                 }
             }
         }
         setLoading(false);
+        hideLoader();
     }, []);
 
     // Active Session Monitor & Auto Logout
@@ -52,7 +56,7 @@ export const AuthProvider = ({ children }) => {
         if (!user) return;
         const interval = setInterval(() => {
             const loginTime = localStorage.getItem('sbh_login_time');
-            const isAM = String(user?.Username || '').toLowerCase().trim() === 'am sir';
+            const isAM = normalize(user?.Username) === 'amsir';
 
             if (!isAM && loginTime && (Date.now() - parseInt(loginTime) > 30 * 60 * 1000)) {
                 logout(); // Logs out if active session exceeds 30 mins
@@ -65,9 +69,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const users = await sheetsService.getUsers();
 
-            const foundUser = users.find(u =>
-                String(u.Username).toLowerCase().trim() === String(username).toLowerCase().trim()
-            );
+            const target = normalize(username);
+            const foundUser = users.find(u => normalize(u.Username) === target);
 
             if (!foundUser) {
                 console.warn("LOGIN FAILED: User not found.");
@@ -89,7 +92,7 @@ export const AuthProvider = ({ children }) => {
             // Map user data robustly before saving to session
             const userSession = {
                 Username: foundUser.Username,
-                Role: (String(foundUser.Username).toLowerCase().trim() === 'am sir') ? 'SUPER_ADMIN' : foundUser.Role,
+                Role: (normalize(foundUser.Username) === 'amsir') ? 'SUPER_ADMIN' : foundUser.Role,
                 Department: foundUser.Department,
                 Status: foundUser.Status,
                 Mobile: foundUser.Mobile,

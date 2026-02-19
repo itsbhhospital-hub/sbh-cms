@@ -4,12 +4,13 @@ import {
     ArrowLeft, Calendar, FileText,
     Clock, Wrench, Download, CheckCircle, UploadCloud, ExternalLink,
     Banknote, RefreshCw, Edit, AlertTriangle, Sparkles, ShieldCheck, MapPin, Building,
-    Activity, History, XCircle, X
+    Activity, History, XCircle, X, ArrowRight
 } from 'lucide-react';
 import { assetsService } from '../services/assetsService';
 import QRCode from 'react-qr-code';
 import AIIntelligencePanel from '../components/AIIntelligencePanel';
 import html2canvas from 'html2canvas';
+import FilePreviewModal from '../components/FilePreviewModal';
 
 const AssetDetails = () => {
     const { id } = useParams();
@@ -49,6 +50,9 @@ const AssetDetails = () => {
     });
 
     // Success Popup State
+    // File Preview State
+    const [previewFile, setPreviewFile] = useState({ open: false, url: '', name: '' });
+
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -121,19 +125,44 @@ const AssetDetails = () => {
 
     // Handlers
     const openEditModal = () => {
+        // Robust date parser: handles "17-Feb-2026", "2026-02-17", ISO timestamps, etc.
+        const parseToInputDate = (val) => {
+            if (!val) return '';
+            const str = val.toString().trim();
+            if (!str) return '';
+
+            // Already in YYYY-MM-DD format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+            // ISO timestamp - strip time part
+            if (str.includes('T')) {
+                return str.split('T')[0];
+            }
+
+            // DD-Mon-YYYY format (e.g., "17-Feb-2026")
+            try {
+                const d = new Date(str);
+                if (!isNaN(d.getTime())) {
+                    return d.toISOString().split('T')[0];
+                }
+            } catch (_) { }
+
+            return '';
+        };
+
         setEditForm({
             ...asset,
             location: asset.location || '',
             department: asset.department || '',
             warrantyType: asset.warrantyType || 'None',
-            warrantyExpiry: (asset.warrantyExpiry && !isNaN(new Date(asset.warrantyExpiry))) ? new Date(asset.warrantyExpiry).toISOString().split('T')[0] : '',
+            warrantyExpiry: parseToInputDate(asset.warrantyExpiry),
             amcTaken: asset.amcTaken || 'No',
-            amcStart: (asset.amcStart && !isNaN(new Date(asset.amcStart))) ? new Date(asset.amcStart).toISOString().split('T')[0] : '',
-            amcExpiry: (asset.amcExpiry && !isNaN(new Date(asset.amcExpiry))) ? new Date(asset.amcExpiry).toISOString().split('T')[0] : '',
+            amcStart: parseToInputDate(asset.amcStart),
+            amcExpiry: parseToInputDate(asset.amcExpiry),
             amcAmount: asset.amcAmount || '',
-            purchaseDate: (asset.purchaseDate && !isNaN(new Date(asset.purchaseDate))) ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '',
-            currentServiceDate: (asset.currentServiceDate && !isNaN(new Date(asset.currentServiceDate))) ? new Date(asset.currentServiceDate).toISOString().split('T')[0] : '',
-            nextServiceDate: (asset.nextServiceDate && !isNaN(new Date(asset.nextServiceDate))) ? new Date(asset.nextServiceDate).toISOString().split('T')[0] : '',
+            purchaseDate: parseToInputDate(asset.purchaseDate),
+            currentServiceDate: parseToInputDate(asset.currentServiceDate),
+            nextServiceDate: parseToInputDate(asset.nextServiceDate),
             vendorName: asset.vendorName || '',
             vendorContact: asset.vendorContact || '',
             keywords: asset.keywords || '',
@@ -410,12 +439,14 @@ const AssetDetails = () => {
                                                     ...prev,
                                                     // Auto-Fill from Old Asset
                                                     newMachineName: asset.machineName, // Often same model
-                                                    location: asset.location,
-                                                    department: asset.department,
-                                                    vendorName: asset.vendorName,
-                                                    vendorContact: asset.vendorContact,
-                                                    responsiblePerson: asset.responsiblePerson,
-                                                    responsibleMobile: asset.responsibleMobile
+                                                    location: asset.location || '',
+                                                    department: asset.department || '',
+                                                    vendorName: asset.vendorName || '',
+                                                    vendorContact: asset.vendorContact || '',
+                                                    responsiblePerson: asset.responsiblePerson || '',
+                                                    responsibleMobile: asset.responsibleMobile || '',
+                                                    remark: `Replaced due to ${prev.reason || 'Beyond Repair'}.`,
+                                                    // We'll set description later or just leave it for now
                                                 }));
                                                 setShowReplaceModal(true);
                                             }}
@@ -427,6 +458,30 @@ const AssetDetails = () => {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Replacement Origin Banner */}
+                            {asset.parentId && (
+                                <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 mb-6 flex items-center justify-between animate-fade-in">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600">
+                                            <RefreshCw size={24} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Replacement Asset</p>
+                                            <h3 className="text-lg font-black text-indigo-900">Previously: {asset.parentMachineName || asset.parentId}</h3>
+                                            <p className="text-xs font-medium text-indigo-700/70">
+                                                This machine replaced Asset ID <strong>{asset.parentId}</strong> {asset.parentSerialNumber ? `(S/N: ${asset.parentSerialNumber})` : ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => window.location.href = `/asset-details/${asset.parentId}`}
+                                        className="px-4 py-2 bg-white border border-indigo-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                    >
+                                        View Original Asset
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
                                 <div>
@@ -461,14 +516,12 @@ const AssetDetails = () => {
 
                             <div className="mt-8 pt-6 border-t border-slate-100 flex gap-4">
                                 {asset.invoiceLink && (
-                                    <a href={asset.invoiceLink} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 border border-slate-200 transition-colors">
+                                    <button
+                                        onClick={() => setPreviewFile({ open: true, url: asset.invoiceLink, name: 'Purchase Invoice' })}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 border border-slate-200 transition-colors"
+                                    >
                                         <FileText size={16} /> Purchase Invoice
-                                    </a>
-                                )}
-                                {asset.folderLink && (
-                                    <a href={asset.folderLink} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 border border-slate-200 transition-colors">
-                                        <Download size={16} /> Asset Drive Folder
-                                    </a>
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -540,21 +593,25 @@ const AssetDetails = () => {
 
                             {/* Visible Card */}
                             {/* Visible Card */}
-                            <div className="bg-white p-4 rounded-2xl mb-4 relative flex items-center justify-center" id="qr-code-view">
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${publicLink}`}
-                                    alt="Asset QR"
-                                    className="w-[140px] h-[140px] object-contain relative z-0"
-                                />
+                            <div className="bg-white p-6 rounded-2xl mb-4 relative flex items-center justify-center shadow-2xl border-4 border-white" id="qr-code-view">
+                                <div className="bg-white p-1 rounded-sm overflow-hidden flex items-center justify-center">
+                                    <QRCode
+                                        value={publicLink}
+                                        size={140}
+                                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                        viewBox={`0 0 256 256`}
+                                        level="H"
+                                    />
+                                </div>
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                    <div className="bg-white px-2 py-1 rounded border border-[#1f2d2a] shadow-sm">
-                                        <span className="text-xs font-black text-[#1f2d2a] tracking-tight">{asset.id}</span>
+                                    <div className="bg-white px-2 py-0.5 rounded border-2 border-[#1f2d2a] shadow-sm transform -translate-y-0.5">
+                                        <span className="text-[10px] font-black text-[#1f2d2a] tracking-tight">{asset.id}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <h3 className="font-black text-xl tracking-tight">Digital Identity</h3>
-                            <p className="text-slate-400 text-sm mt-2">Scan to view details.</p>
+                            <h3 className="font-bold text-xl tracking-tight text-white/90">Digital Identity</h3>
+                            <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest mt-1">Scan to view details.</p>
 
                             <div className="flex flex-col gap-3 w-full mt-6">
                                 <button
@@ -631,64 +688,253 @@ const AssetDetails = () => {
                             </button>
                         </div>
 
-                        <div className="relative border-l-2 border-slate-100 ml-3 space-y-8">
-                            {(asset.history && asset.history.length > 0) ? (
-                                [...asset.history].sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, idx) => {
-                                    let icon, bgColor, borderColor, titleColor;
-                                    switch (record.type) {
-                                        case 'event': // Asset Acquired
-                                            icon = <Banknote size={16} />;
-                                            bgColor = "bg-blue-50"; borderColor = "border-blue-100"; titleColor = "text-blue-800";
-                                            break;
-                                        case 'alert': // Replaced
-                                            icon = <AlertTriangle size={16} />;
-                                            bgColor = "bg-rose-50"; borderColor = "border-rose-100"; titleColor = "text-rose-800";
-                                            break;
-                                        case 'info': // Replacement Origin
-                                            icon = <RefreshCw size={16} />;
-                                            bgColor = "bg-purple-50"; borderColor = "border-purple-100"; titleColor = "text-purple-800";
-                                            break;
-                                        case 'service':
-                                        default:
-                                            icon = <Wrench size={16} />;
-                                            bgColor = "bg-emerald-50"; borderColor = "border-emerald-100"; titleColor = "text-[#1f2d2a]";
-                                    }
+                        <div className="max-h-[600px] overflow-y-auto pr-6 -mr-4 custom-scrollbar px-2">
+                            <div className="relative border-l-2 border-slate-100 ml-3 space-y-8 py-4">
+                                {(asset.history && asset.history.length > 0) ? (
+                                    [...asset.history]
+                                        .sort((a, b) => {
+                                            const parseDate = (d) => {
+                                                if (!d) return 0;
+                                                const dt = new Date(d);
+                                                if (!isNaN(dt.getTime())) return dt.getTime();
 
-                                    return (
-                                        <div key={idx} className="relative pl-8 group">
-                                            <div className={`absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-white border-4 ${record.type === 'alert' ? 'border-rose-500' : record.type === 'event' ? 'border-blue-500' : 'border-[#2e7d32]'} group-hover:scale-110 transition-transform`}></div>
-                                            <div className={`${bgColor} p-6 rounded-2xl border ${borderColor} hover:shadow-md transition-shadow`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`p-2 rounded-lg bg-white/60 ${titleColor}`}>{icon}</div>
-                                                        <h4 className={`font-black text-sm uppercase tracking-wide ${titleColor}`}>{record.name}</h4>
+                                                // Fallback for DD/MM/YYYY
+                                                const parts = d.split(/[-/]/);
+                                                if (parts.length === 3) {
+                                                    // Assume DD/MM/YYYY if first part is <= 31 and third is > 1000
+                                                    if (parts[0].length <= 2 && parts[2].length === 4) {
+                                                        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+                                                    }
+                                                }
+                                                return 0;
+                                            };
+                                            return parseDate(b.date) - parseDate(a.date);
+                                        })
+                                        .map((record, idx) => {
+                                            let icon, bgColor, borderColor, titleColor;
+                                            switch (record.type) {
+                                                case 'event': // Asset Acquired
+                                                    icon = <Banknote size={16} />;
+                                                    bgColor = "bg-blue-50"; borderColor = "border-blue-100"; titleColor = "text-blue-800";
+                                                    break;
+                                                case 'alert': // Replaced
+                                                    icon = <AlertTriangle size={16} />;
+                                                    bgColor = "bg-rose-50"; borderColor = "border-rose-100"; titleColor = "text-rose-800";
+                                                    break;
+                                                case 'info': // Replacement Origin
+                                                    icon = <RefreshCw size={16} />;
+                                                    bgColor = "bg-purple-50"; borderColor = "border-purple-100"; titleColor = "text-purple-800";
+                                                    break;
+                                                case 'service':
+                                                default:
+                                                    icon = <Wrench size={16} />;
+                                                    bgColor = "bg-emerald-50"; borderColor = "border-emerald-100"; titleColor = "text-[#1f2d2a]";
+                                            }
+
+                                            return (
+                                                <div key={idx} className="relative pl-8 group">
+                                                    <div className={`absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-white border-4 ${record.type === 'alert' ? 'border-rose-500' : record.type === 'event' ? 'border-blue-500' : 'border-[#2e7d32]'} group-hover:scale-110 transition-transform`}></div>
+                                                    <div
+                                                        onClick={() => {
+                                                            // Only allow details for service type or if it has extra metadata
+                                                            if (record.type === 'service' || record.cost || record.nextDate) {
+                                                                setSelectedRecord(record);
+                                                            }
+                                                        }}
+                                                        className={`${bgColor} p-6 rounded-2xl border ${borderColor} hover:shadow-md transition-all cursor-pointer group-hover:border-[#2e7d32]/30`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`p-2 rounded-lg bg-white/60 ${titleColor}`}>{icon}</div>
+                                                                <h4 className={`font-black text-sm uppercase tracking-wide ${titleColor}`}>{record.name}</h4>
+                                                            </div>
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/60 px-2 py-1 rounded-lg border border-slate-200/50">{new Date(record.date).toLocaleDateString()}</span>
+                                                                {record.cost > 0 && (
+                                                                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/50 px-2 py-0.5 rounded-md border border-emerald-100">₹{Number(record.cost).toLocaleString()}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {record.details && (
+                                                            <p className="text-sm text-slate-600 mt-2 font-medium leading-relaxed line-clamp-2">{record.details}</p>
+                                                        )}
+
+                                                        <div className="flex items-center justify-between mt-4">
+                                                            {record.url ? (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setPreviewFile({ open: true, url: record.url, name: record.name });
+                                                                    }}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase tracking-wider text-[#2e7d32] hover:bg-emerald-50 transition-colors"
+                                                                >
+                                                                    <FileText size={12} /> View Report
+                                                                </button>
+                                                            ) : <div />}
+
+                                                            <div className="text-[10px] font-black text-[#2e7d32] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                                View Full Details <ArrowRight size={10} />
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/60 px-2 py-1 rounded-lg border border-slate-200/50">{new Date(record.date).toLocaleDateString()}</span>
                                                 </div>
-                                                {record.details && (
-                                                    <p className="text-sm text-slate-600 mt-2 font-medium leading-relaxed">{record.details}</p>
-                                                )}
-                                                {record.url && (
-                                                    <div className="flex gap-2 mt-4 pt-4 border-t border-slate-200/50">
-                                                        <a href={record.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#2e7d32] hover:bg-emerald-50 transition-colors">
-                                                            <Download size={14} /> View Service Report
-                                                        </a>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            ) : (
-                                <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl">
-                                    <Clock className="mx-auto text-slate-300 mb-2" size={32} />
-                                    <p className="text-slate-400 font-bold">No history records found.</p>
-                                    <p className="text-xs text-slate-300 mt-1">Service records and events will appear here.</p>
-                                </div>
-                            )}
+                                            );
+                                        })
+                                ) : (
+                                    <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                                        <Clock className="mx-auto text-slate-300 mb-2" size={32} />
+                                        <p className="text-slate-400 font-bold">No history records found.</p>
+                                        <p className="text-xs text-slate-300 mt-1">Service records and events will appear here.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* File Preview Modal */}
+            <FilePreviewModal
+                isOpen={previewFile.open}
+                onClose={() => setPreviewFile({ ...previewFile, open: false })}
+                fileUrl={previewFile.url}
+                fileName={previewFile.name}
+            />
+
+            {/* History Detail Modal */}
+            {selectedRecord && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 pt-[60px]">
+                    <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                        <button
+                            onClick={() => setSelectedRecord(null)}
+                            className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className={`p-4 rounded-2xl mb-4 ${selectedRecord.type === 'service' ? 'bg-emerald-50 text-[#2e7d32]' : 'bg-blue-50 text-blue-600'}`}>
+                                {selectedRecord.type === 'service' ? <Wrench size={32} /> : <Banknote size={32} />}
+                            </div>
+                            <h2 className="text-xl font-black text-[#1f2d2a] uppercase tracking-tight">{selectedRecord.name} Details</h2>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Asset ID: {asset.id}</p>
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* SECTION: DATES */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Service Date</label>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-sm text-slate-700">
+                                        {new Date(selectedRecord.date).toLocaleDateString('en-GB')}
+                                    </div>
+                                </div>
+                                {selectedRecord.nextDate && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Next Due</label>
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 font-bold text-sm text-emerald-800">
+                                            {new Date(selectedRecord.nextDate).toLocaleDateString('en-GB')}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* SECTION: COST & TYPE */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Service Type</label>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-sm text-slate-700">
+                                        {selectedRecord.name || 'N/A'}
+                                    </div>
+                                </div>
+                                {selectedRecord.cost > 0 && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Cost (₹)</label>
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-sm text-[#2e7d32]">
+                                            ₹{Number(selectedRecord.cost).toLocaleString()}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* SECTION: REMARKS */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Remarks</label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-600 font-medium leading-relaxed min-h-[60px]">
+                                    {selectedRecord.details || 'No remarks provided.'}
+                                </div>
+                            </div>
+
+                            {/* SECTION: LOCATION & CONTACT */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-2">Service Location & Contact</h4>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Location</label>
+                                        <p className="text-xs font-bold text-slate-700">{selectedRecord.location || asset.location || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Department</label>
+                                        <p className="text-xs font-bold text-slate-700">{selectedRecord.department || asset.department || 'N/A'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <div>
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Service Vendor</label>
+                                        <p className="text-xs font-bold text-slate-700">{selectedRecord.serviceVendor || asset.vendorName || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Responsible Person</label>
+                                        <p className="text-xs font-bold text-slate-700">{selectedRecord.responsiblePerson || asset.responsiblePerson || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SECTION: UPLOADED REPORT */}
+                            {selectedRecord.url && (
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Service Document</label>
+                                    <div className="border border-slate-200 rounded-2xl p-2 bg-slate-50 relative group overflow-hidden">
+                                        {/* Dynamic Image Preview if it's an image */}
+                                        {/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(selectedRecord.url.split('?')[0]) ? (
+                                            <div className="w-full h-40 rounded-xl overflow-hidden mb-3 border border-slate-200 bg-white">
+                                                <img
+                                                    src={selectedRecord.url}
+                                                    alt="Report Preview"
+                                                    className="w-full h-full object-contain cursor-pointer transition-transform group-hover:scale-105"
+                                                    onClick={() => setPreviewFile({ open: true, url: selectedRecord.url, name: selectedRecord.name })}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-6 bg-white rounded-xl border border-slate-200 mb-3">
+                                                <FileText size={32} className="text-slate-300 mb-2" />
+                                                <p className="text-[10px] font-black text-slate-400 uppercase">PDF / Digital Document</p>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => {
+                                                setPreviewFile({ open: true, url: selectedRecord.url, name: selectedRecord.name });
+                                            }}
+                                            className="w-full py-3 bg-[#1f2d2a] hover:bg-[#2e7d32] text-white rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95"
+                                        >
+                                            <ExternalLink size={14} /> View Full Report
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setSelectedRecord(null)}
+                                className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all mt-2"
+                            >
+                                Close Detail View
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Add Service Modal */}
@@ -1026,6 +1272,22 @@ const AssetDetails = () => {
                         <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-in relative">
                             <button onClick={() => setShowReplaceModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><XCircle size={20} className="text-slate-500" /></button>
                             <h2 className="text-xl font-black text-[#1f2d2a] mb-6 flex items-center gap-2"><RefreshCw className="text-rose-600" size={24} /> Mark as Replaced</h2>
+
+                            {/* Source Asset Info Section */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 flex items-center gap-4">
+                                <div className="bg-white p-2 rounded-xl border border-slate-200 text-rose-600">
+                                    <Wrench size={24} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Source Asset (To be replaced)</p>
+                                    <h4 className="font-bold text-slate-800">{asset.machineName}</h4>
+                                    <p className="text-xs font-medium text-slate-500">ID: {asset.id} • S/N: {asset.serialNumber || 'N/A'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider">Original</span>
+                                </div>
+                            </div>
+
                             <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl mb-6 text-sm text-rose-800">
                                 <strong>⚠️ Important:</strong> This asset will be marked as "Replaced". A new asset ID will be created for the replacement machine. The history will be linked.
                             </div>

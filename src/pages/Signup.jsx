@@ -5,6 +5,7 @@ import { Lock, User, Building, Phone, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Footer from '../components/Footer';
 import { sheetsService } from '../services/googleSheets';
+import { normalize } from '../utils/dataUtils';
 import logo from '../assets/logo.jpg';
 
 const Signup = () => {
@@ -26,13 +27,13 @@ const Signup = () => {
         try {
             const users = await sheetsService.getUsers();
 
-            const newUsername = formData.username.trim().toLowerCase();
-            const newMobile = formData.mobile.trim();
+            const newUsername = normalize(formData.username);
+            const newMobile = String(formData.mobile).trim();
 
-            const duplicateUser = users.find(u => (u.Username || '').toLowerCase() === newUsername);
+            const duplicateUser = users.find(u => normalize(u.Username) === newUsername);
             const duplicateMobile = users.find(u => {
-                const m = u.Mobile;
-                return m && String(m) === newMobile;
+                const m = String(u.Mobile || '').trim();
+                return m === newMobile;
             });
 
             if (duplicateUser) {
@@ -72,7 +73,7 @@ const Signup = () => {
                     transition={{ duration: 0.4 }}
                     className="w-full max-w-[600px] bg-white rounded-3xl shadow-xl overflow-hidden relative z-10 border border-[#dcdcdc]"
                 >
-                    <div className="h-2 w-full bg-[#2e7d32]"></div>
+                    <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-500"></div>
 
                     <div className="p-10 pb-2 flex flex-col items-center">
                         <div className="flex items-center gap-5 mb-8 w-full justify-center">
@@ -80,27 +81,27 @@ const Signup = () => {
                                 <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                             </div>
                             <div className="text-left font-ui">
-                                <h2 className="text-2xl font-black text-[#1f2d2a] tracking-tight leading-none mb-1">SBH Group Portal</h2>
-                                <p className="text-[10px] font-black text-[#2e7d32] tracking-widest uppercase opacity-80">Medical Staff Enrollment</p>
+                                <h2 className="text-2xl font-bold text-[#1e293b] tracking-tight leading-none mb-1">SBH Group Portal</h2>
+                                <p className="text-[10px] font-bold text-[#10b981] tracking-wider uppercase opacity-80">Medical Staff Enrollment</p>
                             </div>
                         </div>
 
                         <div className="w-full h-px bg-slate-100 mb-6"></div>
-                        <p className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Security Provisioning Form</p>
+                        <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase">Security Provisioning Form</p>
                     </div>
 
                     <div className="p-10 pt-4">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Personnel Username</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Personnel Username</label>
                                     <div className="relative group">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors">
                                             <User size={18} />
                                         </div>
                                         <input
                                             type="text"
-                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold placeholder:text-slate-300 shadow-none"
+                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#e2e8f0] rounded-xl outline-none focus:bg-white focus:border-[#10b981] focus:ring-4 focus:ring-emerald-500/5 transition-all text-slate-700 font-semibold placeholder:text-slate-300 shadow-none"
                                             value={formData.username}
                                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                             placeholder="Choose username"
@@ -110,14 +111,14 @@ const Signup = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Access Password</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Access Password</label>
                                     <div className="relative group">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors">
                                             <Lock size={18} />
                                         </div>
                                         <input
                                             type="password"
-                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold placeholder:text-slate-300 shadow-none"
+                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#e2e8f0] rounded-xl outline-none focus:bg-white focus:border-[#10b981] focus:ring-4 focus:ring-emerald-500/5 transition-all text-slate-700 font-semibold placeholder:text-slate-300 shadow-none"
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             placeholder="Set password"
@@ -128,13 +129,13 @@ const Signup = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Medical Unit / Department</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Medical Unit / Department</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors z-10">
                                         <Building size={18} />
                                     </div>
                                     <select
-                                        className="w-full pl-12 pr-10 py-3.5 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold appearance-none cursor-pointer relative z-0 shadow-none"
+                                        className="w-full pl-12 pr-10 py-3.5 bg-slate-50 border border-[#e2e8f0] rounded-xl outline-none focus:bg-white focus:border-[#10b981] focus:ring-4 focus:ring-emerald-500/5 transition-all text-slate-700 font-semibold appearance-none cursor-pointer relative z-0 shadow-none"
                                         value={formData.department}
                                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                         required
@@ -151,14 +152,14 @@ const Signup = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Mobile</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Contact Mobile</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2e7d32] transition-colors">
                                         <Phone size={18} />
                                     </div>
                                     <input
                                         type="tel"
-                                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#dcdcdc] rounded-xl outline-none focus:bg-white focus:border-[#2e7d32] transition-all text-slate-700 font-bold placeholder:text-slate-300 shadow-none"
+                                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-[#e2e8f0] rounded-xl outline-none focus:bg-white focus:border-[#10b981] focus:ring-4 focus:ring-emerald-500/5 transition-all text-slate-700 font-semibold placeholder:text-slate-300 shadow-none"
                                         value={formData.mobile}
                                         onChange={(e) => {
                                             const val = e.target.value.replace(/\D/g, '');
@@ -174,7 +175,7 @@ const Signup = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-4.5 bg-[#2e7d32] hover:bg-[#256628] text-white rounded-2xl shadow-none transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 mt-6 disabled:opacity-70 disabled:cursor-not-allowed group font-black uppercase text-xs tracking-widest"
+                                className="w-full py-4.5 bg-[#2e7d32] hover:bg-[#256628] text-white rounded-2xl shadow-none transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 mt-6 disabled:opacity-70 disabled:cursor-not-allowed group font-bold uppercase text-xs tracking-wider"
                             >
                                 {isLoading ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -188,9 +189,9 @@ const Signup = () => {
                         </form>
 
                         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                                 Already registered?{' '}
-                                <Link to="/login" className="text-[#2e7d32] font-black hover:underline ml-1">
+                                <Link to="/login" className="text-[#2e7d32] font-bold hover:underline ml-1">
                                     Access Gateway
                                 </Link>
                             </p>

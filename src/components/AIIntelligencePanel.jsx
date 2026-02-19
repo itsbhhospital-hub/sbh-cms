@@ -38,14 +38,14 @@ const AIIntelligencePanel = ({ asset }) => {
             <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10 flex justify-between items-start">
                     <div>
-                        <h2 className="text-2xl font-black flex items-center gap-2">
+                        <h2 className="text-2xl font-black flex items-center gap-2 text-white">
                             <Cpu className="text-indigo-300" />
                             Asset Intelligence Engine
                         </h2>
-                        <p className="text-indigo-200 text-sm font-medium mt-1">
+                        <p className="text-indigo-100 text-sm font-medium mt-1">
                             Real-time predictive analysis & decision support.
                         </p>
-                        <p className="text-[10px] uppercase tracking-widest text-indigo-400 mt-4">
+                        <p className="text-[10px] uppercase tracking-widest text-indigo-200 mt-4 opacity-90 font-bold">
                             Last Analysis: {lastAnalysis}
                         </p>
                     </div>
@@ -62,7 +62,7 @@ const AIIntelligencePanel = ({ asset }) => {
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest self-start mb-4">Machine Health Score</h3>
                     <div className="w-48 h-48 relative" style={{ minWidth: "192px", minHeight: "192px" }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={192}>
                             <PieChart>
                                 <Pie
                                     data={healthData}

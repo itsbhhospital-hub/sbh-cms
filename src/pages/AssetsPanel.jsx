@@ -57,13 +57,29 @@ const AssetsPanel = () => {
     const getAssetCategory = React.useCallback((asset) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const parseDate = (d) => d ? new Date(d) : null;
-        const nextService = parseDate(asset.nextServiceDate);
-        const amcExpiry = parseDate(asset.amcExpiry);
+
+        const findField = (prefixes) => {
+            const keys = Object.keys(asset);
+            for (const p of prefixes) {
+                const found = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === p.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                if (found) return asset[found];
+            }
+            return null;
+        };
+
+        const parseDate = (d) => {
+            if (!d) return null;
+            const parsed = new Date(d);
+            return isNaN(parsed.getTime()) ? null : parsed;
+        };
+
+        const nextService = parseDate(findField(['nextServiceDate', 'nextService', 'serviceDue']));
+        const amcExpiry = parseDate(findField(['amcExpiry', 'amcExpiryDate', 'amcDate', 'expiryDate']));
+        const status = String(asset.status || '').trim();
 
         let categories = ['All'];
-        if (asset.status === 'Active') categories.push('Active');
-        if (asset.status === 'Replaced') categories.push('Replaced');
+        if (status === 'Active') categories.push('Active');
+        if (status === 'Replaced') categories.push('Replaced');
 
         if (nextService) {
             const diffTime = nextService - today;

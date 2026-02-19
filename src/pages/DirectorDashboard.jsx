@@ -4,7 +4,7 @@ import { assetsService } from '../services/assetsService';
 import {
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { AlertOctagon, TrendingUp, DollarSign, Activity, ArrowRight } from 'lucide-react';
+import { AlertOctagon, TrendingUp, Activity, ArrowRight } from 'lucide-react';
 
 const DirectorDashboard = () => {
     const navigate = useNavigate();
@@ -53,9 +53,20 @@ const DirectorDashboard = () => {
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
-                <h1 className="text-3xl font-black tracking-tight mb-2">Director's Strategic Overview</h1>
-                <p className="text-slate-400">High-level asset health, risk assessment, and capital planning insights.</p>
+            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                <div className="relative z-10">
+                    <h2 className="text-2xl font-black flex items-center gap-2 text-white">
+                        <Activity className="text-indigo-300" />
+                        Director's Strategic Overview
+                    </h2>
+                    <p className="text-indigo-100 text-sm font-medium mt-1">
+                        High-level asset health, risk assessment, and capital planning insights.
+                    </p>
+                </div>
+                {/* Background Pattern */}
+                <div className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10">
+                    <Activity size={200} />
+                </div>
             </div>
 
             {/* Top KPIs */}
@@ -67,7 +78,7 @@ const DirectorDashboard = () => {
                             ₹{assets.reduce((sum, a) => sum + (Number(a.purchaseCost) || 0), 0).toLocaleString()}
                         </p>
                     </div>
-                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><DollarSign size={24} /></div>
+                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl font-black text-xl">₹</div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                     <div>
@@ -91,8 +102,8 @@ const DirectorDashboard = () => {
                     <h3 className="text-lg font-black text-[#1f2d2a] mb-6 flex items-center gap-2">
                         <Activity className="text-slate-400" /> Asset Health Distribution
                     </h3>
-                    <div className="h-64" style={{ minHeight: '250px' }}>
-                        <ResponsiveContainer width="99%" height="100%">
+                    <div className="h-64" style={{ minWidth: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                             <PieChart>
                                 <Pie
                                     data={healthData}

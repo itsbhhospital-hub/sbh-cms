@@ -10,7 +10,7 @@
  * @returns {string}
  */
 export const normalize = (val) => {
-    return String(val || '').toLowerCase().trim();
+    return String(val || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 };
 
 /**

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SBH CMS</string>
-    <string name="title_activity_main">SBH CMS</string>
+    <string name="app_name">SBH Group</string>
+    <string name="title_activity_main">SBH Group</string>
     <string name="package_name">com.sbhcms.app</string>
     <string name="custom_url_scheme">com.sbhcms.app</string>
 </resources>

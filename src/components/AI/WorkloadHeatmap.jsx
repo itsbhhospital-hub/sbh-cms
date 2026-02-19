@@ -2,6 +2,7 @@ import { useIntelligence } from '../../context/IntelligenceContext';
 import { calculateWorkloadParams } from '../../services/aiCore';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
+import { normalize } from '../../utils/dataUtils';
 
 const WorkloadHeatmap = () => {
     const { allTickets, aiDeptLoad } = useIntelligence();
@@ -28,8 +29,8 @@ const WorkloadHeatmap = () => {
 
     // Filtering for visibility
     if (!isUserAdmin) {
-        const uDept = String(user?.Department || '').toLowerCase().trim();
-        departments = departments.filter(d => d.name.toLowerCase().trim() === uDept);
+        const uDept = normalize(user?.Department || '');
+        departments = departments.filter(d => normalize(d.name) === uDept);
     }
 
     departments.sort((a, b) => b.open - a.open); // Sort by highest load

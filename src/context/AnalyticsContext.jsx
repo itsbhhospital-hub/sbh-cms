@@ -231,7 +231,7 @@ export const AnalyticsProvider = ({ children }) => {
         });
 
         // --- 3. FINAL EFFICIENCY CALCULATION (MASTER FORMULA) ---
-        const finalStaffStats = Object.values(staffMap).map(s => {
+        const rankedStaffList = Object.values(staffMap).map(s => {
             // A. Avg Rating
             const avgRating = s.ratings.length ? (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length) : 0;
 
@@ -278,14 +278,14 @@ export const AnalyticsProvider = ({ children }) => {
 
         // --- 4. GLOBAL RANKING ---
         // Sort: Efficiency -> Solved -> Speed (ASC is better for speed? No, "SpeedScore" already handles "Lower is Better" conversion)
-        finalStaffStats.sort((a, b) => {
+        rankedStaffList.sort((a, b) => {
             if (parseFloat(b.efficiency) !== parseFloat(a.efficiency)) return parseFloat(b.efficiency) - parseFloat(a.efficiency);
             if (b.resolved !== a.resolved) return b.resolved - a.resolved;
             return parseFloat(a.avgSpeed) - parseFloat(b.avgSpeed); // Lower speed (hours) is better tiebreaker if identical score
         });
 
         // Assign Rank
-        finalStaffStats.forEach((s, idx) => {
+        rankedStaffList.forEach((s, idx) => {
             s.rank = idx + 1;
         });
 
@@ -297,7 +297,7 @@ export const AnalyticsProvider = ({ children }) => {
 
         // Update State
         setDeptStats(Object.entries(depts).map(([name, stats]) => ({ name, ...stats })));
-        setStaffStats(finalStaffStats);
+        setStaffStats(rankedStaffList);
         setDelayRisks(risks);
         setFlowStats(flow);
         setAlerts(alertsList);

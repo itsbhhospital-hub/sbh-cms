@@ -8,13 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle, AlertCircle, Clock, Plus, History, Shield, Users, Share2, Timer, Filter, AlertTriangle, X, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DirectorDashboard from '../components/Analytics/DirectorDashboard';
+import { normalize } from '../utils/dataUtils';
 import { useIntelligence } from '../context/IntelligenceContext';
 import WorkloadHeatmap from '../components/AI/WorkloadHeatmap';
 import RiskPredictionPanel from '../components/AI/RiskPredictionPanel';
 import AIExcellenceRegistry from '../components/AI/AIExcellenceRegistry';
 import AILivePulse from '../components/AILivePulse';
-
-const normalize = (val) => String(val || '').toLowerCase().trim();
 
 const Dashboard = () => {
     const { user } = useAuth();
@@ -104,65 +103,47 @@ const Dashboard = () => {
     // AUTOMATED CHECKS (Run when Data Updates)
     // ------------------------------------------------------------------
 
-    // 🟢 FIX: FRONTEND STATE BINDING - Calculate Counts from Fetched Data
-    // Use useMemo ensures we recalculate ONLY when allTickets changes.
-    // This solves the issue of panels showing 0 while data exists.
+    // 🟢 OPTIMIZED: Calculate Counts with O(1) Visibility Check
     const dashboardStats = useMemo(() => {
-        // Initial 0 state
         const initial = { open: 0, pending: 0, solved: 0, transferred: 0, delayed: 0, extended: 0 };
-
-        if (!allTickets || allTickets.length === 0) return initial;
+        if (!allTickets.length) return initial;
 
         const uDept = normalize(user.Department);
         const uName = normalize(user.Username);
-        const isAdminView = isUserAdmin;
+        const isAdmin = isUserAdmin;
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
 
-        allTickets.forEach(t => {
-            // Permission Filter (Match Popup Logic)
+        for (let i = 0; i < allTickets.length; i++) {
+            const t = allTickets[i];
             const rowDept = normalize(t.Department);
             const rowBy = normalize(t.ReportedBy);
             const rowReporter = normalize(t.Reporter || t.Username);
             const rowResolver = normalize(t.ResolvedBy);
 
-            const isVisible = isAdminView || rowDept === uDept || rowBy === uName || rowReporter === uName || rowResolver === uName;
-            if (!isVisible) return;
+            // Visibility Filter (Must match Popup logic)
+            const isVisible = isAdmin || rowDept === uDept || rowBy === uName || rowReporter === uName || rowResolver === uName;
+            if (!isVisible) continue;
 
-            const status = String(t.Status || '').toLowerCase().trim();
-            const delayVal = String(t.Delay || '').toLowerCase().trim();
+            const isClosed = ['solved', 'closed', 'resolved', 'force close', 'done', 'fixed'].includes(status);
 
-            const isClosed = ['solved', 'closed', 'resolved', 'force close'].includes(status);
-
-            // 🟢 REAL-TIME DELAY DETECTION
-            const startOfToday = new Date();
-            startOfToday.setHours(0, 0, 0, 0);
-            const regDate = new Date(t.Date);
-            const isPastRegistration = !isNaN(regDate.getTime()) && regDate < startOfToday;
-            const isDelayed = delayVal === 'yes' || status === 'delayed' || isPastRegistration;
-
-            // 1. SOLVED
             if (isClosed) {
                 initial.solved++;
-                return; // Stop processing if closed
+                continue;
             }
 
-            // 2. ACTIVE FLOW (Open, Pending, Delayed, etc.)
-            // "Open" Panel = All Active tickets (Active = Not Closed)
             initial.open++;
-
-            // Breakdown
             if (status === 'pending' || status === 'in-progress') initial.pending++;
             if (status === 'transferred') initial.transferred++;
+
             const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
             if (status === 'extended' || status === 'extend' || hasTargetDate) initial.extended++;
 
-            // 3. DELAYED (Can be active)
-            if (isDelayed) {
-                initial.delayed++;
-            }
-        });
-
+            const regTime = t.Date ? new Date(t.Date).getTime() : 0;
+            const isDelayed = normalize(t.Delay) === 'yes' || status === 'delayed' || (regTime > 0 && regTime < startOfToday);
+            if (isDelayed) initial.delayed++;
+        }
         return initial;
-    }, [allTickets, user]);
+    }, [allTickets, user, isUserAdmin]);
 
     useEffect(() => {
         if (loading || !allTickets.length) return;
@@ -280,53 +261,51 @@ const Dashboard = () => {
     const filteredPopupItems = useMemo(() => {
         if (!popupOpen || !popupCategory || popupCategory === 'Active Staff') return [];
 
-        const isAdminView = isUserAdmin;
+        const isAdmin = isUserAdmin;
         const uDept = normalize(user.Department);
         const uname = normalize(user.Username);
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
+        const result = [];
 
-        return sortedAllTickets.filter(t => {
-            // Visibility Check
+        for (let i = 0; i < sortedAllTickets.length; i++) {
+            const t = sortedAllTickets[i];
             const rowDept = normalize(t.Department);
             const rowBy = normalize(t.ReportedBy);
             const rowReporter = normalize(t.Reporter || t.Username);
             const rowResolver = normalize(t.ResolvedBy);
 
-            const isVisible = isAdminView || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
-            if (!isVisible) return false;
+            const isVisible = isAdmin || rowDept === uDept || rowBy === uname || rowReporter === uname || rowResolver === uname;
+            if (!isVisible) continue;
+
+            if (popupSubFilter === 'personal' && rowResolver !== uname) continue;
 
             const status = normalize(t.Status);
+            const isClosed = ['solved', 'closed', 'resolved', 'force close', 'done', 'fixed'].includes(status);
 
-            // 🟢 PERSONAL FILTER (For "Your Impact" section)
-            if (popupSubFilter === 'personal') {
-                if (rowResolver !== uname && rowBy !== uname) return false;
-            }
-
-            if (popupCategory === 'All') return true;
-
-            if (popupCategory === 'Open') {
-                if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
-                return true;
-            }
-
-            if (popupCategory === 'Delayed') {
-                const isDelayed = String(t.Delay).toLowerCase() === 'yes' || status === 'delayed';
-                if (!isDelayed) return false;
-                if (['solved', 'closed', 'resolved', 'force close'].includes(status)) return false;
-
-                const isMyDept = rowDept === uDept;
-                const isReporter = rowBy === uname || rowReporter === uname;
-                if (!isAdminView && (isReporter || !isMyDept)) return false;
-                return true;
-            }
-
-            if (popupCategory === 'Solved') return ['solved', 'closed', 'resolved', 'force close'].includes(status);
-            if (popupCategory === 'Extended') {
+            if (popupCategory === 'All') {
+                result.push(t);
+            } else if (popupCategory === 'Open') {
+                if (!isClosed) result.push(t);
+            } else if (popupCategory === 'Solved') {
+                if (isClosed) result.push(t);
+            } else if (popupCategory === 'Delayed') {
+                if (isClosed) continue;
+                const regTime = t.Date ? new Date(t.Date).getTime() : 0;
+                const isDelayed = normalize(t.Delay) === 'yes' || status === 'delayed' || (regTime > 0 && regTime < startOfToday);
+                if (isDelayed) {
+                    if (isAdmin || (rowDept === uDept && rowBy !== uname && rowReporter !== uname)) {
+                        result.push(t);
+                    }
+                }
+            } else if (popupCategory === 'Extended') {
                 const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';
-                return status === 'extended' || status === 'extend' || hasTargetDate;
+                if (status === 'extended' || status === 'extend' || hasTargetDate) result.push(t);
+            } else if (status === popupCategory.toLowerCase()) {
+                result.push(t);
             }
-            return status === popupCategory.toLowerCase();
-        });
-    }, [sortedAllTickets, popupOpen, popupCategory, user]);
+        }
+        return result;
+    }, [sortedAllTickets, popupOpen, popupCategory, user, isUserAdmin, popupSubFilter]);
 
     const handleCardClick = (type, subFilter = null) => {
         if (type === 'Active Staff') {
@@ -355,12 +334,12 @@ const Dashboard = () => {
                     <Icon size={14} />
                 </div>
                 {activeFilter === filterType && filterType !== 'Active Staff' && (
-                    <div className="bg-[#2e7d32] text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest">Active</div>
+                    <div className="bg-[#2e7d32] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">Active</div>
                 )}
             </div>
             <div className="relative z-10">
-                <h3 className="text-2xl font-black text-[#1f2d2a] leading-none mb-0.5 tracking-tighter">{value}</h3>
-                <p className="text-[9px] font-black text-slate-400 tracking-widest uppercase opacity-80">{title}</p>
+                <h3 className="text-2xl font-bold text-[#1f2d2a] leading-none mb-0.5 tracking-tighter">{value}</h3>
+                <p className="text-[9px] font-bold text-slate-400 tracking-wider uppercase opacity-80">{title}</p>
             </div>
         </div>
     );
@@ -378,7 +357,6 @@ const Dashboard = () => {
     const myRating = myStats.avgRating ? Number(myStats.avgRating).toFixed(1) : '0.0';
     const myRank = myStats.rank ? `#${myStats.rank}` : '-';
 
-    if (loading) return <DashboardSkeleton />;
 
     return (
         <div className="w-full max-w-full overflow-x-hidden md:px-0 space-y-6 md:space-y-8 pb-10">
@@ -398,7 +376,7 @@ const Dashboard = () => {
                 }}
             />
 
-            {user?.Username === 'AM Sir' && <DirectorDashboard />}
+            {isSuperAdmin && <DirectorDashboard />}
 
             <AnimatePresence>
                 {delayAlert && (
@@ -547,13 +525,13 @@ const Dashboard = () => {
             <AILivePulse />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-4">
                 <div>
-                    <h1 className="text-3xl font-black text-[#1f2d2a] tracking-tighter flex items-center gap-4 uppercase">
+                    <h1 className="text-3xl font-bold text-[#1f2d2a] tracking-tight flex items-center gap-4 uppercase">
                         Ticket <span className="text-[#2e7d32]">Registry</span>
-                        <span className="px-3 py-1 rounded-xl bg-[#cfead6] border border-[#2e7d32]/10 text-[10px] font-black text-[#2e7d32] tracking-[0.2em] whitespace-nowrap uppercase">
+                        <span className="px-3 py-1 rounded-xl bg-[#cfead6] border border-[#2e7d32]/10 text-[10px] font-bold text-[#2e7d32] tracking-wider whitespace-nowrap uppercase">
                             Live Sync
                         </span>
                     </h1>
-                    <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-[0.3em] opacity-60">Medical Service Operational Monitoring</p>
+                    <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest opacity-60">Medical Service Operational Monitoring</p>
                 </div>
                 <div className="w-full md:w-auto">
                     <Link to="/new-complaint" className="w-full md:w-auto px-8 py-4 bg-[#2e7d32] text-white hover:bg-[#256628] rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-3 uppercase">
@@ -599,7 +577,7 @@ const Dashboard = () => {
 
                     {/* B. METRICS SNAPSHOT GRID (Moved Bottom & Compacted) */}
                     <div className="flex flex-col bg-white rounded-2xl p-4 border border-[#dcdcdc] shadow-sm relative overflow-hidden min-h-[400px]">
-                        <h3 className="text-[10px] font-bold text-slate-300 mb-3 uppercase tracking-widest pl-1">Operational Snapshot</h3>
+                        <h3 className="text-[10px] font-bold text-slate-300 mb-3 uppercase tracking-wider pl-1">Operational Snapshot</h3>
 
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-full flex-grow grid-rows-3 lg:grid-rows-2">
                             {/* Row 1 */}
@@ -650,7 +628,7 @@ const Dashboard = () => {
             <div className="bg-white rounded-[2rem] p-8 border border-[#dcdcdc] shadow-sm mt-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-32 translate-x-32 opacity-50"></div>
 
-                <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 uppercase tracking-[0.3em] relative z-10">
+                <h3 className="text-[10px] font-bold text-slate-400 mb-6 flex items-center gap-2 uppercase tracking-widest relative z-10">
                     <Shield size={16} className="text-[#2e7d32]" />
                     Performance Analytics
                 </h3>
@@ -661,18 +639,18 @@ const Dashboard = () => {
                         onClick={() => handleCardClick('Solved', 'personal')}
                         className="bg-white p-6 rounded-2xl border border-[#dcdcdc] hover:border-[#2e7d32] transition-all group cursor-pointer active:scale-95"
                     >
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Your Impact</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Your Impact</p>
                         <div className="flex items-end justify-between">
-                            <h4 className="text-5xl font-black text-[#1f2d2a] leading-none tracking-tighter">{mySolved}</h4>
-                            <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Solved</div>
+                            <h4 className="text-5xl font-bold text-[#1f2d2a] leading-none tracking-tighter">{mySolved}</h4>
+                            <div className="bg-[#cfead6] text-[#2e7d32] text-[8px] font-bold px-2 py-1 rounded uppercase tracking-wider">Solved</div>
                         </div>
                     </div>
 
                     {/* 2. Avg Speed */}
                     <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Avg Speed</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Avg Speed</p>
                         <div className="flex items-end justify-between">
-                            <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">
+                            <h4 className="text-4xl font-bold text-[#1f2d2a] leading-none tracking-tighter">
                                 {String(mySpeed).split(' ')[0]} <span className="text-sm text-slate-400 font-bold ml-1">{String(mySpeed).split(' ')[1]}</span>
                             </h4>
                             <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
@@ -683,18 +661,18 @@ const Dashboard = () => {
 
                     {/* 3. Quality Score */}
                     <div className="bg-white p-6 rounded-2xl border border-[#dcdcdc] transition-all">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Quality Score</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-4">Quality Score</p>
                         <div className="flex items-end justify-between">
-                            <h4 className="text-4xl font-black text-[#1f2d2a] leading-none tracking-tighter">{myRating} <span className="text-amber-400 text-2xl">★</span></h4>
+                            <h4 className="text-4xl font-bold text-[#1f2d2a] leading-none tracking-tighter">{myRating} <span className="text-amber-400 text-2xl">★</span></h4>
                         </div>
                     </div>
 
                     {/* 4. Efficiency Rank (Dark Theme) */}
                     <div className="bg-[#1f2d2a] p-6 rounded-2xl border border-black shadow-xl shadow-slate-200 transition-all group overflow-hidden relative">
                         <TrendingUp className="absolute right-0 bottom-0 text-[#2e7d32]/10 w-24 h-24 -mr-4 -mb-4 rotate-12" />
-                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-4 relative z-10">Efficiency Rank</p>
+                        <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-4 relative z-10">Efficiency Rank</p>
                         <div className="flex items-end justify-between relative z-10">
-                            <h4 className="text-5xl font-black text-white leading-none tracking-tighter">{myRank.replace('#', '') || '0'}</h4>
+                            <h4 className="text-5xl font-bold text-white leading-none tracking-tighter">{myRank.replace('#', '') || '0'}</h4>
                         </div>
                     </div>
                 </div>
