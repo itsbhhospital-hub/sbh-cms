@@ -21,7 +21,34 @@ const findField = (item, prefixes) => {
 
 const parseDateSafe = (d) => {
     if (!d) return null;
-    const parsed = new Date(d);
+
+    // Handle Google Sheets Numeric Dates (days since 30/12/1899)
+    if (typeof d === 'number' && d > 40000 && d < 60000) {
+        return new Date((d - 25569) * 86400 * 1000);
+    }
+
+    let parsed = new Date(d);
+
+    // Handle DD/MM/YYYY or DD-MM-YYYY which Date constructor might fail on
+    if ((isNaN(parsed.getTime()) || parsed.getFullYear() < 1971) && typeof d === 'string') {
+        const cleaned = d.split(' ')[0]; // Remove time if present
+        const parts = cleaned.split(/[/-]/);
+        if (parts.length === 3) {
+            let day, month, year;
+            if (parts[0].length === 4) { // YYYY-MM-DD
+                year = parseInt(parts[0]);
+                month = parseInt(parts[1]) - 1;
+                day = parseInt(parts[2]);
+            } else { // DD-MM-YYYY
+                day = parseInt(parts[0]);
+                month = parseInt(parts[1]) - 1;
+                year = parseInt(parts[2]);
+            }
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                parsed = new Date(year, month, day);
+            }
+        }
+    }
     return isNaN(parsed.getTime()) ? null : parsed;
 };
 
@@ -229,15 +256,48 @@ export const IntelligenceProvider = ({ children }) => {
             .sort((a, b) => b.efficiency - a.efficiency)
             .map((s, idx) => ({ ...s, rank: idx + 1 }));
 
-        // Asset Analytics
+        // Trend Analysis (Last 14 Days)
+        const trends = {};
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            trends[d.toDateString()] = {
+                date: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
+                tickets: 0,
+                assets: 0,
+                serviced: 0,
+                warranty: 0
+            };
+        }
+
+        // 1. Ticketing Trends (Complaints) - Robust Extraction
+        tickets.forEach(t => {
+            // Check normalized Date, then fallbacks
+            const rawDate = t.Date || t.Timestamp || t.date || t.datetime || t.RegistrationDate || t.RegisteredAt || t.EntryDate;
+            const tDate = parseDateSafe(rawDate);
+            if (tDate) {
+                const dateKey = tDate.toDateString();
+                if (trends[dateKey]) trends[dateKey].tickets++;
+            }
+        });
+
+        // 2. Asset & Expiry Analysis
+        const aStats = { total: 0, risk: 0, void: 0, serviceDue: 0, healthy: 0 };
         if (assetsData && Array.isArray(assetsData)) {
-            const aStats = { total: assetsData.length, risk: 0, void: 0, serviceDue: 0, healthy: 0 };
+            aStats.total = assetsData.length;
             assetsData.forEach(a => {
-                const amcTaken = normalize(findField(a, ['AMCTaken', 'AMC'])) === 'yes';
-                const amcExpiry = parseDateSafe(findField(a, ['AMCExpiry', 'AMCExpiryDate', 'AMCDate', 'ExpiryDate']));
+                const installDate = parseDateSafe(findField(a, ['InstallationDate', 'PurchaseDate', 'Date', 'RegisteredDate']));
+                const lastService = parseDateSafe(findField(a, ['LastServiceDate', 'ServiceDate', 'LastService']));
+                const amcTaken = normalize(findField(a, ['AMCTaken', 'AMC', 'WarrantyStatus'])) === 'yes';
+                const amcExpiry = parseDateSafe(findField(a, ['AMCExpiry', 'AMCExpiryDate', 'AMCDate', 'ExpiryDate', 'WarrantyExpiry']));
                 const nextService = parseDateSafe(findField(a, ['NextServiceDate', 'NextService', 'ServiceDue']));
                 const health = a.aiHealthScore ?? 100;
 
+                // Trend mapping
+                if (installDate && trends[installDate.toDateString()]) trends[installDate.toDateString()].assets++;
+                if (lastService && trends[lastService.toDateString()]) trends[lastService.toDateString()].serviced++;
+                if (amcTaken && trends[installDate?.toDateString()]) trends[installDate.toDateString()].warranty++; // Assuming warranty taken at install if no specific date
+
+                // Status mapping
                 if (health > 80) aStats.healthy++;
                 if (amcTaken && amcExpiry) {
                     const diffDays = Math.ceil((amcExpiry - now) / 864e5);
@@ -251,20 +311,6 @@ export const IntelligenceProvider = ({ children }) => {
             });
             setAssetStats(aStats);
         }
-
-        // Trend Analysis
-        const trends = {};
-        for (let i = 13; i >= 0; i--) {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            trends[d.toDateString()] = { date: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }), tickets: 0 };
-        }
-        tickets.forEach(t => {
-            const tDate = parseDateSafe(t.Date || t.date || t.Timestamp);
-            if (tDate) {
-                const dateKey = tDate.toDateString();
-                if (trends[dateKey]) trends[dateKey].tickets++;
-            }
-        });
 
         // Heatmap Trend Analysis (Last 7 Days)
         const heatmapTrends = [];

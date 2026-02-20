@@ -51,15 +51,18 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   // Handle hiding the manual loader after navigation + data is ready
+  // Handle hiding the manual loader after navigation + data is ready
   React.useEffect(() => {
-    if (isLoading && !isSystemLoading && !intelLoading) {
+    // FORCE HIDE: If intelligence is ready, we must dismiss the system loader
+    // This fixes the infinite "Syncing System" issue from Login
+    if (!intelLoading && (isLoading || isSystemLoading)) {
       // Small graceful fade out
       const timer = setTimeout(() => {
         hideLoader();
-      }, 400);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [location.pathname, intelLoading, isLoading]);
+  }, [location.pathname, intelLoading, isLoading, isSystemLoading]);
 
   return (
     <LayoutProvider>

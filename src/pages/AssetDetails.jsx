@@ -1126,14 +1126,30 @@ const AssetDetails = () => {
                                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Department</label>
                                         <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold"
                                             value={editForm.department || ''} onChange={e => setEditForm({ ...editForm, department: e.target.value })}>
-                                            <option value="">Select...</option>
-                                            <option value="Radiology">Radiology</option>
-                                            <option value="Pathology">Pathology</option>
-                                            <option value="OT">OT</option>
-                                            <option value="ICU">ICU</option>
-                                            <option value="OPD">OPD</option>
+                                            <option value="">Select Department</option>
+                                            <option value="Account">Account</option>
+                                            <option value="Admin">Admin</option>
+                                            <option value="Counsellor">Counsellor</option>
+                                            <option value="Director">Director</option>
+                                            <option value="Director House (Law Vista)">Director House (Law Vista)</option>
+                                            <option value="Doctors">Doctors</option>
                                             <option value="General Ward">General Ward</option>
+                                            <option value="House Keeping">House Keeping</option>
+                                            <option value="HR">HR</option>
+                                            <option value="ICU">ICU</option>
                                             <option value="IT">IT</option>
+                                            <option value="Maintenance">Maintenance</option>
+                                            <option value="Marketing">Marketing</option>
+                                            <option value="Nursing">Nursing</option>
+                                            <option value="OPD">OPD</option>
+                                            <option value="Operations">Operations</option>
+                                            <option value="OT">Operation Theatre (OT)</option>
+                                            <option value="Pathology">Pathology</option>
+                                            <option value="Pharmacy">Pharmacy</option>
+                                            <option value="Radiology">Radiology</option>
+                                            <option value="Reception">Reception</option>
+                                            <option value="Store">Store</option>
+                                            <option value="TPA">TPA</option>
                                         </select>
                                     </div>
                                 </div>

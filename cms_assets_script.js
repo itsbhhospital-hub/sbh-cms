@@ -79,7 +79,7 @@ function updateAssetsSheetStructure() {
     // Phase 10 Update: Add QR PDF Link, Keywords, Description, Responsible Person
     const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-    const newHeaders = ["QR PDF Link", "Keywords", "Description", "Responsible Person", "Responsible Mobile", "Last Updated"];
+    const newHeaders = ["QR PDF Link", "Keywords", "Description", "Responsible Person", "Responsible Mobile", "Vendor Mobile", "Last Updated"];
 
     newHeaders.forEach(header => {
         if (!currentHeaders.includes(header)) {
@@ -250,6 +250,7 @@ function addAsset(data) {
         qrPdfLink || "", // QR PDF Link Key
         data.responsiblePerson || "", // NEW
         data.responsibleMobile || "",  // NEW
+        data.vendorMobile || "", // NEW (Phase 11)
         timestamp // Last Updated
     ];
 
@@ -270,6 +271,7 @@ function addAsset(data) {
 📅 Date: ${formatDate(data.purchaseDate)}
 💵 Cost: ₹${Number(data.purchaseCost || 0).toLocaleString()}
 🤝 Vendor: ${data.vendorName || 'N/A'}
+📱 Vendor Mobile: ${data.vendorMobile || 'N/A'}
 
 🛡️ *Service & Warranty:*
 ⌛ Warranty: ${data.warrantyType || 'None'} (${formatDate(data.warrantyExpiry)})
@@ -360,6 +362,7 @@ function editAsset(data) {
     update("Description", data.description);
     update("Responsible Person", data.responsiblePerson);
     update("Responsible Mobile", data.responsibleMobile);
+    update("Vendor Mobile", data.vendorMobile);
     update("Last Updated", new Date());
 
     return { status: "success", message: "Asset Updated Successfully" };
@@ -1292,11 +1295,11 @@ function checkDailyReminders() {
             const diffDays = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
 
             if (diffDays <= 20 && diffDays >= 0) {
-                const msg = `🛠️ *EQUIPMENT MAINTENANCE ALERT* 🛠️\n\nHello *${respName}*,\nThis is a professional reminder from **SBH Group of Hospitals**.\n\n📌 *Asset Details:*\n🆔 ID: \`${asset.id}\` \n⚙️ Machine: *${asset.machineName}*\n📍 Location: ${asset.location}\n\n🕒 *Status:* Service is Due on *${formatDate(nextDue)}*\n\n✅ Please ensure the service is completed to maintain optimal performance.\n\n*SBH Group Of Hospitals* 🏥`;
+                const msg = `🛠️ *EQUIPMENT MAINTENANCE ALERT* 🛠️\n\nHello *${respName}*,\nThis is a professional reminder from **SBH Group of Hospitals**.\n\n📌 *Asset Details:*\n🆔 ID: \`${asset.id}\` \n⚙️ Machine: *${asset.machineName}*\n📍 Location: ${asset.location}\n\n🕒 *Status:* Service is Due on *${formatDate(nextDue)}*\n\n🔧 *Vendor Info:*\nName: ${asset.vendorName || "N/A"}\n📱 Mobile: ${asset.vendorMobile || "N/A"}\n\n✅ Please ensure the service is completed to maintain optimal performance.\n\n*SBH Group Of Hospitals* 🏥`;
                 sendWhatsAppAlert(msg, respMobile);
             } else if (diffDays < 0) {
                 const overdueDays = Math.abs(diffDays);
-                let msg = `🚨 *SERVICE OVERDUE ALERT* 🚨\n\nAsset: *${asset.machineName}* (\`${asset.id}\`)\nImmediate Action Required.\nDue was: ${formatDate(nextDue)}\n\n*SBH Group of Hospitals*`;
+                let msg = `🚨 *SERVICE OVERDUE ALERT* 🚨\n\nAsset: *${asset.machineName}* (\`${asset.id}\`)\n📍 Location: ${asset.location}\n\n⚠️ *CRITICAL:* Service was due on *${formatDate(nextDue)}*.\nIt is now overdue by *${overdueDays} days*.\n\n🔧 *Vendor Info:*\nName: ${asset.vendorName || "N/A"}\n📱 Mobile: ${asset.vendorMobile || "N/A"}\n\n👤 Responsible: ${respName}\n\n*SBH Group of Hospitals*`;
 
                 if (overdueDays === 7) {
                     sendWhatsAppAlert(`🚨 *OVERDUE ESCALATION (L2)* 🚨\n\nAsset \`${asset.id}\` service is overdue by 7 days.\nResponsible: ${respName}\nLoc: ${asset.location}`, L2_PHONE);

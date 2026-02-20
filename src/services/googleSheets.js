@@ -98,21 +98,30 @@ const normalizeRows = (rows) => {
         };
 
         // Standard Schema Mapping
-        normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID', 'Complaint ID', 'Case ID', 'TicketNo', 'IDNo', 'Complaint_ID', 'Complaint', 'Ticket']);
-        normalized.Date = findValue(['Date', 'Timestamp', 'Created Date']);
-        normalized.Time = findValue(['Time', 'Registered Time', 'Created Time']);
-        normalized.Department = normalize(findValue(['Department', 'Dept']));
-        normalized.Description = findValue(['Description', 'Desc', 'Complaint']);
-        const rawStatus = String(findValue(['Status']) || '').trim();
+        normalized.ID = findValue(['ID', 'Ticket ID', 'TID', 'ComplaintID', 'Complaint ID', 'Case ID', 'TicketNo', 'IDNo', 'Complaint_ID', 'Complaint', 'Ticket', 'CMS ID', 'CMS Ticket ID', 'CMS IDNo']);
+        normalized.Date = findValue(['Date', 'Timestamp', 'Created Date', 'CMS Date', 'CMS Timestamp', 'Complaint Date', 'Registered Date', 'Registration Date', 'DateTime', 'Reg Date', 'Registered At', 'Added Date', 'Entry Date', 'Date Registered']);
+        normalized.Time = findValue(['Time', 'Registered Time', 'Created Time', 'CMS Time', 'Reg Time', 'Entry Time']);
+        normalized.Department = normalize(findValue(['Department', 'Dept', 'CMS Department', 'CMS Dept', 'Unit/Dept', 'Section']));
+        normalized.Description = findValue(['Description', 'Desc', 'Complaint', 'CMS Description', 'CMS Complaint', 'Details', 'Problem']);
+        const rawStatus = String(findValue(['Status', 'CMS Status', 'Complaint Status', 'Current Status']) || '').trim();
         normalized.Status = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : ''; // Normalize: Open, Solved, etc.
-        normalized.Delay = findValue(['Delay', 'Delayed', 'IsDelayed']); // NEW: Delay Flag mapping
-        normalized.ReportedBy = normalize(findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name']));
+        normalized.Delay = findValue(['Delay', 'Delayed', 'IsDelayed', 'CMS Delay', 'Overdue']); // NEW: Delay Flag mapping
+        normalized.ReportedBy = normalize(findValue(['ReportedBy', 'User', 'Reporter', 'ReporterName', 'Reporter Name', 'Username', 'User Name', 'CMS ReportedBy', 'CMS User', 'Added By', 'Registered By']));
         // Complaint_Ratings specific
-        normalized.ResolvedBy = normalize(findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name']));
-        normalized.Remark = findValue(['Remark', 'Comments', 'Feedback']);
-        normalized.Unit = findValue(['Unit', 'Section', 'Ward']); // NEW: Unit Mapping
-        normalized.ResolvedDate = findValue(['Resolved Date', 'Closed Date', 'Closure Date', 'ResolvedDate']); // NEW: Closed Date Mapping
-        normalized.Rating = findValue(['Rating', 'Stars', 'Rate']); // NEW: Rating Mapping
+        normalized.ResolvedBy = normalize(findValue(['ResolvedBy', 'AssignedTo', 'Staff', 'StaffName', 'Staff Name', 'Staff Name (Resolver)', 'Resolver', 'Resolver Name', 'Resolved By', 'Handled By']));
+        normalized.Remark = findValue(['Remark', 'Comments', 'Feedback', 'CMS Remark', 'Note', 'Staff Note']);
+        normalized.Unit = findValue(['Unit', 'Section', 'Ward', 'CMS Unit', 'Floor', 'Block']); // NEW: Unit Mapping
+        normalized.ResolvedDate = findValue(['Resolved Date', 'Closed Date', 'Closure Date', 'ResolvedDate', 'CMS ResolvedDate', 'Solved Date', 'Done Date']); // NEW: Closed Date Mapping
+        normalized.Rating = findValue(['Rating', 'Stars', 'Rate', 'Feedback Score']); // NEW: Rating Mapping
+
+        // Asset Management Specifics
+        normalized.ResponsiblePerson = findValue(['Responsible Person', 'ResponsiblePerson', 'Person In Charge', 'Owner', 'User']);
+        normalized.ResponsibleMobile = findValue(['Responsible Mobile', 'ResponsibleMobile', 'Owner Mobile', 'Mobile No', 'Contact No']);
+        normalized.VendorName = findValue(['Vendor Name', 'VendorName', 'Vendor', 'Supplier']);
+        normalized.VendorContact = findValue(['Vendor Contact', 'VendorContact', 'Supplier Contact']);
+        normalized.VendorMobile = findValue(['Vendor Mobile', 'VendorMobile', 'Supplier Mobile']);
+        normalized.PurchaseCost = findValue(['Purchase Cost', 'PurchaseCost', 'Cost', 'Price', 'Value']);
+        normalized.PurchaseDate = findValue(['Purchase Date', 'PurchaseDate', 'Bought Date']);
 
         // User_Performance_Ratings specific
         normalized.SolvedCount = findValue(['Total Cases Solved', 'Solved Count', 'Cases Solved']);

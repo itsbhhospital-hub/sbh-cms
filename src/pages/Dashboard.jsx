@@ -119,6 +119,7 @@ const Dashboard = () => {
             const rowBy = normalize(t.ReportedBy);
             const rowReporter = normalize(t.Reporter || t.Username);
             const rowResolver = normalize(t.ResolvedBy);
+            const status = normalize(t.Status || '');
 
             // Visibility Filter (Must match Popup logic)
             const isVisible = isAdmin || rowDept === uDept || rowBy === uName || rowReporter === uName || rowResolver === uName;
@@ -293,9 +294,8 @@ const Dashboard = () => {
                 const regTime = t.Date ? new Date(t.Date).getTime() : 0;
                 const isDelayed = normalize(t.Delay) === 'yes' || status === 'delayed' || (regTime > 0 && regTime < startOfToday);
                 if (isDelayed) {
-                    if (isAdmin || (rowDept === uDept && rowBy !== uname && rowReporter !== uname)) {
-                        result.push(t);
-                    }
+                    // Match dashboardStats logic: If it's visible (already checked above), show it.
+                    result.push(t);
                 }
             } else if (popupCategory === 'Extended') {
                 const hasTargetDate = t.TargetDate && String(t.TargetDate).trim() !== '' && String(t.TargetDate).toLowerCase() !== 'none';

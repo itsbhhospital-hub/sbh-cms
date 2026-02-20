@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Building2, ClipboardList, Activity,
     ArrowRight, Zap, Target, ShieldCheck, Clock, AlertTriangle,
     TrendingUp, Users, Cpu, FileText, Globe, Sparkles, ZapOff,
-    CheckCircle2, AlertCircle, BarChart3, Fingerprint, Layers
+    CheckCircle2, AlertCircle, BarChart3, Fingerprint, Layers, XCircle, CheckCircle
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -127,28 +127,35 @@ const MainDashboard = () => {
                 </BentoCard>
 
                 {/* 📊 TILE 2: SERVICE PULSE CHART (Medium) */}
-                <BentoCard className="md:col-span-12 lg:col-span-12 xl:col-span-5" title="Operational Pulse" icon={TrendingUp}>
+                <BentoCard className="md:col-span-12 lg:col-span-12 xl:col-span-5" title="Operational Trend v4.1" icon={TrendingUp}>
                     <div className="w-full pt-4 relative mt-auto" style={{ height: '260px', minHeight: '260px' }}>
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
                             <AreaChart data={trendStats}>
                                 <defs>
-                                    <linearGradient id="v4Glow" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#2e7d32" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#2e7d32" stopOpacity={0} />
-                                    </linearGradient>
+                                    <linearGradient id="gTickets" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2e7d32" stopOpacity={0.1} /><stop offset="95%" stopColor="#2e7d32" stopOpacity={0} /></linearGradient>
+                                    <linearGradient id="gAssets" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
                                 </defs>
                                 <XAxis dataKey="date" fontSize={9} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
-                                <Tooltip content={({ active, payload, label }) => {
+                                <Tooltip content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         return (
-                                            <div className="bg-white border border-slate-200 p-2 rounded shadow-sm">
-                                                <p className="text-[10px] font-bold text-slate-800">{payload[0].value} Activities</p>
+                                            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xl space-y-2">
+                                                {payload.map((p, i) => (
+                                                    <div key={i} className="flex items-center gap-3">
+                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }}></div>
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{p.name === 'Tickets' ? 'Complaints' : p.name}</span>
+                                                        <span className="text-xs font-black text-slate-800 ml-auto">{p.value}</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         );
                                     }
                                     return null;
                                 }} />
-                                <Area type="monotone" dataKey="tickets" stroke="#2e7d32" strokeWidth={2} fill="url(#v4Glow)" isAnimationActive={false} />
+                                <Area type="monotone" name="Complaints" dataKey="tickets" stroke="#2e7d32" strokeWidth={2} fill="url(#gTickets)" isAnimationActive={false} />
+                                <Area type="monotone" name="Assets" dataKey="assets" stroke="#3b82f6" strokeWidth={2} fill="url(#gAssets)" isAnimationActive={false} />
+                                <Area type="monotone" name="Services" dataKey="serviced" stroke="#a855f7" strokeWidth={2} fill="none" strokeDasharray="5 5" isAnimationActive={false} />
+                                <Area type="monotone" name="Warranty" dataKey="warranty" stroke="#f59e0b" strokeWidth={2} fill="none" isAnimationActive={false} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -160,40 +167,35 @@ const MainDashboard = () => {
                         <CompactStat label="Open" value={stats.open} colorClass="text-blue-600" icon={Activity} />
                         <CompactStat label="Solved" value={stats.solved} colorClass="text-emerald-600" icon={CheckCircle2} />
                         <CompactStat label="Delayed" value={stats.delayed} colorClass="text-rose-600" icon={Clock} />
-                        <CompactStat label="AMC Cover" value={`${assetStats.total > 0 ? (((assetStats.total - assetStats.risk) / assetStats.total) * 100).toFixed(0) : 100}%`} colorClass="text-indigo-600" icon={ShieldCheck} />
+                        <CompactStat label="AMC Cover" value={`${assetStats.total > 0 ? (((assetStats.total - assetStats.risk - assetStats.void) / assetStats.total) * 100).toFixed(0) : 100}%`} colorClass="text-indigo-600" icon={ShieldCheck} />
                         <CompactStat label="Risks" value={assetStats.risk} colorClass="text-amber-600" icon={AlertTriangle} />
-                        <CompactStat label="Service" value={assetStats.serviceDue + assetStats.void} colorClass="text-purple-600" icon={Target} />
+                        <CompactStat label="Service" value={assetStats.serviceDue} colorClass="text-purple-600" icon={Target} />
                     </div>
                 </BentoCard>
 
-                {/* 🧠 TILE 4: OPERATIONAL HEALTH (Compact) */}
-                <BentoCard className="md:col-span-6 lg:col-span-4" title="Infrastructure Matrix" icon={Cpu}>
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">Hospital Health</span>
-                            <span className="text-lg font-bold text-[#2e7d32]">{hospitalHealth}%</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${hospitalHealth}%` }}
-                                className="h-full bg-[#2e7d32]"
-                            />
+                {/* 🚨 TILE 4: OVERDUE MONITORING (NEW) */}
+                <BentoCard className="md:col-span-6 lg:col-span-4" title="Overdue Monitoring" icon={AlertCircle}>
+                    <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between group cursor-pointer hover:bg-rose-100 transition-all" onClick={() => navigate('/assets')}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-rose-500 text-white rounded-lg"><XCircle size={16} /></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">AMC Expired</p>
+                                    <p className="text-lg font-black text-rose-900 leading-tight mt-1">{assetStats.void} Assets</p>
+                                </div>
+                            </div>
+                            <ArrowRight size={16} className="text-rose-300 group-hover:translate-x-1 transition-transform" />
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-50">
-                            <div className="text-center">
-                                <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Active Staff</p>
-                                <p className="text-sm font-bold text-slate-700">{flowStats.activeStaff || 0}</p>
+                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-between group cursor-pointer hover:bg-amber-100 transition-all" onClick={() => navigate('/assets')}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-500 text-white rounded-lg"><Clock size={16} /></div>
+                                <div>
+                                    <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">Service Overdue</p>
+                                    <p className="text-lg font-black text-amber-900 leading-tight mt-1">{assetStats.serviceDue} Assets</p>
+                                </div>
                             </div>
-                            <div className="text-center border-x border-slate-100">
-                                <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">BioMed HLTH</p>
-                                <p className="text-sm font-bold text-slate-700">{assetStats.total > 0 ? ((assetStats.healthy / assetStats.total) * 100).toFixed(0) : 100}%</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Escalations</p>
-                                <p className="text-sm font-bold text-slate-700">{stats.delayed}</p>
-                            </div>
+                            <ArrowRight size={16} className="text-amber-300 group-hover:translate-x-1 transition-transform" />
                         </div>
                     </div>
                 </BentoCard>

@@ -83,6 +83,11 @@ export const assetsService = {
         const payload = {
             action: 'addAsset',
             ...data,
+            // Explicitly map keys to match Backend/Sheet Headers if needed
+            Description: data.remark || data.description || '',
+            VendorMobile: data.vendorMobile || '',
+            ResponsiblePerson: data.responsiblePerson || '',
+            ResponsibleMobile: data.responsibleMobile || '',
             invoiceFile: invoiceFileBase64,
             invoiceName: invoiceFileName,
             invoiceType: invoiceType

@@ -211,15 +211,8 @@ const AssetsPanel = () => {
                         </span>
                     </div>
 
-                    {/* Line 5: Company | Model & Expiry Intelligence */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                            <Tag size={12} className="text-slate-400" />
-                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">
-                                {asset.company || 'Unknown'} | {asset.model || 'Generic'}
-                            </span>
-                        </div>
-
+                    {/* Line 5: Expiry Intelligence Only (Cleaned UI) */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
                         {/* Expiry Countdown Chips */}
                         {(() => {
                             const today = new Date();
@@ -249,18 +242,18 @@ const AssetsPanel = () => {
                                 if (days === null) return null;
                                 const color = getChipColor(days);
                                 return (
-                                    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-tight ${color}`}>
-                                        <Icon size={10} />
-                                        <span>{label}: {days < 0 ? 'Exp' : `${days}d`}</span>
+                                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wide ${color}`}>
+                                        <Icon size={12} />
+                                        <span>{label}: {days < 0 ? 'Expired' : `${days} Days`}</span>
                                     </div>
                                 );
                             };
 
                             return (
                                 <>
-                                    {renderChip(serviceDays, 'Svc', Clock)}
+                                    {renderChip(serviceDays, 'Service', Clock)}
                                     {renderChip(amcDays, 'AMC', ShieldAlert)}
-                                    {renderChip(warrantyDays, 'Wty', CheckCircle)}
+                                    {renderChip(warrantyDays, 'Warranty', CheckCircle)}
                                 </>
                             );
                         })()}

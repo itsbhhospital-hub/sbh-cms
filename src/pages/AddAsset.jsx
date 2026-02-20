@@ -161,13 +161,29 @@ const AddAsset = () => {
                                         onChange={e => setFormData({ ...formData, department: e.target.value })}
                                     >
                                         <option value="">Select Department</option>
-                                        <option value="Radiology">Radiology</option>
-                                        <option value="Pathology">Pathology</option>
-                                        <option value="OT">Operation Theatre (OT)</option>
-                                        <option value="ICU">ICU</option>
-                                        <option value="OPD">OPD</option>
+                                        <option value="Account">Account</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="Counsellor">Counsellor</option>
+                                        <option value="Director">Director</option>
+                                        <option value="Director House (Law Vista)">Director House (Law Vista)</option>
+                                        <option value="Doctors">Doctors</option>
                                         <option value="General Ward">General Ward</option>
-                                        <option value="IT">IT / Server Room</option>
+                                        <option value="House Keeping">House Keeping</option>
+                                        <option value="HR">HR</option>
+                                        <option value="ICU">ICU</option>
+                                        <option value="IT">IT</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Marketing">Marketing</option>
+                                        <option value="Nursing">Nursing</option>
+                                        <option value="OPD">OPD</option>
+                                        <option value="Operations">Operations</option>
+                                        <option value="OT">Operation Theatre (OT)</option>
+                                        <option value="Pathology">Pathology</option>
+                                        <option value="Pharmacy">Pharmacy</option>
+                                        <option value="Radiology">Radiology</option>
+                                        <option value="Reception">Reception</option>
+                                        <option value="Store">Store</option>
+                                        <option value="TPA">TPA</option>
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                         <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -227,15 +243,29 @@ const AddAsset = () => {
                                     onChange={e => setFormData({ ...formData, vendorName: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-1.5 md:col-span-3">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor Contact</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
-                                    placeholder="Phone or Email"
-                                    value={formData.vendorContact}
-                                    onChange={e => setFormData({ ...formData, vendorContact: e.target.value })}
-                                />
+
+                            {/* Vendor Contacts */}
+                            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor Contact (Email/Phone)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
+                                        placeholder="Support Email or Office Phone"
+                                        value={formData.vendorContact}
+                                        onChange={e => setFormData({ ...formData, vendorContact: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor Mobile</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
+                                        placeholder="e.g 98XXXXXXXX"
+                                        value={formData.vendorMobile}
+                                        onChange={e => setFormData({ ...formData, vendorMobile: e.target.value })}
+                                    />
+                                </div>
                             </div>
 
                             {/* RESPONSIBLE PERSON FIELDS */}
@@ -246,7 +276,7 @@ const AddAsset = () => {
                                         type="text"
                                         required
                                         className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                        placeholder="e.g. Dr. Sharma"
+                                        placeholder="e.g. Naman Mishra"
                                         value={formData.responsiblePerson}
                                         onChange={e => setFormData({ ...formData, responsiblePerson: e.target.value })}
                                     />
@@ -257,7 +287,7 @@ const AddAsset = () => {
                                         type="text"
                                         required
                                         className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                        placeholder="e.g. 9876543210"
+                                        placeholder="e.g. 8989828902"
                                         value={formData.responsibleMobile}
                                         onChange={e => setFormData({ ...formData, responsibleMobile: e.target.value })}
                                     />
